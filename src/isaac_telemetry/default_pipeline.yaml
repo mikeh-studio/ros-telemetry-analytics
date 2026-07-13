@@ -13,6 +13,7 @@ analytics:
       expected_rate_hz: 30.0
   gap_threshold_multiplier: 1.5
   minimum_rate_ratio: 0.8
+  maximum_rate_ratio: 1.2
   continuity_topic_patterns:
     - ^/tf$
     - ^/tf_static$

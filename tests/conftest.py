@@ -24,10 +24,17 @@ def write_bag():
         path: Path,
         messages: list[tuple[str, str, int]],
         storage_plugin: StoragePlugin = StoragePlugin.SQLITE3,
+        empty_topics: list[tuple[str, str]] | None = None,
     ) -> Path:
         typestore = get_typestore(Stores.ROS2_HUMBLE)
         with Writer(path, version=9, storage_plugin=storage_plugin) as writer:
             connections = {}
+            for topic, message_type in empty_topics or []:
+                connections[(topic, message_type)] = writer.add_connection(
+                    topic,
+                    message_type,
+                    typestore=typestore,
+                )
             for topic, message_type, timestamp in messages:
                 key = (topic, message_type)
                 if key not in connections:

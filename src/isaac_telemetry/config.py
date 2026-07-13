@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -29,6 +30,7 @@ class AnalyticsConfig:
     rate_rules: tuple[RateRule, ...]
     gap_threshold_multiplier: float = 1.5
     minimum_rate_ratio: float = 0.8
+    maximum_rate_ratio: float = 1.2
     continuity_topic_patterns: tuple[str, ...] = (
         r"^/tf$",
         r"^/tf_static$",
@@ -73,8 +75,8 @@ def analytics_fingerprint(config: AnalyticsConfig) -> str:
 
 def _positive_number(value: Any, name: str) -> float:
     number = float(value)
-    if number <= 0:
-        raise ValueError(f"{name} must be greater than zero")
+    if not math.isfinite(number) or number <= 0:
+        raise ValueError(f"{name} must be finite and greater than zero")
     return number
 
 
@@ -141,6 +143,10 @@ def load_pipeline_config(
         minimum_rate_ratio=_positive_number(
             analytics_raw.get("minimum_rate_ratio", 0.8),
             "minimum_rate_ratio",
+        ),
+        maximum_rate_ratio=_positive_number(
+            analytics_raw.get("maximum_rate_ratio", 1.2),
+            "maximum_rate_ratio",
         ),
         continuity_topic_patterns=continuity_patterns,
         continuity_gap_ratio_warn=_positive_number(

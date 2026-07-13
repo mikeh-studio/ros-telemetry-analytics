@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import json
 import logging
 import os
@@ -13,6 +14,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import pyarrow.parquet as pq
+
 from isaac_telemetry.analysis import analyze_message_index, build_analysis_summary
 from isaac_telemetry.config import PipelineConfig, analytics_fingerprint
 from isaac_telemetry.discovery import discover_bags, inventory_frame
@@ -20,6 +23,13 @@ from isaac_telemetry.models import BagSource, ProcessResult
 from isaac_telemetry.reader import scan_bag
 
 LOGGER = logging.getLogger(__name__)
+EXPECTED_BAG_ARTIFACTS = {
+    "message_index.parquet",
+    "topic_manifest.parquet",
+    "topic_health.parquet",
+    "vslam_quality.parquet",
+    "summary.json",
+}
 
 
 def _utc_now() -> str:
@@ -28,28 +38,54 @@ def _utc_now() -> str:
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(
-        mode="w",
-        encoding="utf-8",
-        dir=path.parent,
-        prefix=f".{path.name}-",
-        delete=False,
-    ) as temp_file:
-        json.dump(payload, temp_file, indent=2, sort_keys=True)
-        temp_file.write("\n")
-        temp_path = Path(temp_file.name)
-    os.replace(temp_path, path)
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}-",
+            delete=False,
+        ) as temp_file:
+            temp_path = Path(temp_file.name)
+            json.dump(payload, temp_file, indent=2, sort_keys=True)
+            temp_file.write("\n")
+        os.replace(temp_path, path)
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+
+
+def _write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}-",
+            delete=False,
+        ) as temp_file:
+            temp_path = Path(temp_file.name)
+            temp_file.write(content)
+        os.replace(temp_path, path)
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
 
 
 @contextmanager
 def _pipeline_lock(output_root: Path) -> Iterator[None]:
     output_root.mkdir(parents=True, exist_ok=True)
     lock_path = output_root / ".pipeline.lock"
-    with lock_path.open("w", encoding="utf-8") as lock_file:
+    with lock_path.open("a+", encoding="utf-8") as lock_file:
         try:
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
             raise RuntimeError(f"Another pipeline process holds {lock_path}") from exc
+        lock_file.seek(0)
+        lock_file.truncate()
         lock_file.write(f"pid={os.getpid()} started_at={_utc_now()}\n")
         lock_file.flush()
         try:
@@ -66,6 +102,46 @@ def _existing_summary(target_dir: Path) -> dict[str, Any] | None:
         return json.loads(summary_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
+
+
+def _cached_output_complete(target_dir: Path) -> bool:
+    if not all((target_dir / name).is_file() for name in EXPECTED_BAG_ARTIFACTS):
+        return False
+    try:
+        for name in EXPECTED_BAG_ARTIFACTS:
+            if name.endswith(".parquet"):
+                pq.read_schema(target_dir / name)
+    except (OSError, ValueError):
+        return False
+    return True
+
+
+def _recover_output_root(output_root: Path) -> None:
+    staging_root = output_root / ".staging"
+    if staging_root.exists():
+        shutil.rmtree(staging_root)
+
+    bags_root = output_root / "bags"
+    if not bags_root.exists():
+        return
+    for backup in sorted(bags_root.glob(".*-backup-*")):
+        target_name = backup.name[1:].rsplit("-backup-", 1)[0]
+        target = bags_root / target_name
+        if target.exists():
+            shutil.rmtree(backup)
+        else:
+            os.replace(backup, target)
+
+
+def _reconcile_bag_outputs(output_root: Path, active_bag_ids: set[str]) -> None:
+    bags_root = output_root / "bags"
+    if not bags_root.exists():
+        return
+    for child in bags_root.iterdir():
+        if child.name.startswith(".") or child.name in active_bag_ids:
+            continue
+        if child.is_dir():
+            shutil.rmtree(child)
 
 
 def _publish_stage(stage: Path, target: Path) -> None:
@@ -96,6 +172,7 @@ def process_source(
     if (
         not force
         and existing
+        and _cached_output_complete(target_dir)
         and existing.get("fingerprint") == source.fingerprint
         and existing.get("analytics_fingerprint") == current_analytics_fingerprint
         and existing.get("pipeline_status") == "success"
@@ -164,7 +241,8 @@ def _render_report(manifest: dict[str, Any]) -> str:
         f"Discovered: **{manifest['discovered_count']}**  ",
         f"Processed: **{manifest['processed_count']}**  ",
         f"Skipped: **{manifest['skipped_count']}**  ",
-        f"Failed: **{manifest['failed_count']}**",
+        f"Failed: **{manifest['failed_count']}**  ",
+        f"Not attempted: **{manifest['not_attempted_count']}**",
         "",
         "| Bag | Pipeline | Health | Messages | Topics | Warnings |",
         "| --- | --- | --- | ---: | ---: | ---: |",
@@ -189,14 +267,47 @@ def run_pipeline(
     run_id = f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:8]}"
 
     with _pipeline_lock(config.output_root):
-        sources = discover_bags(config.input_roots, config.excluded_directory_names)
+        _recover_output_root(config.output_root)
+        discovery_errors: list[tuple[Path, OSError]] = []
+        sources = discover_bags(
+            config.input_roots,
+            config.excluded_directory_names,
+            on_error=lambda path, exc: discovery_errors.append((path, exc)),
+        )
+        _reconcile_bag_outputs(config.output_root, {source.bag_id for source in sources})
         inventory = inventory_frame(sources)
         inventory_temp = config.output_root / ".bag_inventory.parquet.tmp"
         inventory.write_parquet(inventory_temp, compression="zstd")
         os.replace(inventory_temp, config.output_root / "bag_inventory.parquet")
 
-        results: list[ProcessResult] = []
-        for source in sources:
+        results: list[ProcessResult] = [
+            ProcessResult(
+                bag_id=(
+                    "discovery_error__" + hashlib.sha256(str(path).encode("utf-8")).hexdigest()[:8]
+                ),
+                status="failed",
+                source_path=str(path),
+                fingerprint="",
+                error_type=type(exc).__name__,
+                error_message=str(exc),
+            )
+            for path, exc in discovery_errors
+        ]
+        if fail_fast and discovery_errors:
+            results.extend(
+                ProcessResult(
+                    bag_id=source.bag_id,
+                    status="not_attempted",
+                    source_path=str(source.path),
+                    fingerprint=source.fingerprint,
+                )
+                for source in sources
+            )
+            sources_to_process: list[BagSource] = []
+        else:
+            sources_to_process = sources
+
+        for source_index, source in enumerate(sources_to_process):
             LOGGER.info("Analyzing %s (%s)", source.bag_id, source.path)
             try:
                 results.append(process_source(source, config, force=force))
@@ -213,12 +324,21 @@ def run_pipeline(
                     )
                 )
                 if fail_fast:
+                    results.extend(
+                        ProcessResult(
+                            bag_id=remaining.bag_id,
+                            status="not_attempted",
+                            source_path=str(remaining.path),
+                            fingerprint=remaining.fingerprint,
+                        )
+                        for remaining in sources_to_process[source_index + 1 :]
+                    )
                     break
 
         result_rows = [result.to_dict() for result in results]
         status_counts = {
             status: sum(row["status"] == status for row in result_rows)
-            for status in ("processed", "skipped", "failed")
+            for status in ("processed", "skipped", "failed", "not_attempted")
         }
         manifest = {
             "schema_version": 1,
@@ -227,16 +347,14 @@ def run_pipeline(
             "completed_at": _utc_now(),
             "input_roots": [str(path) for path in config.input_roots],
             "output_root": str(config.output_root),
-            "discovered_count": len(sources),
+            "discovered_count": len(sources) + len(discovery_errors),
             "processed_count": status_counts["processed"],
             "skipped_count": status_counts["skipped"],
             "failed_count": status_counts["failed"],
+            "not_attempted_count": status_counts["not_attempted"],
             "results": result_rows,
         }
         _write_json(config.output_root / "runs" / f"{run_id}.json", manifest)
         _write_json(config.output_root / "latest_run.json", manifest)
-        (config.output_root / "latest_report.md").write_text(
-            _render_report(manifest),
-            encoding="utf-8",
-        )
+        _write_text(config.output_root / "latest_report.md", _render_report(manifest))
         return manifest

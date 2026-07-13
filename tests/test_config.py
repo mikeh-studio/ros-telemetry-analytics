@@ -37,10 +37,11 @@ analytics:
     assert config.parquet_batch_size == 10
 
 
-def test_load_config_rejects_invalid_threshold(tmp_path: Path) -> None:
+@pytest.mark.parametrize("value", [0, -1, ".nan", ".inf"])
+def test_load_config_rejects_invalid_threshold(tmp_path: Path, value: object) -> None:
     config_path = tmp_path / "pipeline.yaml"
     config_path.write_text(
-        "analytics:\n  gap_threshold_multiplier: 0\n",
+        f"analytics:\n  gap_threshold_multiplier: {value}\n",
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match="gap_threshold_multiplier"):

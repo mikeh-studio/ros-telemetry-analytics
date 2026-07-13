@@ -39,7 +39,8 @@ all bag outcomes -----> latest_run.json + latest_report.md
   Standalone DB3 and MCAP files receive temporary metadata wrappers derived from
   their own indexes; the source files are never modified.
 - `analysis.py` computes rate/gap/dropout integrity and VSLAM timing checks from
-  message timestamps. It never deserializes message bodies.
+  bag log/receive timestamps. It never deserializes message bodies or reads
+  payload `header.stamp` values, so timing includes recorder transport jitter.
 - `pipeline.py` owns fingerprint skips, staging, publication, run locking,
   failure isolation, and operational manifests.
 - `assets.py` owns NGC download selection, SHA-256 verification, safe tar
@@ -52,6 +53,8 @@ all bag outcomes -----> latest_run.json + latest_report.md
 Outputs are partitioned by `bag_id`; one bad input cannot corrupt another bag's
 published results. `summary.json` and run manifests carry `schema_version: 1`.
 Breaking field changes require a schema-version increment and migration notes.
+Bag IDs include a stable path hash. Each locked run reconciles `bags/` against
+the current inventory and removes outputs for sources that disappeared.
 
 Parquet files use Zstandard compression. Message indexes are written in
 configurable batches, while analysis reads only the compact metadata index for
@@ -61,7 +64,7 @@ one bag at a time.
 
 The current execution model is one local process per output root. The lock and
 atomic staging model make it safe for scheduled jobs on one host, but this is
-not a distributed queue. A multi-worker deployment should assign disjoint
+not a distributed queue or a cross-host lock. A multi-worker deployment should assign disjoint
 output roots or replace local publication with transactional object storage and
 a shared catalog.
 

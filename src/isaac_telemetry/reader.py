@@ -4,7 +4,7 @@ import sqlite3
 import tempfile
 from collections import Counter
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -81,7 +81,7 @@ def _metadata_document(
 
 def _sqlite_metadata(source_path: Path) -> dict[str, Any]:
     uri = f"file:{quote(str(source_path))}?mode=ro"
-    with sqlite3.connect(uri, uri=True) as connection:
+    with closing(sqlite3.connect(uri, uri=True)) as connection:
         topic_columns = {
             row[1] for row in connection.execute("PRAGMA table_info(topics)").fetchall()
         }
@@ -141,8 +141,8 @@ def _mcap_metadata(source_path: Path) -> dict[str, Any]:
             start_time = statistics.message_start_time
             end_time = statistics.message_end_time
         else:
-            channels = {}
-            schemas = {}
+            channels = dict(summary.channels) if summary else {}
+            schemas = dict(summary.schemas) if summary else {}
             channel_counts: Counter[int] = Counter()
             message_count = 0
             start_time = 0
@@ -237,6 +237,8 @@ def scan_bag(source: BagSource, output_dir: Path, batch_size: int) -> dict[str, 
 
     try:
         with open_bag(source) as reader:
+            for connection in reader.connections:
+                topic_counts[(connection.topic, connection.msgtype)] += 0
             for sequence, (connection, timestamp, _rawdata) in enumerate(reader.messages()):
                 key = (connection.topic, connection.msgtype)
                 topic_counts[key] += 1
@@ -265,7 +267,8 @@ def scan_bag(source: BagSource, output_dir: Path, batch_size: int) -> dict[str, 
 
     manifest_rows = []
     for (topic, message_type), count in sorted(topic_counts.items()):
-        first_timestamp, last_timestamp = topic_bounds[(topic, message_type)]
+        bounds = topic_bounds.get((topic, message_type))
+        first_timestamp, last_timestamp = bounds if bounds else (None, None)
         manifest_rows.append(
             {
                 "bag_id": source.bag_id,

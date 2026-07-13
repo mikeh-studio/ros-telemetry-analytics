@@ -4,7 +4,7 @@ import hashlib
 import json
 import os
 import re
-from collections import Counter
+from collections.abc import Callable
 from pathlib import Path
 
 import polars as pl
@@ -101,6 +101,7 @@ def _candidate_paths(root: Path, excluded_names: frozenset[str]) -> list[tuple[P
 def discover_bags(
     roots: tuple[Path, ...] | list[Path],
     excluded_directory_names: frozenset[str] = frozenset({"downloads"}),
+    on_error: Callable[[Path, OSError], None] | None = None,
 ) -> list[BagSource]:
     """Discover one canonical source per bag across all configured roots."""
     candidates: dict[Path, Path] = {}
@@ -118,17 +119,17 @@ def discover_bags(
         relative_text = str(relative.with_suffix("")) if source_path.is_file() else str(relative)
         base_ids.append(_slug(relative_text.replace(os.sep, "__")))
 
-    id_counts = Counter(base_ids)
-    used_ids: set[str] = set()
     sources: list[BagSource] = []
     for (source_path, _discovery_root), base_id in zip(ordered, base_ids, strict=True):
-        bag_id = base_id
-        if id_counts[base_id] > 1 or bag_id in used_ids:
-            suffix = hashlib.sha256(str(source_path).encode("utf-8")).hexdigest()[:8]
-            bag_id = f"{base_id}__{suffix}"
-        used_ids.add(bag_id)
-
-        fingerprint, size_bytes = _fingerprint(source_path)
+        suffix = hashlib.sha256(str(source_path).encode("utf-8")).hexdigest()[:8]
+        bag_id = f"{base_id}__{suffix}"
+        try:
+            fingerprint, size_bytes = _fingerprint(source_path)
+        except OSError as exc:
+            if on_error is None:
+                raise
+            on_error(source_path, exc)
+            continue
         file_format = (
             _directory_format(source_path)
             if source_path.is_dir()

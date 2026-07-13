@@ -47,6 +47,11 @@ make discover
 make analyze
 ```
 
+When installed as a wheel rather than run from a repository checkout, relative
+configuration and download paths are resolved from the directory where the CLI
+is invoked. Run it from the workspace that should own the `data/` directory, or
+pass absolute `--input` and `--output` paths.
+
 Analyze arbitrary paths without changing configuration:
 
 ```bash
@@ -112,7 +117,6 @@ Topic health reports:
 - message count, duration, mean rate, and expected-rate ratio
 - maximum and p95 inter-message gaps
 - threshold-crossing gap events and estimated dropped messages
-- timestamp regressions in original read order
 - `ok`, `warn`, or `error` status
 
 VSLAM quality reports:
@@ -123,6 +127,12 @@ VSLAM quality reports:
 - maximum, mean, and p95 stereo skew
 - configurable warning thresholds
 
+Timestamps are bag log/receive times supplied by the recording container, not
+message payload `header.stamp` values. Continuity and stereo skew therefore
+measure recorder-observed transport timing, which includes middleware and
+delivery jitter; they do not prove hardware sensor synchronization. Payloads
+remain intentionally undeserialized.
+
 All rules live in [`configs/pipeline.yaml`](configs/pipeline.yaml). Topic-rate
 rules are evaluated top-to-bottom as regular expressions. This keeps sensor
 cadence assumptions explicit instead of embedding them in code.
@@ -132,16 +142,25 @@ cadence assumptions explicit instead of embedding them in code.
 - **Idempotency:** source size/mtime metadata produces a stable fingerprint;
   successful unchanged bags are skipped.
 - **Failure isolation:** a malformed bag is recorded as failed while remaining
-  bags continue unless `--fail-fast` is set.
+  bags continue unless `--fail-fast` is set; unattempted remainder entries are
+  still recorded explicitly.
 - **Atomicity:** files are built under `.staging/`; the final bag directory is
-  replaced only after ingestion and analysis succeed.
-- **Concurrency:** one process may publish to an output root at a time.
+  replaced only after ingestion and analysis succeed. Interrupted staging and
+  backup directories are recovered or removed on the next run.
+- **Reconciliation:** outputs for sources no longer present in the current
+  inventory are removed while the output lock is held.
+- **Concurrency:** one process may publish to an output root at a time on a
+  local filesystem. POSIX advisory locks are not a distributed lock and may not
+  be enforced by every network filesystem.
 - **Memory:** raw payloads are streamed and discarded. The compact timestamp
   index is loaded per bag for analytics.
 
 The fingerprint is designed for efficient local change detection, not
 cryptographic proof of a multi-gigabyte bag's content. Hash the source files
 externally when chain-of-custody guarantees are required.
+
+An analysis run that discovers zero bags exits nonzero so an empty or unmounted
+input directory cannot look healthy in automation.
 
 ## Development
 

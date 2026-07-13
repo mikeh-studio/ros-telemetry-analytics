@@ -11,7 +11,7 @@ import polars as pl
 from isaac_telemetry.config import AnalyticsConfig
 
 NS_PER_SECOND = 1_000_000_000
-LEFT_TOPIC_PATTERN = re.compile(r"^(?P<prefix>.+)/left/(?P<suffix>.+)$")
+LEFT_TOPIC_PATTERN = re.compile(r"^(?P<prefix>.*)/left/(?P<suffix>.+)$")
 
 TOPIC_HEALTH_SCHEMA = {
     "bag_id": pl.Utf8,
@@ -28,7 +28,6 @@ TOPIC_HEALTH_SCHEMA = {
     "gap_threshold_s": pl.Float64,
     "gap_event_count": pl.Int64,
     "estimated_dropped_messages": pl.Int64,
-    "timestamp_regression_count": pl.Int64,
     "status": pl.Utf8,
 }
 
@@ -79,30 +78,63 @@ def _status_rank(status: str) -> int:
 
 
 def overall_status(statuses: list[str]) -> str:
-    return max(statuses, key=_status_rank, default="ok")
+    return max(statuses, key=_status_rank, default="error")
+
+
+def _zero_message_rows(
+    topic_manifest: pl.DataFrame | None,
+    observed_topics: set[tuple[str, str]],
+    config: AnalyticsConfig,
+) -> list[dict[str, Any]]:
+    if topic_manifest is None or topic_manifest.is_empty():
+        return []
+
+    rows: list[dict[str, Any]] = []
+    totals = topic_manifest.group_by(["bag_id", "topic"]).agg(pl.col("message_count").sum())
+    for item in totals.iter_rows(named=True):
+        key = (item["bag_id"], item["topic"])
+        if key in observed_topics or item["message_count"] != 0:
+            continue
+        expected_rate = config.expected_rate(item["topic"])
+        rows.append(
+            {
+                "bag_id": item["bag_id"],
+                "topic": item["topic"],
+                "message_count": 0,
+                "first_timestamp_ns": None,
+                "last_timestamp_ns": None,
+                "duration_s": None,
+                "mean_rate_hz": None,
+                "expected_rate_hz": expected_rate,
+                "rate_ratio": 0.0 if expected_rate else None,
+                "max_inter_message_gap_s": None,
+                "p95_inter_message_gap_s": None,
+                "gap_threshold_s": (
+                    config.gap_threshold_multiplier / expected_rate if expected_rate else None
+                ),
+                "gap_event_count": 0,
+                "estimated_dropped_messages": 0,
+                "status": "error",
+            }
+        )
+    return rows
 
 
 def compute_topic_health(
     message_index: pl.DataFrame,
     config: AnalyticsConfig,
+    topic_manifest: pl.DataFrame | None = None,
 ) -> pl.DataFrame:
-    """Compute timing, rate, dropout, and timestamp-integrity metrics per topic."""
+    """Compute timing, rate, and dropout metrics per topic."""
     _validate_message_index(message_index)
-    if message_index.is_empty():
-        return _empty_frame(TOPIC_HEALTH_SCHEMA)
 
     rows: list[dict[str, Any]] = []
+    observed_topics: set[tuple[str, str]] = set()
     for partition in message_index.partition_by(["bag_id", "topic"], maintain_order=True):
         bag_id = partition.item(0, "bag_id")
         topic = partition.item(0, "topic")
-        sequence_times = (
-            partition.sort("sequence").get_column("timestamp_ns").cast(pl.Int64).to_list()
-        )
-        timestamp_regressions = sum(
-            current < previous
-            for previous, current in zip(sequence_times, sequence_times[1:], strict=False)
-        )
-        timestamps = sorted(sequence_times)
+        observed_topics.add((bag_id, topic))
+        timestamps = partition.get_column("timestamp_ns").cast(pl.Int64).sort().to_list()
         gaps_ns = [
             current - previous
             for previous, current in zip(timestamps, timestamps[1:], strict=False)
@@ -130,9 +162,14 @@ def compute_topic_health(
             else 0
         )
 
-        if timestamp_regressions:
+        if message_count > 1 and duration_ns == 0:
             status = "error"
-        elif gap_events or (rate_ratio is not None and rate_ratio < config.minimum_rate_ratio):
+        elif message_count == 1:
+            status = "warn"
+        elif gap_events or (
+            rate_ratio is not None
+            and not (config.minimum_rate_ratio <= rate_ratio <= config.maximum_rate_ratio)
+        ):
             status = "warn"
         else:
             status = "ok"
@@ -155,11 +192,15 @@ def compute_topic_health(
                 "gap_threshold_s": gap_threshold_s,
                 "gap_event_count": gap_events,
                 "estimated_dropped_messages": estimated_drops,
-                "timestamp_regression_count": timestamp_regressions,
                 "status": status,
             }
         )
-    return pl.DataFrame(rows, schema=TOPIC_HEALTH_SCHEMA).sort(["bag_id", "topic"])
+    rows.extend(_zero_message_rows(topic_manifest, observed_topics, config))
+    return (
+        pl.DataFrame(rows, schema=TOPIC_HEALTH_SCHEMA).sort(["bag_id", "topic"])
+        if rows
+        else _empty_frame(TOPIC_HEALTH_SCHEMA)
+    )
 
 
 def _continuity_rows(
@@ -182,7 +223,12 @@ def _continuity_rows(
         mean_interval = duration / (len(timestamps) - 1) if len(timestamps) > 1 else None
         max_gap = max(gaps) if gaps else None
         gap_ratio = max_gap / mean_interval if max_gap is not None and mean_interval else None
-        status = "warn" if gap_ratio and gap_ratio > config.continuity_gap_ratio_warn else "ok"
+        if len(timestamps) > 1 and duration == 0:
+            status = "error"
+        elif len(timestamps) == 1 or (gap_ratio and gap_ratio > config.continuity_gap_ratio_warn):
+            status = "warn"
+        else:
+            status = "ok"
         rows.append(
             {
                 "bag_id": bag_id,
@@ -237,11 +283,12 @@ def pair_timestamps(
             unmatched_right += 1
             right_index += 1
 
-        candidates = [
-            index
-            for index in (right_index, right_index + 1)
-            if index < len(right) and abs(right[index] - left_timestamp) <= pairing_window_ns
-        ]
+        candidate_end = right_index
+        while candidate_end < len(right) and right[candidate_end] <= (
+            left_timestamp + pairing_window_ns
+        ):
+            candidate_end += 1
+        candidates = range(right_index, candidate_end)
         if not candidates:
             unmatched_left += 1
             continue
@@ -258,19 +305,27 @@ def pair_timestamps(
 def _stereo_rows(
     message_index: pl.DataFrame,
     config: AnalyticsConfig,
+    topic_manifest: pl.DataFrame | None = None,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    for bag_partition in message_index.partition_by("bag_id", maintain_order=True):
-        bag_id = bag_partition.item(0, "bag_id")
+    bag_ids = set(message_index.get_column("bag_id").unique().to_list())
+    if topic_manifest is not None and not topic_manifest.is_empty():
+        bag_ids.update(topic_manifest.get_column("bag_id").unique().to_list())
+    for bag_id in sorted(bag_ids):
+        bag_partition = message_index.filter(pl.col("bag_id") == bag_id)
         topics = set(bag_partition.get_column("topic").unique().to_list())
+        if topic_manifest is not None and not topic_manifest.is_empty():
+            topics.update(
+                topic_manifest.filter(pl.col("bag_id") == bag_id)
+                .get_column("topic")
+                .unique()
+                .to_list()
+            )
         for left_topic in sorted(topics):
             match = LEFT_TOPIC_PATTERN.match(left_topic)
             if not match:
                 continue
             right_topic = f"{match.group('prefix')}/right/{match.group('suffix')}"
-            if right_topic not in topics:
-                continue
-
             left_times = (
                 bag_partition.filter(pl.col("topic") == left_topic)
                 .get_column("timestamp_ns")
@@ -282,6 +337,8 @@ def _stereo_rows(
                 .get_column("timestamp_ns")
                 .cast(pl.Int64)
                 .to_list()
+                if right_topic in topics
+                else []
             )
             skews, unmatched_left, unmatched_right = pair_timestamps(
                 left_times,
@@ -290,7 +347,9 @@ def _stereo_rows(
             )
             max_skew = max(skews) if skews else None
             status = (
-                "warn"
+                "error"
+                if not right_times
+                else "warn"
                 if unmatched_left
                 or unmatched_right
                 or max_skew is None
@@ -318,7 +377,9 @@ def _stereo_rows(
                     "mean_abs_sync_skew_ns": sum(skews) / len(skews) if skews else None,
                     "status": status,
                     "detail": (
-                        f"paired {len(skews)}; unmatched left/right "
+                        f"right topic has no messages: {right_topic}"
+                        if not right_times
+                        else f"paired {len(skews)}; unmatched left/right "
                         f"{unmatched_left}/{unmatched_right}; max skew {max_skew} ns"
                     ),
                 }
@@ -329,12 +390,15 @@ def _stereo_rows(
 def compute_vslam_quality(
     message_index: pl.DataFrame,
     config: AnalyticsConfig,
+    topic_manifest: pl.DataFrame | None = None,
 ) -> pl.DataFrame:
     """Compute continuity and stereo synchronization checks."""
     _validate_message_index(message_index)
-    if message_index.is_empty():
+    if message_index.is_empty() and (topic_manifest is None or topic_manifest.is_empty()):
         return _empty_frame(VSLAM_QUALITY_SCHEMA)
-    rows = _continuity_rows(message_index, config) + _stereo_rows(message_index, config)
+    rows = _continuity_rows(message_index, config) + _stereo_rows(
+        message_index, config, topic_manifest
+    )
     return (
         pl.DataFrame(rows, schema=VSLAM_QUALITY_SCHEMA).sort(["bag_id", "check_type", "topic"])
         if rows
@@ -349,8 +413,9 @@ def analyze_message_index(
 ) -> tuple[pl.DataFrame, pl.DataFrame]:
     """Run all configured analytics and persist their Parquet outputs."""
     message_index = pl.read_parquet(message_index_path)
-    topic_health = compute_topic_health(message_index, config)
-    vslam_quality = compute_vslam_quality(message_index, config)
+    topic_manifest = pl.read_parquet(output_dir / "topic_manifest.parquet")
+    topic_health = compute_topic_health(message_index, config, topic_manifest)
+    vslam_quality = compute_vslam_quality(message_index, config, topic_manifest)
     topic_health.write_parquet(output_dir / "topic_health.parquet", compression="zstd")
     vslam_quality.write_parquet(output_dir / "vslam_quality.parquet", compression="zstd")
     return topic_health, vslam_quality

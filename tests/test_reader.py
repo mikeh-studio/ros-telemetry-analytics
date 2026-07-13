@@ -62,3 +62,21 @@ def test_scan_supports_ros1_bag(tmp_path: Path) -> None:
 
     assert source.format == "rosbag1"
     assert result == {"message_count": 1, "topic_count": 1}
+
+
+def test_scan_preserves_zero_message_connections(tmp_path: Path, write_bag) -> None:
+    bag_dir = write_bag(
+        tmp_path / "bag",
+        MESSAGES[:1],
+        empty_topics=[("/camera/right/image_raw", "sensor_msgs/msg/Image")],
+    )
+
+    source = discover_bags([bag_dir])[0]
+    output = tmp_path / "output"
+    result = scan_bag(source, output, batch_size=10)
+    manifest = pl.read_parquet(output / "topic_manifest.parquet")
+
+    assert result == {"message_count": 1, "topic_count": 2}
+    right = manifest.filter(pl.col("topic") == "/camera/right/image_raw").row(0, named=True)
+    assert right["message_count"] == 0
+    assert right["first_timestamp_ns"] is None

@@ -13,3 +13,8 @@ All notable changes to this project are documented here.
 - Included analytics configuration in cache invalidation.
 - Pinned NVIDIA asset versions and checksums.
 - Added ROS2 MCAP stereo integration coverage and package-build CI checks.
+- Made empty, frozen, and missing sensor streams explicit health failures.
+- Corrected nearest-frame pairing and documented bag log-time semantics.
+- Added interrupted-publication recovery, stale-output reconciliation, and
+  complete fail-fast manifests.
+- Added locked, size-bounded asset downloads and atomic extraction recovery.

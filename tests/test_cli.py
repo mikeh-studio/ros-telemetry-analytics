@@ -41,6 +41,13 @@ def test_cli_analyze_returns_nonzero_for_failures(tmp_path: Path, monkeypatch, c
     assert cli.main(["--verbose", "analyze", "--force", "--fail-fast"]) == 1
     assert json.loads(capsys.readouterr().out)["failed_count"] == 1
 
+    monkeypatch.setattr(
+        cli,
+        "run_pipeline",
+        lambda *_args, **_kwargs: {"failed_count": 0, "discovered_count": 0},
+    )
+    assert cli.main(["analyze"]) == 1
+
 
 def test_cli_download_selects_assets(tmp_path: Path, monkeypatch, capsys) -> None:
     downloaded = []

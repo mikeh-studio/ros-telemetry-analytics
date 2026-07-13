@@ -75,4 +75,4 @@ def main(argv: list[str] | None = None) -> int:
 
     manifest = run_pipeline(config, force=args.force, fail_fast=args.fail_fast)
     print(json.dumps(manifest, indent=2))
-    return 1 if manifest["failed_count"] else 0
+    return 1 if manifest["failed_count"] or manifest["discovered_count"] == 0 else 0
