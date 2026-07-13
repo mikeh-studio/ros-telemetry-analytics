@@ -1,0 +1,28 @@
+pipeline:
+  project_root: ..
+  input_roots:
+    - data/raw/public_datasets/tum_rgbd
+    - data/raw/public_datasets/tum_vi
+  output_root: data/bronze/public_datasets
+  excluded_directory_names: []
+  parquet_batch_size: 50000
+
+analytics:
+  expected_rates:
+    - pattern: ^/cam[01]/image_raw$
+      expected_rate_hz: 20.0
+    - pattern: ^/imu0$
+      expected_rate_hz: 200.0
+    - pattern: ^/vrpn_client/raw_transform$
+      expected_rate_hz: 120.0
+    - pattern: ^/camera/(?:rgb/image_color|depth/image)$
+      expected_rate_hz: 30.0
+    - pattern: ^/camera/(?:rgb|depth)/camera_info$
+      expected_rate_hz: 30.0
+  gap_threshold_multiplier: 1.5
+  minimum_rate_ratio: 0.8
+  continuity_topic_patterns:
+    - ^/tf$
+  continuity_gap_ratio_warn: 3.0
+  stereo_pairing_window_ms: 20.0
+  stereo_skew_warn_ms: 5.0

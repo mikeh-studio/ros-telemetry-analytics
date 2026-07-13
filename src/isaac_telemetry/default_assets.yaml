@@ -1,0 +1,16 @@
+assets:
+  visual_slam:
+    org: nvidia
+    team: isaac
+    resource: isaac_ros_visual_slam_assets
+    filename: quickstart.tar.gz
+    version: 4.0.0
+    sha256: 32d5b2723b6c6b1998f669f31f1889ebb739e0ada6a5d78c699108e528f15f68
+
+  nvblox:
+    org: nvidia
+    team: isaac
+    resource: isaac_ros_nvblox_assets
+    filename: quickstart.tar.gz
+    version: 4.0.0
+    sha256: 455a748f5c41dae5a5e3cc33735894ad95ed5c9ec5bee219fb3a7284006b6383
