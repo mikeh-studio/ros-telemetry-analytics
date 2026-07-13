@@ -8,9 +8,9 @@ import polars as pl
 import pytest
 from rosbags.rosbag2 import StoragePlugin
 
-from isaac_telemetry import pipeline
-from isaac_telemetry.config import PipelineConfig
-from isaac_telemetry.pipeline import run_pipeline
+from ros_telemetry_analytics import pipeline
+from ros_telemetry_analytics.config import PipelineConfig
+from ros_telemetry_analytics.pipeline import run_pipeline
 
 MESSAGES = [
     ("/stereo/left/image_raw", "sensor_msgs/msg/Image", 0),

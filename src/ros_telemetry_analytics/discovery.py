@@ -10,7 +10,7 @@ from pathlib import Path
 import polars as pl
 import yaml
 
-from isaac_telemetry.models import BagSource
+from ros_telemetry_analytics.models import BagSource
 
 BAG_SUFFIXES = {".bag": "rosbag1", ".db3": "rosbag2_sqlite3", ".mcap": "rosbag2_mcap"}
 INVENTORY_SCHEMA = {

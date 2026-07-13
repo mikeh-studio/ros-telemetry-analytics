@@ -5,10 +5,10 @@ import json
 import logging
 from pathlib import Path
 
-from isaac_telemetry.assets import download_asset, load_asset_config
-from isaac_telemetry.config import DEFAULT_CONFIG_PATH, load_pipeline_config
-from isaac_telemetry.discovery import discover_bags
-from isaac_telemetry.pipeline import run_pipeline
+from ros_telemetry_analytics.assets import download_asset, load_asset_config
+from ros_telemetry_analytics.config import DEFAULT_CONFIG_PATH, load_pipeline_config
+from ros_telemetry_analytics.discovery import discover_bags
+from ros_telemetry_analytics.pipeline import run_pipeline
 
 
 def _path(value: str) -> Path:
@@ -17,7 +17,7 @@ def _path(value: str) -> Path:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="isaac-telemetry",
+        prog="ros-telemetry",
         description="Discover and analyze ROS bag telemetry without a ROS installation.",
     )
     parser.add_argument("--verbose", action="store_true", help="Enable detailed logs.")

@@ -16,7 +16,7 @@ from mcap.reader import make_reader as make_mcap_reader
 from rosbags.highlevel import AnyReader
 from rosbags.typesys import Stores, get_typestore
 
-from isaac_telemetry.models import BagSource
+from ros_telemetry_analytics.models import BagSource
 
 DEFAULT_TYPESTORE = get_typestore(Stores.ROS2_HUMBLE)
 MESSAGE_INDEX_SCHEMA = pa.schema(
@@ -194,7 +194,7 @@ def _reader_path(source: BagSource) -> Iterator[Path]:
         if source.path.suffix.lower() == ".db3"
         else _mcap_metadata(source.path)
     )
-    with tempfile.TemporaryDirectory(prefix="isaac-telemetry-reader-") as temp_dir:
+    with tempfile.TemporaryDirectory(prefix="ros-telemetry-reader-") as temp_dir:
         wrapper_dir = Path(temp_dir)
         wrapped_file = wrapper_dir / source.path.name
         try:

@@ -3,14 +3,14 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "isaac-robot-telemetry-analytics"
+name = "ros-telemetry-analytics"
 version = "0.1.0"
 description = "Automatic ROS bag ingestion and production-oriented telemetry health analysis"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
-authors = [{ name = "Isaac Robot Telemetry Analytics contributors" }]
+authors = [{ name = "ROS Telemetry Analytics contributors" }]
 keywords = ["ROS", "robotics", "telemetry", "MCAP", "VSLAM", "NVIDIA Isaac"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -20,7 +20,7 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering :: Information Analysis",
 ]
-urls = { Repository = "https://github.com/mikeh-studio/isaac-robot-telemetry-analytics", Issues = "https://github.com/mikeh-studio/isaac-robot-telemetry-analytics/issues" }
+urls = { Repository = "https://github.com/mikeh-studio/ros-telemetry-analytics", Issues = "https://github.com/mikeh-studio/ros-telemetry-analytics/issues" }
 dependencies = [
   "mcap>=1.3,<2",
   "polars>=1.30,<2",
@@ -40,14 +40,14 @@ dev = [
 ]
 
 [project.scripts]
-isaac-telemetry = "isaac_telemetry.cli:main"
+ros-telemetry = "ros_telemetry_analytics.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["isaac_telemetry*"]
+include = ["ros_telemetry_analytics*"]
 
 [tool.setuptools.package-data]
-isaac_telemetry = ["*.yaml"]
+ros_telemetry_analytics = ["*.yaml"]
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers"
@@ -55,8 +55,8 @@ testpaths = ["tests"]
 
 [tool.coverage.run]
 branch = true
-source = ["isaac_telemetry"]
-omit = ["src/isaac_telemetry/__main__.py"]
+source = ["ros_telemetry_analytics"]
+omit = ["src/ros_telemetry_analytics/__main__.py"]
 
 [tool.coverage.report]
 show_missing = true

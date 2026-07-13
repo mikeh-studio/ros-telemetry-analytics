@@ -9,8 +9,8 @@ from rosbags.rosbag1 import Writer as Rosbag1Writer
 from rosbags.rosbag2 import StoragePlugin
 from rosbags.typesys import Stores, get_typestore
 
-from isaac_telemetry.discovery import discover_bags
-from isaac_telemetry.reader import _mcap_metadata, scan_bag
+from ros_telemetry_analytics.discovery import discover_bags
+from ros_telemetry_analytics.reader import _mcap_metadata, scan_bag
 
 MESSAGES = [
     ("/camera/left/image_raw", "sensor_msgs/msg/Image", 1_000_000),
@@ -104,7 +104,7 @@ def test_mcap_metadata_falls_back_when_summary_is_missing(
             return iter([(schema, channel, message)])
 
     monkeypatch.setattr(
-        "isaac_telemetry.reader.make_mcap_reader",
+        "ros_telemetry_analytics.reader.make_mcap_reader",
         lambda _input_file: ReaderWithoutSummary(),
     )
     source = tmp_path / "no-summary.mcap"

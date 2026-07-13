@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from isaac_telemetry import discovery
-from isaac_telemetry.discovery import discover_bags, inventory_frame
+from ros_telemetry_analytics import discovery
+from ros_telemetry_analytics.discovery import discover_bags, inventory_frame
 
 MESSAGES = [
     ("/camera/left/image_raw", "sensor_msgs/msg/Image", 1),

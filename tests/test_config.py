@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from isaac_telemetry.config import (
+from ros_telemetry_analytics.config import (
     AnalyticsConfig,
     RateRule,
     analytics_fingerprint,

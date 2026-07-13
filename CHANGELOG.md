@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## 0.1.0 - 2026-07-09
 
+- Renamed the project to ROS Telemetry Analytics to reflect its generic ROS1
+  and ROS2 bag support.
 - Added canonical discovery for ROS1 bags, ROS2 directories, DB3, and MCAP.
 - Added streaming message indexes and per-bag atomic output publication.
 - Added configurable topic-health, continuity, and stereo-timing analysis.

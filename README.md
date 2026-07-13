@@ -1,16 +1,12 @@
-# Isaac Robot Telemetry Analytics
+# ROS Telemetry Analytics
 
 Automatic, local-first ingestion and timing-quality analysis for ROS bag
 telemetry. The pipeline discovers mixed bag formats, indexes message metadata in
 streaming batches, runs configurable topic and VSLAM checks, and publishes
 idempotent Parquet and JSON results.
 
-It runs on macOS or Linux with Python 3.11+ and does not require ROS 2, Isaac
-ROS, CUDA, Docker, Isaac Sim, or NVIDIA GPU tooling.
-
-This is an independent open-source project. It is not affiliated with or
-endorsed by NVIDIA. NVIDIA, Isaac, and related names are trademarks of their
-respective owners.
+It runs on macOS or Linux with Python 3.11+ and does not require a ROS
+installation, CUDA, Docker, a simulator, or GPU tooling.
 
 > **Project status:** Alpha. The analysis is suitable for engineering triage and
 > dataset QA, not safety-critical robot control or certification.
@@ -25,7 +21,6 @@ respective owners.
 - Per-bag failure isolation, source fingerprinting, and unchanged-input skips
 - Streaming message-index writes for large recordings
 - Atomic per-bag output publication and an exclusive pipeline lock
-- Secure, atomic extraction of configured NVIDIA sample archives
 
 Discovery emits one canonical record per logical bag. Contained DB3/MCAP files
 are not double-counted, overlapping roots are deduplicated, and download caches
@@ -34,8 +29,8 @@ are excluded by default.
 ## Quick Start
 
 ```bash
-git clone https://github.com/mikeh-studio/isaac-robot-telemetry-analytics.git
-cd isaac-robot-telemetry-analytics
+git clone https://github.com/mikeh-studio/ros-telemetry-analytics.git
+cd ros-telemetry-analytics
 make setup
 make test
 ```
@@ -55,7 +50,7 @@ pass absolute `--input` and `--output` paths.
 Analyze arbitrary paths without changing configuration:
 
 ```bash
-.venv/bin/isaac-telemetry analyze \
+.venv/bin/ros-telemetry analyze \
   --input /path/to/recordings \
   --input /path/to/recording.mcap \
   --output data/bronze
@@ -66,23 +61,25 @@ Changes to analytics rules automatically invalidate cached results. Use
 `--force` when the underlying analysis implementation changes without a release
 or when every bag should be recomputed explicitly.
 
-## Download Isaac Samples
+## Optional NVIDIA Sample Assets
 
 ```bash
 make download-visual-slam
 make download-nvblox
 ```
 
-Archives are stored under `data/raw/downloads/` and extracted under
-`data/raw/isaac_ros_assets/`. The downloader computes SHA-256, rejects unsafe
-tar members, and publishes an extraction only after it completes. Add `version`
-and `sha256` fields to `configs/asset_sources.yaml` when an immutable upstream
-asset is required. The repository defaults pin both fields so a failed pinned
-download never falls back to a mutable `latest` asset. Note that the current
-nvblox archive is approximately 9.3 GB.
+These optional NVIDIA Isaac ROS archives provide external ROS2 validation data;
+they are not required to run the pipeline. Archives are stored under
+`data/raw/downloads/` and extracted under `data/raw/isaac_ros_assets/`. The
+downloader enforces the configured version, byte size, and SHA-256 checksum,
+rejects unsafe tar members, and publishes an extraction only after it
+completes. A failed pinned download never falls back to a mutable `latest`
+asset. The current nvblox archive is approximately 9.3 GB.
 
 NVIDIA assets are not included in this repository and remain subject to their
-upstream terms.
+upstream terms. This independent project is not affiliated with or endorsed by
+NVIDIA; NVIDIA, Isaac, and related names are trademarks of their respective
+owners.
 
 ## Outputs
 
@@ -187,8 +184,8 @@ ignored by Git. Their sources, checksums, licenses, validation results, and know
 analytics caveats are recorded in
 [`configs/public_test_datasets.yaml`](configs/public_test_datasets.yaml).
 
-Run the validated TUM RGB-D and TUM VI corpus separately from the default Isaac
-sample:
+Run the validated TUM RGB-D and TUM VI corpus independently of the optional
+NVIDIA sample data:
 
 ```bash
 make analyze-public-data

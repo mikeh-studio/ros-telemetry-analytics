@@ -8,8 +8,8 @@ from pathlib import Path
 import pytest
 import requests
 
-from isaac_telemetry import assets
-from isaac_telemetry.assets import (
+from ros_telemetry_analytics import assets
+from ros_telemetry_analytics.assets import (
     download_asset,
     download_file,
     extract_archive,

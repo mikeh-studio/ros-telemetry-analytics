@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import polars as pl
 
-from isaac_telemetry.analysis import (
+from ros_telemetry_analytics.analysis import (
     build_analysis_summary,
     compute_topic_health,
     compute_vslam_quality,

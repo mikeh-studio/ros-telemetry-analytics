@@ -1,4 +1,4 @@
-# Isaac Visual SLAM Sample Result
+# NVIDIA Visual SLAM Sample Result
 
 This sanitized result was generated from NVIDIA's Visual SLAM quickstart bag
 with the default configuration.

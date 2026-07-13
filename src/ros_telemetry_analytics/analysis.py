@@ -8,7 +8,7 @@ from typing import Any
 
 import polars as pl
 
-from isaac_telemetry.config import AnalyticsConfig
+from ros_telemetry_analytics.config import AnalyticsConfig
 
 NS_PER_SECOND = 1_000_000_000
 LEFT_TOPIC_PATTERN = re.compile(r"^(?P<prefix>.*)/left/(?P<suffix>.+)$")

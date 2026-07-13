@@ -6,7 +6,7 @@ import pytest
 from rosbags.rosbag2 import StoragePlugin, Writer
 from rosbags.typesys import Stores, get_typestore
 
-from isaac_telemetry.config import AnalyticsConfig, RateRule
+from ros_telemetry_analytics.config import AnalyticsConfig, RateRule
 
 
 @pytest.fixture

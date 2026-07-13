@@ -43,8 +43,8 @@ all bag outcomes -----> latest_run.json + latest_report.md
   payload `header.stamp` values, so timing includes recorder transport jitter.
 - `pipeline.py` owns fingerprint skips, staging, publication, run locking,
   failure isolation, and operational manifests.
-- `assets.py` owns NGC download selection, SHA-256 verification, safe tar
-  extraction, and completion markers.
+- `assets.py` owns optional NVIDIA NGC sample downloads, size and SHA-256
+  verification, safe tar extraction, and completion markers.
 - `cli.py` is the public command contract used by both console scripts and the
   Makefile.
 
@@ -64,9 +64,9 @@ one bag at a time.
 
 The current execution model is one local process per output root. The lock and
 atomic staging model make it safe for scheduled jobs on one host, but this is
-not a distributed queue or a cross-host lock. A multi-worker deployment should assign disjoint
-output roots or replace local publication with transactional object storage and
-a shared catalog.
+not a distributed queue or a cross-host lock. A multi-worker deployment should
+assign disjoint output roots or replace local publication with transactional
+object storage and a shared catalog.
 
 The source fingerprint uses file names, sizes, and nanosecond modification
 times. This makes normal reruns inexpensive. Regulated or forensic workflows

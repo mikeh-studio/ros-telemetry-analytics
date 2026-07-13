@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from isaac_telemetry import cli
-from isaac_telemetry.config import AnalyticsConfig, PipelineConfig
+from ros_telemetry_analytics import cli
+from ros_telemetry_analytics.config import AnalyticsConfig, PipelineConfig
 
 
 def _config(tmp_path: Path) -> PipelineConfig:

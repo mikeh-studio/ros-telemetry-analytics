@@ -10,7 +10,7 @@ setup:
 	$(PYTHON) -m pip install -e ".[dev]"
 
 test:
-	$(PYTHON) -m pytest --cov=isaac_telemetry --cov-report=term-missing --cov-fail-under=80
+	$(PYTHON) -m pytest --cov=ros_telemetry_analytics --cov-report=term-missing --cov-fail-under=80
 
 lint:
 	$(PYTHON) -m ruff check .
@@ -21,22 +21,22 @@ format:
 	$(PYTHON) -m ruff format .
 
 discover:
-	$(PYTHON) -m isaac_telemetry discover --config $(CONFIG)
+	$(PYTHON) -m ros_telemetry_analytics discover --config $(CONFIG)
 
 analyze:
-	$(PYTHON) -m isaac_telemetry analyze --config $(CONFIG)
+	$(PYTHON) -m ros_telemetry_analytics analyze --config $(CONFIG)
 
 analyze-public-data:
-	$(PYTHON) -m isaac_telemetry analyze --config configs/public_test_pipeline.yaml
+	$(PYTHON) -m ros_telemetry_analytics analyze --config configs/public_test_pipeline.yaml
 
 force-analyze:
-	$(PYTHON) -m isaac_telemetry analyze --config $(CONFIG) --force
+	$(PYTHON) -m ros_telemetry_analytics analyze --config $(CONFIG) --force
 
 download-visual-slam:
-	$(PYTHON) -m isaac_telemetry download --asset visual_slam
+	$(PYTHON) -m ros_telemetry_analytics download --asset visual_slam
 
 download-nvblox:
-	$(PYTHON) -m isaac_telemetry download --asset nvblox
+	$(PYTHON) -m ros_telemetry_analytics download --asset nvblox
 
 clean-derived:
 	$(PYTHON) -c 'import shutil; from pathlib import Path; shutil.rmtree(Path("data/bronze/bags"), ignore_errors=True)'

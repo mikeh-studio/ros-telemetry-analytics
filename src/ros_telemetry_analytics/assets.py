@@ -18,7 +18,7 @@ from urllib.parse import quote
 import requests
 import yaml
 
-from isaac_telemetry.config import PROJECT_ROOT
+from ros_telemetry_analytics.config import PROJECT_ROOT
 
 REPOSITORY_ASSET_CONFIG_PATH = PROJECT_ROOT / "configs" / "asset_sources.yaml"
 PACKAGED_ASSET_CONFIG_PATH = Path(__file__).with_name("default_assets.yaml")
@@ -240,7 +240,7 @@ def download_asset(asset_name: str, specification: dict[str, Any]) -> Path:
     expected_size_bytes = int(specification["bytes"])
 
     with _asset_lock(asset_name), requests.Session() as session:
-        session.headers["User-Agent"] = "isaac-robot-telemetry-analytics/0.1.0"
+        session.headers["User-Agent"] = "ros-telemetry-analytics/0.1.0"
         digest = download_file(
             session,
             _candidate_urls(specification),

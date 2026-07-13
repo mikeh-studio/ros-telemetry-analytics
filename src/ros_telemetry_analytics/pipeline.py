@@ -16,11 +16,11 @@ from typing import Any
 
 import pyarrow.parquet as pq
 
-from isaac_telemetry.analysis import analyze_message_index, build_analysis_summary
-from isaac_telemetry.config import PipelineConfig, analytics_fingerprint
-from isaac_telemetry.discovery import discover_bags, inventory_frame
-from isaac_telemetry.models import BagSource, ProcessResult
-from isaac_telemetry.reader import scan_bag
+from ros_telemetry_analytics.analysis import analyze_message_index, build_analysis_summary
+from ros_telemetry_analytics.config import PipelineConfig, analytics_fingerprint
+from ros_telemetry_analytics.discovery import discover_bags, inventory_frame
+from ros_telemetry_analytics.models import BagSource, ProcessResult
+from ros_telemetry_analytics.reader import scan_bag
 
 LOGGER = logging.getLogger(__name__)
 EXPECTED_BAG_ARTIFACTS = {
