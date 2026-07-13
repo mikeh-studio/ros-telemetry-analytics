@@ -1,0 +1,26 @@
+pipeline:
+  project_root: ..
+  input_roots:
+    - data/raw
+  output_root: data/bronze
+  excluded_directory_names:
+    - downloads
+    - public_datasets
+  parquet_batch_size: 50000
+
+analytics:
+  expected_rates:
+    - pattern: /(?:image_raw|camera_info)$
+      expected_rate_hz: 30.0
+  gap_threshold_multiplier: 1.5
+  minimum_rate_ratio: 0.8
+  maximum_rate_ratio: 1.2
+  continuity_topic_patterns:
+    - ^/tf$
+    - ^/tf_static$
+    - pose
+    - odom
+    - visual_slam
+  continuity_gap_ratio_warn: 3.0
+  stereo_pairing_window_ms: 20.0
+  stereo_skew_warn_ms: 5.0

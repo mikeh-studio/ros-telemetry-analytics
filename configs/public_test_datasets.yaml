@@ -1,0 +1,62 @@
+datasets:
+  tum_rgbd_freiburg1_xyz:
+    source_url: https://cvg.cit.tum.de/rgbd/dataset/freiburg1/rgbd_dataset_freiburg1_xyz.bag
+    source_page: https://cvg.cit.tum.de/data/datasets/rgbd-dataset/download
+    local_path: data/raw/public_datasets/tum_rgbd/rgbd_dataset_freiburg1_xyz.bag
+    format: rosbag1
+    bytes: 503765314
+    sha256: 27bb3db41ddaa7228a8b39191f6b8a112ddf7bca3eed862cd753384696ba8d7e
+    redistribution: false
+    validation:
+      status: passed
+      message_count: 25626
+      topic_count: 7
+      duration_s: 30.428861394
+      health_status: warn
+      observation: /tf max gap is 7.16 times its mean interval
+    notes:
+      - Nominal RGB and depth rate is 30 Hz.
+      - Image topics use image and image_color rather than image_raw.
+
+  tum_vi_room4_512:
+    source_url: https://cvg.cit.tum.de/tumvi/calibrated/512_16/dataset-room4_512_16.bag
+    source_page: https://cvg.cit.tum.de/data/datasets/visual-inertial-dataset
+    local_path: data/raw/public_datasets/tum_vi/dataset-room4_512_16.bag
+    format: rosbag1
+    license: CC-BY-4.0
+    bytes: 2346890121
+    md5: 1d9914b87a5374123988ea35ea5ccfa0
+    sha256: 8027451a7390efd51098a10949b91dae7c183d9daf1a09ab058e8169c55ecf9e
+    redistribution: false
+    validation:
+      status: passed
+      message_count: 39743
+      topic_count: 4
+      duration_s: 111.404953404
+      health_status: warn
+      observation: /vrpn_client/raw_transform has 36 configured gap events
+    notes:
+      - Camera topics run at 20 Hz and IMU data runs at approximately 200 Hz.
+      - Stereo topics use cam0 and cam1; current automatic stereo pairing expects left and right names.
+
+  ros_legacy_fixtures:
+    source_root: http://download.ros.org/data/rosbag/
+    local_directory: data/raw/public_datasets/ros_fixtures
+    redistribution: false
+    files:
+      chatter_50hz.bag:
+        bytes: 28923
+        sha256: 5bd6862363c96afe98dc6c79311c17f503a81c83aea5f1aee87651d8d3b66b0a
+        validation: rosbags_index_assertion
+      clock_alive.bag:
+        bytes: 15201385
+        sha256: 8ab53bd92ff7cbf7552e1d841a2bbf1a4eacd99e30f5a02f754f797b51a80f3a
+        validation: readable_but_bz2_decompression_too_slow_for_default_suite
+      test_future_version_2.1.bag:
+        bytes: 6051
+        sha256: bb186f5cda45cf748dfd426b640becc15598fe520247a8b6865d93cbc2c70395
+        validation: expected_unsupported_version
+      test_indexed_1.2.bag:
+        bytes: 142311
+        sha256: f5bb4db78e2d9cf5d685ea94bd34d9231138b582e720386350bccc404c699468
+        validation: unsupported_historical_magic
