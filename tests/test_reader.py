@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import polars as pl
 import pytest
@@ -9,7 +10,7 @@ from rosbags.rosbag2 import StoragePlugin
 from rosbags.typesys import Stores, get_typestore
 
 from isaac_telemetry.discovery import discover_bags
-from isaac_telemetry.reader import scan_bag
+from isaac_telemetry.reader import _mcap_metadata, scan_bag
 
 MESSAGES = [
     ("/camera/left/image_raw", "sensor_msgs/msg/Image", 1_000_000),
@@ -80,3 +81,38 @@ def test_scan_preserves_zero_message_connections(tmp_path: Path, write_bag) -> N
     right = manifest.filter(pl.col("topic") == "/camera/right/image_raw").row(0, named=True)
     assert right["message_count"] == 0
     assert right["first_timestamp_ns"] is None
+
+
+def test_mcap_metadata_falls_back_when_summary_is_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    channel = SimpleNamespace(
+        id=7,
+        topic="/camera/image_raw",
+        schema_id=3,
+        message_encoding="cdr",
+        metadata={},
+    )
+    schema = SimpleNamespace(id=3, name="sensor_msgs/msg/Image")
+    message = SimpleNamespace(log_time=12_000_000)
+
+    class ReaderWithoutSummary:
+        def get_summary(self):
+            return None
+
+        def iter_messages(self):
+            return iter([(schema, channel, message)])
+
+    monkeypatch.setattr(
+        "isaac_telemetry.reader.make_mcap_reader",
+        lambda _input_file: ReaderWithoutSummary(),
+    )
+    source = tmp_path / "no-summary.mcap"
+    source.touch()
+
+    metadata = _mcap_metadata(source)
+
+    assert metadata["rosbag2_bagfile_information"]["message_count"] == 1
+    topic = metadata["rosbag2_bagfile_information"]["topics_with_message_count"][0]
+    assert topic["message_count"] == 1
+    assert topic["topic_metadata"]["name"] == "/camera/image_raw"
