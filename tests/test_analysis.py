@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import polars as pl
 
 from ros_telemetry_analytics.analysis import (
     build_analysis_summary,
+    compute_relationship_health,
     compute_topic_health,
     compute_vslam_quality,
     pair_timestamps,
 )
+from ros_telemetry_analytics.config import TopicRelationshipRule
 
 
 def _index(rows: list[tuple[str, int]]) -> pl.DataFrame:
@@ -51,6 +55,83 @@ def test_stereo_pairing_recovers_after_middle_frame_drop(analytics_config) -> No
     assert row["unmatched_right_count"] == 0
     assert row["max_abs_sync_skew_ns"] == millisecond
     assert row["status"] == "warn"
+
+
+def test_configured_stereo_relationship_supports_nonstandard_topic_names(
+    analytics_config,
+) -> None:
+    config = replace(
+        analytics_config,
+        topic_relationships=(
+            TopicRelationshipRule(
+                name="tum_vi_stereo",
+                relationship_type="stereo_sync",
+                topic_a="/cam0/image_raw",
+                topic_b="/cam1/image_raw",
+            ),
+        ),
+    )
+    frame = _index(
+        [
+            ("/cam0/image_raw", 0),
+            ("/cam1/image_raw", 1_000_000),
+            ("/cam0/image_raw", 50_000_000),
+            ("/cam1/image_raw", 51_000_000),
+        ]
+    )
+
+    relationship = compute_relationship_health(frame, config).row(0, named=True)
+    vslam = compute_vslam_quality(frame, config)
+
+    assert relationship["relationship_name"] == "tum_vi_stereo"
+    assert relationship["source"] == "configured"
+    assert relationship["paired_message_count"] == 2
+    assert relationship["p95_abs_skew_ns"] == 1_000_000
+    assert relationship["status"] == "ok"
+    assert vslam.row(0, named=True)["check_type"] == "stereo_sync"
+
+
+def test_configured_relationship_reports_missing_required_counterpart(analytics_config) -> None:
+    config = replace(
+        analytics_config,
+        topic_relationships=(
+            TopicRelationshipRule(
+                name="camera_imu",
+                relationship_type="timestamp_pair",
+                topic_a="/camera/image_raw",
+                topic_b="/imu",
+            ),
+        ),
+    )
+
+    row = compute_relationship_health(
+        _index([("/camera/image_raw", 0)]),
+        config,
+    ).row(0, named=True)
+
+    assert row["topic_b_message_count"] == 0
+    assert row["status"] == "error"
+    assert "/imu" in row["detail"]
+
+
+def test_relationship_status_is_counted_once_in_summary(analytics_config) -> None:
+    frame = _index([("/left/image_raw", 0)])
+    relationships = compute_relationship_health(frame, analytics_config)
+    quality = compute_vslam_quality(
+        frame,
+        analytics_config,
+        relationship_health=relationships,
+    )
+
+    summary = build_analysis_summary(
+        pl.DataFrame(schema={"status": pl.Utf8}),
+        quality,
+        relationships,
+    )
+
+    assert summary["error_count"] == 1
+    assert summary["quality_check_counts"] == {"error": 1}
+    assert summary["relationship_check_counts"] == {"error": 1}
 
 
 def test_pair_timestamps_uses_closest_unused_neighbor() -> None:
@@ -130,6 +211,7 @@ def test_empty_analysis_has_stable_schema(analytics_config) -> None:
         }
     )
     assert compute_topic_health(empty, analytics_config).is_empty()
+    assert compute_relationship_health(empty, analytics_config).is_empty()
     assert compute_vslam_quality(empty, analytics_config).is_empty()
 
 

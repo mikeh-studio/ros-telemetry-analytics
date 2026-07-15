@@ -93,6 +93,7 @@ data/bronze/
 ├── runs/<run-id>.json
 └── bags/<bag-id>/
     ├── message_index.parquet
+    ├── relationship_health.parquet
     ├── topic_manifest.parquet
     ├── topic_health.parquet
     ├── vslam_quality.parquet
@@ -123,6 +124,31 @@ VSLAM quality reports:
 - unmatched left/right frames
 - maximum, mean, and p95 stereo skew
 - configurable warning thresholds
+
+Topic relationships report timestamp pairing for explicitly named topic pairs.
+This covers datasets whose sensor names do not follow the automatic
+`/left/...` and `/right/...` stereo convention. Relationships can be required
+or optional and may override the global pairing and skew thresholds:
+
+```yaml
+analytics:
+  topic_relationships:
+    - name: front_stereo
+      type: stereo_sync
+      topic_a: /cam0/image_raw
+      topic_b: /cam1/image_raw
+      required: true
+      pairing_window_ms: 20.0
+      skew_warn_ms: 5.0
+```
+
+`relationship_health.parquet` identifies whether each relationship came from
+configuration or automatic stereo discovery and records paired counts,
+unmatched counts, skew statistics, status, and diagnostic detail. A configured
+relationship is evaluated only for bags containing at least one of its topics,
+which allows one pipeline configuration to cover heterogeneous datasets. If
+only one side is present, `required: true` reports an error and
+`required: false` reports a warning.
 
 Timestamps are bag log/receive times supplied by the recording container, not
 message payload `header.stamp` values. Continuity and stereo skew therefore

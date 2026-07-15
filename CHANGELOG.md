@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here.
 
+## Unreleased
+
+- Added configurable timestamp-pair relationships with per-pair thresholds,
+  required/optional counterpart handling, and `relationship_health.parquet`.
+- Preserved automatic left/right stereo discovery and projected configured
+  stereo relationships into the existing VSLAM output.
+
 ## 0.1.0 - 2026-07-09
 
 - Renamed the project to ROS Telemetry Analytics to reflect its generic ROS1

@@ -8,7 +8,7 @@ from typing import Any
 
 import polars as pl
 
-from ros_telemetry_analytics.config import AnalyticsConfig
+from ros_telemetry_analytics.config import AnalyticsConfig, TopicRelationshipRule
 
 NS_PER_SECOND = 1_000_000_000
 LEFT_TOPIC_PATTERN = re.compile(r"^(?P<prefix>.*)/left/(?P<suffix>.+)$")
@@ -49,6 +49,25 @@ VSLAM_QUALITY_SCHEMA = {
     "max_abs_sync_skew_ns": pl.Int64,
     "p95_abs_sync_skew_ns": pl.Float64,
     "mean_abs_sync_skew_ns": pl.Float64,
+    "status": pl.Utf8,
+    "detail": pl.Utf8,
+}
+
+RELATIONSHIP_HEALTH_SCHEMA = {
+    "bag_id": pl.Utf8,
+    "relationship_name": pl.Utf8,
+    "relationship_type": pl.Utf8,
+    "source": pl.Utf8,
+    "topic_a": pl.Utf8,
+    "topic_b": pl.Utf8,
+    "topic_a_message_count": pl.Int64,
+    "topic_b_message_count": pl.Int64,
+    "paired_message_count": pl.Int64,
+    "unmatched_topic_a_count": pl.Int64,
+    "unmatched_topic_b_count": pl.Int64,
+    "max_abs_skew_ns": pl.Int64,
+    "p95_abs_skew_ns": pl.Float64,
+    "mean_abs_skew_ns": pl.Float64,
     "status": pl.Utf8,
     "detail": pl.Utf8,
 }
@@ -302,15 +321,105 @@ def pair_timestamps(
     return skews, unmatched_left, unmatched_right
 
 
-def _stereo_rows(
+def _topic_timestamps(bag_partition: pl.DataFrame, topic: str) -> list[int]:
+    return (
+        bag_partition.filter(pl.col("topic") == topic)
+        .get_column("timestamp_ns")
+        .cast(pl.Int64)
+        .to_list()
+    )
+
+
+def _relationship_row(
+    bag_id: str,
+    bag_partition: pl.DataFrame,
+    rule: TopicRelationshipRule,
+    config: AnalyticsConfig,
+    *,
+    source: str,
+) -> dict[str, Any]:
+    topic_a_times = _topic_timestamps(bag_partition, rule.topic_a)
+    topic_b_times = _topic_timestamps(bag_partition, rule.topic_b)
+    pairing_window_ns = rule.pairing_window_ns or config.stereo_pairing_window_ns
+    skew_warn_ns = rule.skew_warn_ns or config.stereo_skew_warn_ns
+    skews, unmatched_a, unmatched_b = pair_timestamps(
+        topic_a_times,
+        topic_b_times,
+        pairing_window_ns,
+    )
+    max_skew = max(skews) if skews else None
+
+    missing_topics = [
+        topic
+        for topic, timestamps in ((rule.topic_a, topic_a_times), (rule.topic_b, topic_b_times))
+        if not timestamps
+    ]
+    if missing_topics:
+        status = "error" if rule.required else "warn"
+        detail = "topic has no messages: " + ", ".join(missing_topics)
+    elif unmatched_a or unmatched_b or max_skew is None or max_skew > skew_warn_ns:
+        status = "warn"
+        detail = (
+            f"paired {len(skews)}; unmatched topic_a/topic_b {unmatched_a}/{unmatched_b}; "
+            f"max skew {max_skew} ns"
+        )
+    else:
+        status = "ok"
+        detail = f"paired {len(skews)}; unmatched topic_a/topic_b 0/0; max skew {max_skew} ns"
+
+    return {
+        "bag_id": bag_id,
+        "relationship_name": rule.name,
+        "relationship_type": rule.relationship_type,
+        "source": source,
+        "topic_a": rule.topic_a,
+        "topic_b": rule.topic_b,
+        "topic_a_message_count": len(topic_a_times),
+        "topic_b_message_count": len(topic_b_times),
+        "paired_message_count": len(skews),
+        "unmatched_topic_a_count": unmatched_a,
+        "unmatched_topic_b_count": unmatched_b,
+        "max_abs_skew_ns": max_skew,
+        "p95_abs_skew_ns": _quantile(skews, 0.95),
+        "mean_abs_skew_ns": sum(skews) / len(skews) if skews else None,
+        "status": status,
+        "detail": detail,
+    }
+
+
+def _automatic_stereo_rules(topics: set[str]) -> list[TopicRelationshipRule]:
+    rules: list[TopicRelationshipRule] = []
+    for left_topic in sorted(topics):
+        match = LEFT_TOPIC_PATTERN.match(left_topic)
+        if not match:
+            continue
+        right_topic = f"{match.group('prefix')}/right/{match.group('suffix')}"
+        rules.append(
+            TopicRelationshipRule(
+                name=f"auto_stereo:{left_topic}",
+                relationship_type="stereo_sync",
+                topic_a=left_topic,
+                topic_b=right_topic,
+            )
+        )
+    return rules
+
+
+def compute_relationship_health(
     message_index: pl.DataFrame,
     config: AnalyticsConfig,
     topic_manifest: pl.DataFrame | None = None,
-) -> list[dict[str, Any]]:
+) -> pl.DataFrame:
+    """Evaluate configured timestamp pairs and conventional stereo topic pairs."""
+    _validate_message_index(message_index)
+    if message_index.is_empty() and (topic_manifest is None or topic_manifest.is_empty()):
+        return _empty_frame(RELATIONSHIP_HEALTH_SCHEMA)
+
     rows: list[dict[str, Any]] = []
     bag_ids = set(message_index.get_column("bag_id").unique().to_list())
     if topic_manifest is not None and not topic_manifest.is_empty():
         bag_ids.update(topic_manifest.get_column("bag_id").unique().to_list())
+
     for bag_id in sorted(bag_ids):
         bag_partition = message_index.filter(pl.col("bag_id") == bag_id)
         topics = set(bag_partition.get_column("topic").unique().to_list())
@@ -321,69 +430,53 @@ def _stereo_rows(
                 .unique()
                 .to_list()
             )
-        for left_topic in sorted(topics):
-            match = LEFT_TOPIC_PATTERN.match(left_topic)
-            if not match:
+
+        configured_pairs: set[frozenset[str]] = set()
+        for rule in config.topic_relationships:
+            configured_pairs.add(frozenset((rule.topic_a, rule.topic_b)))
+            if rule.topic_a not in topics and rule.topic_b not in topics:
                 continue
-            right_topic = f"{match.group('prefix')}/right/{match.group('suffix')}"
-            left_times = (
-                bag_partition.filter(pl.col("topic") == left_topic)
-                .get_column("timestamp_ns")
-                .cast(pl.Int64)
-                .to_list()
-            )
-            right_times = (
-                bag_partition.filter(pl.col("topic") == right_topic)
-                .get_column("timestamp_ns")
-                .cast(pl.Int64)
-                .to_list()
-                if right_topic in topics
-                else []
-            )
-            skews, unmatched_left, unmatched_right = pair_timestamps(
-                left_times,
-                right_times,
-                config.stereo_pairing_window_ns,
-            )
-            max_skew = max(skews) if skews else None
-            status = (
-                "error"
-                if not right_times
-                else "warn"
-                if unmatched_left
-                or unmatched_right
-                or max_skew is None
-                or max_skew > config.stereo_skew_warn_ns
-                else "ok"
-            )
-            rows.append(
-                {
-                    "bag_id": bag_id,
-                    "check_type": "stereo_sync",
-                    "topic": f"{left_topic} <-> {right_topic}",
-                    "topic_left": left_topic,
-                    "topic_right": right_topic,
-                    "message_count": None,
-                    "mean_rate_hz": None,
-                    "max_inter_message_gap_s": None,
-                    "max_gap_to_mean_interval_ratio": None,
-                    "left_message_count": len(left_times),
-                    "right_message_count": len(right_times),
-                    "paired_message_count": len(skews),
-                    "unmatched_left_count": unmatched_left,
-                    "unmatched_right_count": unmatched_right,
-                    "max_abs_sync_skew_ns": max_skew,
-                    "p95_abs_sync_skew_ns": _quantile(skews, 0.95),
-                    "mean_abs_sync_skew_ns": sum(skews) / len(skews) if skews else None,
-                    "status": status,
-                    "detail": (
-                        f"right topic has no messages: {right_topic}"
-                        if not right_times
-                        else f"paired {len(skews)}; unmatched left/right "
-                        f"{unmatched_left}/{unmatched_right}; max skew {max_skew} ns"
-                    ),
-                }
-            )
+            rows.append(_relationship_row(bag_id, bag_partition, rule, config, source="configured"))
+
+        for rule in _automatic_stereo_rules(topics):
+            if frozenset((rule.topic_a, rule.topic_b)) in configured_pairs:
+                continue
+            rows.append(_relationship_row(bag_id, bag_partition, rule, config, source="automatic"))
+
+    return (
+        pl.DataFrame(rows, schema=RELATIONSHIP_HEALTH_SCHEMA).sort(["bag_id", "relationship_name"])
+        if rows
+        else _empty_frame(RELATIONSHIP_HEALTH_SCHEMA)
+    )
+
+
+def _relationship_vslam_rows(relationship_health: pl.DataFrame) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    stereo = relationship_health.filter(pl.col("relationship_type") == "stereo_sync")
+    for relationship in stereo.iter_rows(named=True):
+        rows.append(
+            {
+                "bag_id": relationship["bag_id"],
+                "check_type": "stereo_sync",
+                "topic": f"{relationship['topic_a']} <-> {relationship['topic_b']}",
+                "topic_left": relationship["topic_a"],
+                "topic_right": relationship["topic_b"],
+                "message_count": None,
+                "mean_rate_hz": None,
+                "max_inter_message_gap_s": None,
+                "max_gap_to_mean_interval_ratio": None,
+                "left_message_count": relationship["topic_a_message_count"],
+                "right_message_count": relationship["topic_b_message_count"],
+                "paired_message_count": relationship["paired_message_count"],
+                "unmatched_left_count": relationship["unmatched_topic_a_count"],
+                "unmatched_right_count": relationship["unmatched_topic_b_count"],
+                "max_abs_sync_skew_ns": relationship["max_abs_skew_ns"],
+                "p95_abs_sync_skew_ns": relationship["p95_abs_skew_ns"],
+                "mean_abs_sync_skew_ns": relationship["mean_abs_skew_ns"],
+                "status": relationship["status"],
+                "detail": relationship["detail"],
+            }
+        )
     return rows
 
 
@@ -391,14 +484,16 @@ def compute_vslam_quality(
     message_index: pl.DataFrame,
     config: AnalyticsConfig,
     topic_manifest: pl.DataFrame | None = None,
+    relationship_health: pl.DataFrame | None = None,
 ) -> pl.DataFrame:
     """Compute continuity and stereo synchronization checks."""
     _validate_message_index(message_index)
     if message_index.is_empty() and (topic_manifest is None or topic_manifest.is_empty()):
         return _empty_frame(VSLAM_QUALITY_SCHEMA)
-    rows = _continuity_rows(message_index, config) + _stereo_rows(
-        message_index, config, topic_manifest
-    )
+    relationships = relationship_health
+    if relationships is None:
+        relationships = compute_relationship_health(message_index, config, topic_manifest)
+    rows = _continuity_rows(message_index, config) + _relationship_vslam_rows(relationships)
     return (
         pl.DataFrame(rows, schema=VSLAM_QUALITY_SCHEMA).sort(["bag_id", "check_type", "topic"])
         if rows
@@ -410,23 +505,45 @@ def analyze_message_index(
     message_index_path: Path,
     output_dir: Path,
     config: AnalyticsConfig,
-) -> tuple[pl.DataFrame, pl.DataFrame]:
+) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
     """Run all configured analytics and persist their Parquet outputs."""
     message_index = pl.read_parquet(message_index_path)
     topic_manifest = pl.read_parquet(output_dir / "topic_manifest.parquet")
     topic_health = compute_topic_health(message_index, config, topic_manifest)
-    vslam_quality = compute_vslam_quality(message_index, config, topic_manifest)
+    relationship_health = compute_relationship_health(message_index, config, topic_manifest)
+    vslam_quality = compute_vslam_quality(
+        message_index,
+        config,
+        topic_manifest,
+        relationship_health,
+    )
     topic_health.write_parquet(output_dir / "topic_health.parquet", compression="zstd")
     vslam_quality.write_parquet(output_dir / "vslam_quality.parquet", compression="zstd")
-    return topic_health, vslam_quality
+    relationship_health.write_parquet(
+        output_dir / "relationship_health.parquet", compression="zstd"
+    )
+    return topic_health, vslam_quality, relationship_health
 
 
 def build_analysis_summary(
     topic_health: pl.DataFrame,
     vslam_quality: pl.DataFrame,
+    relationship_health: pl.DataFrame | None = None,
 ) -> dict[str, Any]:
     topic_statuses = topic_health.get_column("status").to_list() if topic_health.height else []
-    quality_statuses = vslam_quality.get_column("status").to_list() if vslam_quality.height else []
+    if relationship_health is None:
+        relationship_statuses: list[str] = []
+        quality_statuses = (
+            vslam_quality.get_column("status").to_list() if vslam_quality.height else []
+        )
+    else:
+        relationship_statuses = (
+            relationship_health.get_column("status").to_list() if relationship_health.height else []
+        )
+        continuity = vslam_quality.filter(pl.col("check_type") != "stereo_sync")
+        quality_statuses = (
+            continuity.get_column("status").to_list() if continuity.height else []
+        ) + relationship_statuses
     statuses = topic_statuses + quality_statuses
     counts = Counter(statuses)
     return {
@@ -435,4 +552,5 @@ def build_analysis_summary(
         "error_count": counts["error"],
         "topic_health_counts": dict(Counter(topic_statuses)),
         "quality_check_counts": dict(Counter(quality_statuses)),
+        "relationship_check_counts": dict(Counter(relationship_statuses)),
     }

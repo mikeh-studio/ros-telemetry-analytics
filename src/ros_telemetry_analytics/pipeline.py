@@ -25,6 +25,7 @@ from ros_telemetry_analytics.reader import scan_bag
 LOGGER = logging.getLogger(__name__)
 EXPECTED_BAG_ARTIFACTS = {
     "message_index.parquet",
+    "relationship_health.parquet",
     "topic_manifest.parquet",
     "topic_health.parquet",
     "vslam_quality.parquet",
@@ -194,12 +195,12 @@ def process_source(
     stage = Path(tempfile.mkdtemp(prefix=f"{source.bag_id}-", dir=staging_root))
     try:
         scan_summary = scan_bag(source, stage, config.parquet_batch_size)
-        topic_health, quality = analyze_message_index(
+        topic_health, quality, relationships = analyze_message_index(
             stage / "message_index.parquet",
             stage,
             config.analytics,
         )
-        analysis_summary = build_analysis_summary(topic_health, quality)
+        analysis_summary = build_analysis_summary(topic_health, quality, relationships)
         summary = {
             "schema_version": 1,
             "pipeline_status": "success",

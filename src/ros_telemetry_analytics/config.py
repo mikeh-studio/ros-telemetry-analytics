@@ -26,8 +26,20 @@ class RateRule:
 
 
 @dataclass(frozen=True)
+class TopicRelationshipRule:
+    name: str
+    relationship_type: str
+    topic_a: str
+    topic_b: str
+    required: bool = True
+    pairing_window_ns: int | None = None
+    skew_warn_ns: int | None = None
+
+
+@dataclass(frozen=True)
 class AnalyticsConfig:
     rate_rules: tuple[RateRule, ...]
+    topic_relationships: tuple[TopicRelationshipRule, ...] = ()
     gap_threshold_multiplier: float = 1.5
     minimum_rate_ratio: float = 0.8
     maximum_rate_ratio: float = 1.2
@@ -66,7 +78,7 @@ class PipelineConfig:
 def analytics_fingerprint(config: AnalyticsConfig) -> str:
     """Return a stable cache key for every setting that affects analytics output."""
     payload = {
-        "analysis_engine_version": 1,
+        "analysis_engine_version": 2,
         "config": asdict(config),
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -134,8 +146,69 @@ def load_pipeline_config(
     for pattern in continuity_patterns:
         re.compile(pattern)
 
+    relationship_rows = analytics_raw.get("topic_relationships", [])
+    if not isinstance(relationship_rows, list):
+        raise ValueError("topic_relationships must be a list")
+    topic_relationships: list[TopicRelationshipRule] = []
+    relationship_names: set[str] = set()
+    for item in relationship_rows:
+        if not isinstance(item, dict):
+            raise ValueError("each topic_relationships entry must be a mapping")
+        name = str(item.get("name", "")).strip()
+        relationship_type = str(item.get("type", "timestamp_pair")).strip()
+        topic_a = str(item.get("topic_a", "")).strip()
+        topic_b = str(item.get("topic_b", "")).strip()
+        if not name:
+            raise ValueError("topic relationship name must not be empty")
+        if name in relationship_names:
+            raise ValueError(f"duplicate topic relationship name: {name}")
+        if relationship_type not in {"timestamp_pair", "stereo_sync"}:
+            raise ValueError(f"topic relationship {name} has unsupported type: {relationship_type}")
+        if not topic_a or not topic_b:
+            raise ValueError(f"topic relationship {name} requires topic_a and topic_b")
+        if topic_a == topic_b:
+            raise ValueError(f"topic relationship {name} must reference two distinct topics")
+        required = item.get("required", True)
+        if not isinstance(required, bool):
+            raise ValueError(f"topic relationship {name} required must be true or false")
+        pairing_window_ms = item.get("pairing_window_ms")
+        skew_warn_ms = item.get("skew_warn_ms")
+        topic_relationships.append(
+            TopicRelationshipRule(
+                name=name,
+                relationship_type=relationship_type,
+                topic_a=topic_a,
+                topic_b=topic_b,
+                required=required,
+                pairing_window_ns=(
+                    int(
+                        _positive_number(
+                            pairing_window_ms,
+                            f"topic relationship {name} pairing_window_ms",
+                        )
+                        * 1_000_000
+                    )
+                    if pairing_window_ms is not None
+                    else None
+                ),
+                skew_warn_ns=(
+                    int(
+                        _positive_number(
+                            skew_warn_ms,
+                            f"topic relationship {name} skew_warn_ms",
+                        )
+                        * 1_000_000
+                    )
+                    if skew_warn_ms is not None
+                    else None
+                ),
+            )
+        )
+        relationship_names.add(name)
+
     analytics = AnalyticsConfig(
         rate_rules=rate_rules,
+        topic_relationships=tuple(topic_relationships),
         gap_threshold_multiplier=_positive_number(
             analytics_raw.get("gap_threshold_multiplier", 1.5),
             "gap_threshold_multiplier",
