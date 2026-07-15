@@ -47,3 +47,29 @@ def write_bag():
         return path
 
     return _write
+
+
+@pytest.fixture
+def write_serialized_bag():
+    def _write(
+        path: Path,
+        messages: list[tuple[str, object, int]],
+        storage_plugin: StoragePlugin = StoragePlugin.SQLITE3,
+    ) -> Path:
+        typestore = get_typestore(Stores.ROS2_HUMBLE)
+        with Writer(path, version=9, storage_plugin=storage_plugin) as writer:
+            connections = {}
+            for topic, message, timestamp in messages:
+                message_type = message.__msgtype__
+                key = (topic, message_type)
+                if key not in connections:
+                    connections[key] = writer.add_connection(
+                        topic,
+                        message_type,
+                        typestore=typestore,
+                    )
+                rawdata = typestore.serialize_cdr(message, message_type)
+                writer.write(connections[key], timestamp, rawdata)
+        return path
+
+    return _write

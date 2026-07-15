@@ -6,6 +6,7 @@ import pytest
 
 from ros_telemetry_analytics.config import (
     AnalyticsConfig,
+    DomainAnalyticsConfig,
     RateRule,
     TopicRelationshipRule,
     analytics_fingerprint,
@@ -24,6 +25,10 @@ pipeline:
   output_root: {tmp_path / "output"}
   parquet_batch_size: 10
 analytics:
+  domain_analyzers:
+    command_topic_patterns: [cmd_vel, drive_command]
+    odometry_pose_jump_warn_m: 2.5
+    command_response_window_ms: 250
   expected_rates:
     - pattern: /camera
       expected_rate_hz: 15
@@ -42,6 +47,9 @@ analytics:
 
     assert config.input_roots == (input_root.resolve(),)
     assert config.analytics.expected_rate("/camera/image") == 15.0
+    assert config.analytics.domain.is_command_topic("/drive_command")
+    assert config.analytics.domain.odometry_pose_jump_warn_m == 2.5
+    assert config.analytics.domain.command_response_window_ns == 250_000_000
     relationship = config.analytics.topic_relationships[0]
     assert relationship.name == "front_stereo"
     assert relationship.relationship_type == "stereo_sync"
@@ -85,6 +93,12 @@ def test_analytics_fingerprint_is_stable_and_covers_thresholds() -> None:
     )
     assert analytics_fingerprint(baseline) != analytics_fingerprint(relationship_change)
 
+    domain_change = AnalyticsConfig(
+        rate_rules=(RateRule("/camera", 30.0),),
+        domain=DomainAnalyticsConfig(odometry_pose_jump_warn_m=2.0),
+    )
+    assert analytics_fingerprint(baseline) != analytics_fingerprint(domain_change)
+
 
 @pytest.mark.parametrize(
     ("relationship_yaml", "message"),
@@ -102,6 +116,34 @@ def test_load_config_rejects_invalid_topic_relationship(
     config_path = tmp_path / "pipeline.yaml"
     config_path.write_text(
         f"analytics:\n  topic_relationships:\n    - name: invalid\n      {relationship_yaml}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=message):
+        load_pipeline_config(config_path)
+
+
+@pytest.mark.parametrize(
+    ("domain_yaml", "message"),
+    [
+        ("enabled: sometimes", "enabled must be"),
+        (
+            "image_dark_warn_mean: 240\n    image_bright_warn_mean: 200",
+            "must be less",
+        ),
+        ("command_response_window_ms: 0", "command_response_window_ms"),
+        ("command_topic_patterns: cmd_vel", "must be a list"),
+        ("command_topic_patterns: ['[']", "invalid command topic pattern"),
+    ],
+)
+def test_load_config_rejects_invalid_domain_analyzer_config(
+    tmp_path: Path,
+    domain_yaml: str,
+    message: str,
+) -> None:
+    config_path = tmp_path / "pipeline.yaml"
+    config_path.write_text(
+        f"analytics:\n  domain_analyzers:\n    {domain_yaml}\n",
         encoding="utf-8",
     )
 

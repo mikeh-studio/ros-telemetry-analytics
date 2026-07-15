@@ -266,6 +266,15 @@ def test_continuity_and_summary_surface_warning(analytics_config) -> None:
     assert quality.row(0, named=True)["status"] == "warn"
     assert summary["health_status"] == "warn"
     assert summary["warning_count"] == 1
+    assert summary["health_findings"] == [
+        {
+            "source": "vslam_quality",
+            "check": "timestamp_continuity",
+            "topic": "/tf",
+            "status": "warn",
+            "detail": "max gap is 3.88x mean interval",
+        }
+    ]
 
 
 def test_empty_analysis_has_stable_schema(analytics_config) -> None:

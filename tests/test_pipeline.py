@@ -53,6 +53,10 @@ def test_pipeline_is_idempotent_and_publishes_complete_outputs(
     bag_id = first["results"][0]["bag_id"]
     bag_output = config.output_root / "bags" / bag_id
     assert {
+        "anomaly_events.parquet",
+        "bag_report.md",
+        "domain_metrics.parquet",
+        "domain_summary.json",
         "message_index.parquet",
         "relationship_health.parquet",
         "topic_manifest.parquet",
@@ -60,8 +64,14 @@ def test_pipeline_is_idempotent_and_publishes_complete_outputs(
         "vslam_quality.parquet",
         "summary.json",
     }.issubset(path.name for path in bag_output.iterdir())
-    assert json.loads((bag_output / "summary.json").read_text())["pipeline_status"] == "success"
-    assert json.loads((bag_output / "summary.json").read_text())["analytics_fingerprint"]
+    summary = json.loads((bag_output / "summary.json").read_text())
+    assert summary["pipeline_status"] == "success"
+    assert summary["analytics_fingerprint"]
+    assert summary["domain_analysis"]["status"] == "warn"
+    assert pl.read_parquet(
+        bag_output / "domain_records" / "extraction_errors.parquet"
+    ).height == len(MESSAGES)
+    assert (bag_output / "bag_report.md").exists()
     assert (config.output_root / "latest_report.md").exists()
 
 

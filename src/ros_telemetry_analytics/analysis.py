@@ -548,6 +548,67 @@ def build_analysis_summary(
         )
         continuity = vslam_quality.filter(pl.col("check_type") != "stereo_sync")
         quality_statuses = continuity.get_column("status").to_list() if continuity.height else []
+    findings: list[dict[str, str]] = []
+    for row in topic_health.filter(pl.col("status") != "ok").iter_rows(named=True):
+        details: list[str] = []
+        if row["message_count"] == 0:
+            details.append("no messages were recorded")
+        elif row["expected_rate_hz"] is not None and row["mean_rate_hz"] is not None:
+            details.append(
+                f"mean rate {row['mean_rate_hz']:.3g} Hz vs "
+                f"expected {row['expected_rate_hz']:.3g} Hz"
+            )
+        if row["gap_event_count"]:
+            details.append(
+                f"{row['gap_event_count']} gap events and approximately "
+                f"{row['estimated_dropped_messages']} dropped messages"
+            )
+        findings.append(
+            {
+                "source": "topic_health",
+                "check": "rate_and_gaps",
+                "topic": row["topic"],
+                "status": row["status"],
+                "detail": "; ".join(details) or "topic health thresholds were not met",
+            }
+        )
+
+    quality_findings = (
+        vslam_quality
+        if relationship_health is None
+        else vslam_quality.filter(pl.col("check_type") != "stereo_sync")
+    )
+    for row in quality_findings.filter(pl.col("status") != "ok").iter_rows(named=True):
+        topic = row["topic"] or f"{row['topic_left']} <-> {row['topic_right']}"
+        findings.append(
+            {
+                "source": "vslam_quality",
+                "check": row["check_type"],
+                "topic": topic,
+                "status": row["status"],
+                "detail": row["detail"],
+            }
+        )
+
+    if relationship_health is not None:
+        for row in relationship_health.filter(pl.col("status") != "ok").iter_rows(named=True):
+            findings.append(
+                {
+                    "source": "relationship_health",
+                    "check": row["relationship_name"],
+                    "topic": f"{row['topic_a']} <-> {row['topic_b']}",
+                    "status": row["status"],
+                    "detail": row["detail"],
+                }
+            )
+
+    findings.sort(
+        key=lambda finding: (
+            {"error": 0, "warn": 1}.get(finding["status"], 2),
+            finding["source"],
+            finding["topic"],
+        )
+    )
     statuses = topic_statuses + quality_statuses + relationship_statuses
     counts = Counter(statuses)
     return {
@@ -557,4 +618,5 @@ def build_analysis_summary(
         "topic_health_counts": dict(Counter(topic_statuses)),
         "quality_check_counts": dict(Counter(quality_statuses)),
         "relationship_check_counts": dict(Counter(relationship_statuses)),
+        "health_findings": findings[:100],
     }
