@@ -54,6 +54,7 @@ def test_pipeline_is_idempotent_and_publishes_complete_outputs(
     bag_output = config.output_root / "bags" / bag_id
     assert {
         "message_index.parquet",
+        "relationship_health.parquet",
         "topic_manifest.parquet",
         "topic_health.parquet",
         "vslam_quality.parquet",
@@ -97,9 +98,13 @@ def test_ros2_stereo_pipeline_end_to_end(
     assert manifest["processed_count"] == 1
     bag_id = manifest["results"][0]["bag_id"]
     quality = pl.read_parquet(tmp_path / "output" / "bags" / bag_id / "vslam_quality.parquet")
+    relationships = pl.read_parquet(
+        tmp_path / "output" / "bags" / bag_id / "relationship_health.parquet"
+    )
     stereo = quality.filter(pl.col("check_type") == "stereo_sync")
     assert stereo.height == 1
     assert stereo.row(0, named=True)["paired_message_count"] == 2
+    assert relationships.row(0, named=True)["source"] == "automatic"
 
 
 def test_zero_message_connection_is_reported_as_error(
@@ -134,7 +139,7 @@ def test_missing_cached_artifact_forces_reprocessing(
     config = _config(tmp_path, analytics_config)
     first = run_pipeline(config)
     bag_id = first["results"][0]["bag_id"]
-    (config.output_root / "bags" / bag_id / "topic_health.parquet").unlink()
+    (config.output_root / "bags" / bag_id / "relationship_health.parquet").unlink()
 
     second = run_pipeline(config)
 

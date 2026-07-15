@@ -7,6 +7,7 @@ import pytest
 from ros_telemetry_analytics.config import (
     AnalyticsConfig,
     RateRule,
+    TopicRelationshipRule,
     analytics_fingerprint,
     load_pipeline_config,
 )
@@ -26,6 +27,13 @@ analytics:
   expected_rates:
     - pattern: /camera
       expected_rate_hz: 15
+  topic_relationships:
+    - name: front_stereo
+      type: stereo_sync
+      topic_a: /cam0/image_raw
+      topic_b: /cam1/image_raw
+      pairing_window_ms: 10
+      skew_warn_ms: 2
 """,
         encoding="utf-8",
     )
@@ -34,6 +42,11 @@ analytics:
 
     assert config.input_roots == (input_root.resolve(),)
     assert config.analytics.expected_rate("/camera/image") == 15.0
+    relationship = config.analytics.topic_relationships[0]
+    assert relationship.name == "front_stereo"
+    assert relationship.relationship_type == "stereo_sync"
+    assert relationship.pairing_window_ns == 10_000_000
+    assert relationship.skew_warn_ns == 2_000_000
     assert config.parquet_batch_size == 10
 
 
@@ -58,3 +71,39 @@ def test_analytics_fingerprint_is_stable_and_covers_thresholds() -> None:
 
     assert analytics_fingerprint(baseline) == analytics_fingerprint(equivalent)
     assert analytics_fingerprint(baseline) != analytics_fingerprint(changed)
+
+    relationship_change = AnalyticsConfig(
+        rate_rules=(RateRule("/camera", 30.0),),
+        topic_relationships=(
+            TopicRelationshipRule(
+                name="front_stereo",
+                relationship_type="stereo_sync",
+                topic_a="/cam0/image_raw",
+                topic_b="/cam1/image_raw",
+            ),
+        ),
+    )
+    assert analytics_fingerprint(baseline) != analytics_fingerprint(relationship_change)
+
+
+@pytest.mark.parametrize(
+    ("relationship_yaml", "message"),
+    [
+        ("type: unsupported\n      topic_a: /a\n      topic_b: /b", "unsupported type"),
+        ("topic_a: /same\n      topic_b: /same", "distinct topics"),
+        ("topic_a: /a\n      topic_b: /b\n      required: sometimes", "required must be"),
+    ],
+)
+def test_load_config_rejects_invalid_topic_relationship(
+    tmp_path: Path,
+    relationship_yaml: str,
+    message: str,
+) -> None:
+    config_path = tmp_path / "pipeline.yaml"
+    config_path.write_text(
+        f"analytics:\n  topic_relationships:\n    - name: invalid\n      {relationship_yaml}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=message):
+        load_pipeline_config(config_path)

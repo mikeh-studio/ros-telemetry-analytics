@@ -25,6 +25,7 @@ single-pass reader -----> topic_manifest.parquet
 topic health + VSLAM checks
     |
     +----> topic_health.parquet
+    +----> relationship_health.parquet
     +----> vslam_quality.parquet
     `----> summary.json
 
@@ -41,6 +42,9 @@ all bag outcomes -----> latest_run.json + latest_report.md
 - `analysis.py` computes rate/gap/dropout integrity and VSLAM timing checks from
   bag log/receive timestamps. It never deserializes message bodies or reads
   payload `header.stamp` values, so timing includes recorder transport jitter.
+  Configured topic relationships and automatically discovered left/right pairs
+  share the same timestamp-pairing engine; configured stereo relationships are
+  also projected into the existing VSLAM output for compatibility.
 - `pipeline.py` owns fingerprint skips, staging, publication, run locking,
   failure isolation, and operational manifests.
 - `assets.py` owns optional NVIDIA NGC sample downloads, size and SHA-256
@@ -55,6 +59,16 @@ published results. `summary.json` and run manifests carry `schema_version: 1`.
 Breaking field changes require a schema-version increment and migration notes.
 Bag IDs include a stable path hash. Each locked run reconciles `bags/` against
 the current inventory and removes outputs for sources that disappeared.
+
+`relationship_health.parquet` is the generic cross-topic contract. Each row
+names the relationship and its source, identifies both topics, and reports
+pairing coverage and skew. The narrower `vslam_quality.parquet` contract remains
+available for continuity checks and stereo-specific consumers.
+
+Bag summaries keep category counters disjoint: `topic_health_counts` covers
+per-topic health, `quality_check_counts` covers continuity checks, and
+`relationship_check_counts` covers cross-topic relationships. Top-level warning
+and error totals combine all three categories once.
 
 Parquet files use Zstandard compression. Message indexes are written in
 configurable batches, while analysis reads only the compact metadata index for

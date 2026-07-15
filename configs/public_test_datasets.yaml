@@ -37,7 +37,7 @@ datasets:
       observation: /vrpn_client/raw_transform has 36 configured gap events
     notes:
       - Camera topics run at 20 Hz and IMU data runs at approximately 200 Hz.
-      - Stereo topics use cam0 and cam1; current automatic stereo pairing expects left and right names.
+      - Stereo topics use cam0 and cam1 and are paired explicitly in the public test config.
 
   ros_legacy_fixtures:
     source_root: http://download.ros.org/data/rosbag/

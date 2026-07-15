@@ -19,6 +19,12 @@ analytics:
       expected_rate_hz: 30.0
     - pattern: ^/camera/(?:rgb|depth)/camera_info$
       expected_rate_hz: 30.0
+  topic_relationships:
+    - name: tum_vi_stereo
+      type: stereo_sync
+      topic_a: /cam0/image_raw
+      topic_b: /cam1/image_raw
+      required: true
   gap_threshold_multiplier: 1.5
   minimum_rate_ratio: 0.8
   maximum_rate_ratio: 1.2
