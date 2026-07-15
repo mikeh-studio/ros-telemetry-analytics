@@ -340,8 +340,14 @@ def _relationship_row(
 ) -> dict[str, Any]:
     topic_a_times = _topic_timestamps(bag_partition, rule.topic_a)
     topic_b_times = _topic_timestamps(bag_partition, rule.topic_b)
-    pairing_window_ns = rule.pairing_window_ns or config.stereo_pairing_window_ns
-    skew_warn_ns = rule.skew_warn_ns or config.stereo_skew_warn_ns
+    pairing_window_ns = (
+        rule.pairing_window_ns
+        if rule.pairing_window_ns is not None
+        else config.stereo_pairing_window_ns
+    )
+    skew_warn_ns = (
+        rule.skew_warn_ns if rule.skew_warn_ns is not None else config.stereo_skew_warn_ns
+    )
     skews, unmatched_a, unmatched_b = pair_timestamps(
         topic_a_times,
         topic_b_times,
@@ -541,10 +547,8 @@ def build_analysis_summary(
             relationship_health.get_column("status").to_list() if relationship_health.height else []
         )
         continuity = vslam_quality.filter(pl.col("check_type") != "stereo_sync")
-        quality_statuses = (
-            continuity.get_column("status").to_list() if continuity.height else []
-        ) + relationship_statuses
-    statuses = topic_statuses + quality_statuses
+        quality_statuses = continuity.get_column("status").to_list() if continuity.height else []
+    statuses = topic_statuses + quality_statuses + relationship_statuses
     counts = Counter(statuses)
     return {
         "health_status": overall_status(statuses),

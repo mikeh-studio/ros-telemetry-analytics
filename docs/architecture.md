@@ -65,6 +65,11 @@ names the relationship and its source, identifies both topics, and reports
 pairing coverage and skew. The narrower `vslam_quality.parquet` contract remains
 available for continuity checks and stereo-specific consumers.
 
+Bag summaries keep category counters disjoint: `topic_health_counts` covers
+per-topic health, `quality_check_counts` covers continuity checks, and
+`relationship_check_counts` covers cross-topic relationships. Top-level warning
+and error totals combine all three categories once.
+
 Parquet files use Zstandard compression. Message indexes are written in
 configurable batches, while analysis reads only the compact metadata index for
 one bag at a time.

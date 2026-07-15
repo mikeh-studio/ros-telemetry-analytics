@@ -114,6 +114,73 @@ def test_configured_relationship_reports_missing_required_counterpart(analytics_
     assert "/imu" in row["detail"]
 
 
+def test_optional_relationship_warns_for_missing_counterpart(analytics_config) -> None:
+    config = replace(
+        analytics_config,
+        topic_relationships=(
+            TopicRelationshipRule(
+                name="optional_camera_imu",
+                relationship_type="timestamp_pair",
+                topic_a="/camera/image_raw",
+                topic_b="/imu",
+                required=False,
+            ),
+        ),
+    )
+
+    row = compute_relationship_health(
+        _index([("/camera/image_raw", 0)]),
+        config,
+    ).row(0, named=True)
+
+    assert row["status"] == "warn"
+
+
+def test_relationship_rules_override_global_pairing_and_skew_thresholds(
+    analytics_config,
+) -> None:
+    millisecond = 1_000_000
+    config = replace(
+        analytics_config,
+        topic_relationships=(
+            TopicRelationshipRule(
+                name="narrow_pairing_window",
+                relationship_type="timestamp_pair",
+                topic_a="/camera/a",
+                topic_b="/camera/b",
+                pairing_window_ns=millisecond,
+            ),
+            TopicRelationshipRule(
+                name="tight_skew_warning",
+                relationship_type="timestamp_pair",
+                topic_a="/camera/c",
+                topic_b="/camera/d",
+                pairing_window_ns=3 * millisecond,
+                skew_warn_ns=millisecond,
+            ),
+        ),
+    )
+    frame = _index(
+        [
+            ("/camera/a", 0),
+            ("/camera/b", 2 * millisecond),
+            ("/camera/c", 0),
+            ("/camera/d", 2 * millisecond),
+        ]
+    )
+
+    rows = {
+        row["relationship_name"]: row
+        for row in compute_relationship_health(frame, config).iter_rows(named=True)
+    }
+
+    assert rows["narrow_pairing_window"]["paired_message_count"] == 0
+    assert rows["narrow_pairing_window"]["status"] == "warn"
+    assert rows["tight_skew_warning"]["paired_message_count"] == 1
+    assert rows["tight_skew_warning"]["max_abs_skew_ns"] == 2 * millisecond
+    assert rows["tight_skew_warning"]["status"] == "warn"
+
+
 def test_relationship_status_is_counted_once_in_summary(analytics_config) -> None:
     frame = _index([("/left/image_raw", 0)])
     relationships = compute_relationship_health(frame, analytics_config)
@@ -130,7 +197,7 @@ def test_relationship_status_is_counted_once_in_summary(analytics_config) -> Non
     )
 
     assert summary["error_count"] == 1
-    assert summary["quality_check_counts"] == {"error": 1}
+    assert summary["quality_check_counts"] == {}
     assert summary["relationship_check_counts"] == {"error": 1}
 
 
