@@ -2,12 +2,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import polars as pl
 import pyarrow as pa
 import pyarrow.parquet as pq
 
 from ros_telemetry_analytics.config import DomainAnalyticsConfig
 from ros_telemetry_analytics.domain import DOMAIN_RECORD_DIRECTORY, DOMAIN_SCHEMAS
-from ros_telemetry_analytics.domain_analysis import render_bag_report, run_domain_analysis
+from ros_telemetry_analytics.domain_analysis import (
+    EVENT_SCHEMA,
+    METRIC_SCHEMA,
+    build_domain_summary,
+    render_bag_report,
+    run_domain_analysis,
+)
 
 
 def _write_records(output_dir: Path, records: dict[str, list[dict]]) -> None:
@@ -233,3 +240,100 @@ def test_disabled_domain_analysis_publishes_empty_contract(tmp_path: Path) -> No
     assert (tmp_path / "domain_metrics.parquet").exists()
     assert (tmp_path / "anomaly_events.parquet").exists()
     assert (tmp_path / "domain_summary.json").exists()
+
+
+def test_summary_and_report_prioritize_severe_findings_before_caps() -> None:
+    metrics = pl.DataFrame(
+        [
+            {
+                "bag_id": "bag",
+                "domain": "image",
+                "topic": f"/camera/{index:02d}",
+                "metric": "mean_intensity",
+                "value": float(index),
+                "unit": "level",
+                "status": "ok",
+                "detail": "",
+            }
+            for index in range(45)
+        ]
+        + [
+            {
+                "bag_id": "bag",
+                "domain": "tf",
+                "topic": "zz-warning",
+                "metric": "empty_frame_count",
+                "value": 1.0,
+                "unit": "transforms",
+                "status": "warn",
+                "detail": "warning must survive truncation",
+            },
+            {
+                "bag_id": "bag",
+                "domain": "tf",
+                "topic": "zz-error",
+                "metric": "frame_cycle_count",
+                "value": 1.0,
+                "unit": "cycles",
+                "status": "error",
+                "detail": "error must survive truncation",
+            },
+        ],
+        schema=METRIC_SCHEMA,
+    )
+    events = pl.DataFrame(
+        [
+            {
+                "bag_id": "bag",
+                "domain": "image",
+                "topic": "/camera",
+                "start_timestamp_ns": index,
+                "end_timestamp_ns": index,
+                "severity": "warn",
+                "event_type": "early_warning",
+                "observed_value": 1.0,
+                "threshold": 0.0,
+                "unit": "frames",
+                "detail": f"early warning {index}",
+            }
+            for index in range(55)
+        ]
+        + [
+            {
+                "bag_id": "bag",
+                "domain": "tf",
+                "topic": "/tf",
+                "start_timestamp_ns": 10_000,
+                "end_timestamp_ns": 10_000,
+                "severity": "error",
+                "event_type": "late_error",
+                "observed_value": 1.0,
+                "threshold": 0.0,
+                "unit": "cycles",
+                "detail": "late error must survive truncation",
+            }
+        ],
+        schema=EVENT_SCHEMA,
+    )
+    record_counts = {name: 0 for name in DOMAIN_SCHEMAS}
+
+    domain_summary = build_domain_summary(True, metrics, events, record_counts)
+
+    assert [row["status"] for row in domain_summary["key_metrics"][:2]] == [
+        "error",
+        "warn",
+    ]
+    bag_summary = {
+        "bag_id": "bag",
+        "analyzed_at": "2026-07-15T00:00:00+00:00",
+        "message_count": 101,
+        "topic_count": 47,
+        "health_status": "ok",
+        "health_findings": [],
+        "domain_analysis": domain_summary,
+    }
+    report = render_bag_report(bag_summary, metrics, events)
+    assert "zz-error" in report
+    assert "zz-warning" in report
+    assert "late_error" in report
+    assert report.index("late_error") < report.index("early_warning")

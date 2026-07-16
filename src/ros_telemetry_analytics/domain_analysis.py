@@ -37,9 +37,66 @@ EVENT_SCHEMA = {
     "detail": pl.Utf8,
 }
 
+PREFERRED_DOMAIN_METRICS = frozenset(
+    {
+        "distance_traveled",
+        "max_linear_speed",
+        "stationary_fraction",
+        "max_acceleration_magnitude",
+        "max_angular_velocity",
+        "p95_speed_tracking_error",
+        "unresponsive_command_count",
+        "frame_cycle_count",
+        "translation_path_length",
+        "max_translation_speed",
+        "non_ok_count",
+        "duplicate_frame_count",
+        "mean_intensity",
+        "minimum_sharpness",
+        "mean_depth",
+        "mean_valid_pixel_fraction",
+        "deserialization_error_count",
+    }
+)
+
 
 def _empty_frame(schema: dict[str, pl.DataType]) -> pl.DataFrame:
     return pl.DataFrame(schema=schema)
+
+
+def _status_priority(status: str) -> tuple[bool, int]:
+    return status == "ok", {"error": 0, "warn": 1}.get(status, 2)
+
+
+def _select_metric_rows(metrics: pl.DataFrame, limit: int) -> list[dict[str, Any]]:
+    rows = [
+        row
+        for row in metrics.iter_rows(named=True)
+        if row["metric"] in PREFERRED_DOMAIN_METRICS or row["status"] != "ok"
+    ]
+    rows.sort(
+        key=lambda row: (
+            *_status_priority(row["status"]),
+            row["domain"],
+            row["topic"],
+            row["metric"],
+        )
+    )
+    return rows[:limit]
+
+
+def _select_event_rows(events: pl.DataFrame, limit: int) -> list[dict[str, Any]]:
+    rows = list(events.iter_rows(named=True))
+    rows.sort(
+        key=lambda row: (
+            *_status_priority(row["severity"]),
+            row["start_timestamp_ns"],
+            row["domain"],
+            row["topic"],
+            row["event_type"],
+        )
+    )
+    return rows[:limit]
 
 
 def _read_records(output_dir: Path) -> dict[str, pl.DataFrame]:
@@ -1002,30 +1059,7 @@ def build_domain_summary(
         if metrics.height
         else "unavailable"
     )
-    preferred_metrics = {
-        "distance_traveled",
-        "max_linear_speed",
-        "stationary_fraction",
-        "max_acceleration_magnitude",
-        "max_angular_velocity",
-        "p95_speed_tracking_error",
-        "unresponsive_command_count",
-        "frame_cycle_count",
-        "translation_path_length",
-        "max_translation_speed",
-        "non_ok_count",
-        "duplicate_frame_count",
-        "mean_intensity",
-        "minimum_sharpness",
-        "mean_depth",
-        "mean_valid_pixel_fraction",
-        "deserialization_error_count",
-    }
-    key_rows = [
-        row
-        for row in metrics.iter_rows(named=True)
-        if row["metric"] in preferred_metrics or row["status"] != "ok"
-    ][:30]
+    key_rows = _select_metric_rows(metrics, 30)
     key_metrics = [
         {
             "domain": row["domain"],
@@ -1170,31 +1204,7 @@ def render_bag_report(
                 "| --- | --- | --- | ---: | --- | --- |",
             ]
         )
-        preferred = {
-            "distance_traveled",
-            "max_linear_speed",
-            "stationary_fraction",
-            "max_acceleration_magnitude",
-            "max_angular_velocity",
-            "p95_speed_tracking_error",
-            "unresponsive_command_count",
-            "frame_cycle_count",
-            "translation_path_length",
-            "max_translation_speed",
-            "non_ok_count",
-            "duplicate_frame_count",
-            "mean_intensity",
-            "minimum_sharpness",
-            "mean_depth",
-            "mean_valid_pixel_fraction",
-            "deserialization_error_count",
-        }
-        selected = [
-            row
-            for row in metrics.iter_rows(named=True)
-            if row["metric"] in preferred or row["status"] != "ok"
-        ][:40]
-        for row in selected:
+        for row in _select_metric_rows(metrics, 40):
             lines.append(
                 f"| {_markdown_text(row['domain'])} | `{_markdown_text(row['topic'])}` | "
                 f"{_markdown_text(row['metric'])} | {row['value']:.4g} | "
@@ -1210,7 +1220,7 @@ def render_bag_report(
                 "| --- | --- | --- | --- | ---: | ---: | --- |",
             ]
         )
-        for row in events.head(50).iter_rows(named=True):
+        for row in _select_event_rows(events, 50):
             lines.append(
                 f"| {row['severity']} | {_markdown_text(row['domain'])} | "
                 f"`{_markdown_text(row['topic'])}` | {_markdown_text(row['event_type'])} | "

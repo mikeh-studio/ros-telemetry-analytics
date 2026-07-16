@@ -8,7 +8,12 @@ import polars as pl
 import pytest
 from rosbags.typesys import Stores, get_typestore
 
-from ros_telemetry_analytics.config import AnalyticsConfig, PipelineConfig
+from ros_telemetry_analytics.config import (
+    AnalyticsConfig,
+    DomainAnalyticsConfig,
+    PipelineConfig,
+)
+from ros_telemetry_analytics.domain import DOMAIN_RECORD_PATHS
 from ros_telemetry_analytics.pipeline import run_pipeline
 
 
@@ -33,6 +38,7 @@ def _messages() -> list[tuple[str, object, int]]:
     DiagnosticStatus = types["diagnostic_msgs/msg/DiagnosticStatus"]
     DiagnosticArray = types["diagnostic_msgs/msg/DiagnosticArray"]
     Image = types["sensor_msgs/msg/Image"]
+    CompressedImage = types["sensor_msgs/msg/CompressedImage"]
 
     def header(timestamp_ns: int, frame_id: str):
         return Header(Time(timestamp_ns // 1_000_000_000, timestamp_ns % 1_000_000_000), frame_id)
@@ -94,6 +100,11 @@ def _messages() -> list[tuple[str, object, int]]:
     mono16_image = Image(header(0, "camera"), 2, 2, "mono16", 0, 4, mono16_pixels)
     depth_pixels = np.array([1.0, 2.0, np.nan, 0.0], dtype="<f4").view(np.uint8)
     depth_image = Image(header(0, "camera"), 2, 2, "32FC1", 0, 8, depth_pixels)
+    compressed_image = CompressedImage(
+        header(0, "camera"),
+        "jpeg",
+        np.array([255, 216, 255, 217], dtype=np.uint8),
+    )
     return [
         *odometry,
         ("/imu", imu, 0),
@@ -104,6 +115,7 @@ def _messages() -> list[tuple[str, object, int]]:
         ("/camera/image_raw", image, 100_000_000),
         ("/camera/mono16", mono16_image, 0),
         ("/camera/depth", depth_image, 0),
+        ("/camera/image/compressed", compressed_image, 0),
     ]
 
 
@@ -136,6 +148,12 @@ def test_pipeline_deserializes_payloads_and_publishes_domain_summary(
     depth = images.filter(pl.col("topic") == "/camera/depth").row(0, named=True)
     assert depth["mean_depth_m"] == pytest.approx(1.5)
     assert depth["valid_pixel_fraction"] == pytest.approx(0.5)
+    compressed = images.filter(pl.col("topic") == "/camera/image/compressed").row(0, named=True)
+    assert compressed["encoding"] == "jpeg"
+    assert compressed["data_bytes"] == 4
+    assert compressed["height"] == compressed["width"] == compressed["step"] == 0
+    assert compressed["mean_intensity"] is None
+    assert compressed["content_hash"]
 
     summary = json.loads((bag_output / "summary.json").read_text())
     events = pl.read_parquet(bag_output / "anomaly_events.parquet")
@@ -151,3 +169,34 @@ def test_pipeline_deserializes_payloads_and_publishes_domain_summary(
     report = (bag_output / "bag_report.md").read_text()
     assert "# Robot Bag Analysis" in report
     assert "distance_traveled" in report
+
+
+def test_disabled_domain_writer_publishes_complete_empty_contract(
+    tmp_path: Path,
+    write_serialized_bag,
+) -> None:
+    write_serialized_bag(tmp_path / "input" / "disabled", _messages())
+    config = PipelineConfig(
+        input_roots=(tmp_path / "input",),
+        output_root=tmp_path / "output",
+        excluded_directory_names=frozenset(),
+        parquet_batch_size=2,
+        analytics=AnalyticsConfig(
+            rate_rules=(),
+            domain=DomainAnalyticsConfig(enabled=False),
+        ),
+    )
+
+    manifest = run_pipeline(config)
+
+    assert manifest["processed_count"] == 1
+    bag_id = manifest["results"][0]["bag_id"]
+    bag_output = config.output_root / "bags" / bag_id
+    for relative_path in DOMAIN_RECORD_PATHS.values():
+        path = bag_output / relative_path
+        assert path.is_file()
+        assert pl.read_parquet(path).is_empty()
+    assert pl.read_parquet(bag_output / "domain_metrics.parquet").is_empty()
+    assert pl.read_parquet(bag_output / "anomaly_events.parquet").is_empty()
+    summary = json.loads((bag_output / "summary.json").read_text())
+    assert summary["domain_analysis"]["status"] == "disabled"
