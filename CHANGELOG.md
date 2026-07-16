@@ -8,6 +8,11 @@ All notable changes to this project are documented here.
   required/optional counterpart handling, and `relationship_health.parquet`.
 - Preserved automatic left/right stereo discovery and projected configured
   stereo relationships into the existing VSLAM output.
+- Added selective payload extraction and normalized records for odometry, IMU,
+  velocity commands, transforms, diagnostics, and image features.
+- Added deterministic domain metrics, time-bounded anomaly events, embedded bag
+  summaries, and shareable per-bag Markdown reports with analyzer coverage and
+  concrete data-health findings.
 
 ## 0.1.0 - 2026-07-09
 

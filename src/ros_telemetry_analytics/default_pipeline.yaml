@@ -8,6 +8,23 @@ pipeline:
   parquet_batch_size: 50000
 
 analytics:
+  domain_analyzers:
+    enabled: true
+    command_topic_patterns:
+      - cmd_vel
+      - command
+    stationary_speed_threshold_mps: 0.05
+    odometry_pose_jump_warn_m: 1.0
+    imu_acceleration_warn_mps2: 30.0
+    imu_angular_velocity_warn_rad_s: 10.0
+    command_motion_threshold_mps: 0.1
+    command_tracking_error_warn_mps: 0.5
+    command_response_window_ms: 500.0
+    tf_translation_jump_warn_m: 1.0
+    image_dark_warn_mean: 20.0
+    image_bright_warn_mean: 235.0
+    image_sharpness_warn: 2.0
+    event_merge_gap_ms: 500.0
   expected_rates:
     - pattern: /(?:image_raw|camera_info)$
       expected_rate_hz: 30.0

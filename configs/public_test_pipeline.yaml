@@ -8,6 +8,8 @@ pipeline:
   parquet_batch_size: 50000
 
 analytics:
+  domain_analyzers:
+    enabled: true
   expected_rates:
     - pattern: ^/cam[01]/image_raw$
       expected_rate_hz: 20.0

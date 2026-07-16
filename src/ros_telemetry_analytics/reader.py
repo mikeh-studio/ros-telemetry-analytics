@@ -16,6 +16,8 @@ from mcap.reader import make_reader as make_mcap_reader
 from rosbags.highlevel import AnyReader
 from rosbags.typesys import Stores, get_typestore
 
+from ros_telemetry_analytics.config import DomainAnalyticsConfig
+from ros_telemetry_analytics.domain import DomainRecordWriter
 from ros_telemetry_analytics.models import BagSource
 
 DEFAULT_TYPESTORE = get_typestore(Stores.ROS2_HUMBLE)
@@ -224,7 +226,12 @@ def _write_batch(writer: pq.ParquetWriter, rows: list[dict[str, Any]]) -> None:
     writer.write_table(pa.Table.from_pylist(rows, schema=MESSAGE_INDEX_SCHEMA))
 
 
-def scan_bag(source: BagSource, output_dir: Path, batch_size: int) -> dict[str, Any]:
+def scan_bag(
+    source: BagSource,
+    output_dir: Path,
+    batch_size: int,
+    domain_config: DomainAnalyticsConfig | None = None,
+) -> dict[str, Any]:
     """Scan a bag once, streaming its message index and topic manifest to Parquet."""
     output_dir.mkdir(parents=True, exist_ok=True)
     index_path = output_dir / "message_index.parquet"
@@ -234,12 +241,17 @@ def scan_bag(source: BagSource, output_dir: Path, batch_size: int) -> dict[str, 
     rows: list[dict[str, Any]] = []
     message_count = 0
     writer = pq.ParquetWriter(index_path, MESSAGE_INDEX_SCHEMA, compression="zstd")
+    domain_writer = (
+        DomainRecordWriter(output_dir, source.bag_id, domain_config, batch_size)
+        if domain_config is not None
+        else None
+    )
 
     try:
         with open_bag(source) as reader:
             for connection in reader.connections:
                 topic_counts[(connection.topic, connection.msgtype)] += 0
-            for sequence, (connection, timestamp, _rawdata) in enumerate(reader.messages()):
+            for sequence, (connection, timestamp, rawdata) in enumerate(reader.messages()):
                 key = (connection.topic, connection.msgtype)
                 topic_counts[key] += 1
                 if key not in topic_bounds:
@@ -256,6 +268,8 @@ def scan_bag(source: BagSource, output_dir: Path, batch_size: int) -> dict[str, 
                         "timestamp_ns": timestamp,
                     }
                 )
+                if domain_writer is not None:
+                    domain_writer.process(reader, connection, sequence, timestamp, rawdata)
                 message_count += 1
                 if len(rows) >= batch_size:
                     _write_batch(writer, rows)
@@ -263,7 +277,11 @@ def scan_bag(source: BagSource, output_dir: Path, batch_size: int) -> dict[str, 
             if rows:
                 _write_batch(writer, rows)
     finally:
-        writer.close()
+        try:
+            writer.close()
+        finally:
+            if domain_writer is not None:
+                domain_writer.close()
 
     manifest_rows = []
     for (topic, message_type), count in sorted(topic_counts.items()):

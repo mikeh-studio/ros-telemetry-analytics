@@ -35,6 +35,8 @@ class ProcessResult:
     topic_count: int = 0
     health_status: str | None = None
     warning_count: int = 0
+    domain_status: str | None = None
+    domain_event_count: int = 0
     error_type: str | None = None
     error_message: str | None = None
 

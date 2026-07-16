@@ -4,7 +4,7 @@ import hashlib
 import json
 import math
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -37,9 +37,33 @@ class TopicRelationshipRule:
 
 
 @dataclass(frozen=True)
+class DomainAnalyticsConfig:
+    enabled: bool = True
+    command_topic_patterns: tuple[str, ...] = (r"cmd_vel", r"command")
+    stationary_speed_threshold_mps: float = 0.05
+    odometry_pose_jump_warn_m: float = 1.0
+    imu_acceleration_warn_mps2: float = 30.0
+    imu_angular_velocity_warn_rad_s: float = 10.0
+    command_motion_threshold_mps: float = 0.1
+    command_tracking_error_warn_mps: float = 0.5
+    command_response_window_ns: int = 500_000_000
+    tf_translation_jump_warn_m: float = 1.0
+    image_dark_warn_mean: float = 20.0
+    image_bright_warn_mean: float = 235.0
+    image_sharpness_warn: float = 2.0
+    event_merge_gap_ns: int = 500_000_000
+
+    def is_command_topic(self, topic: str) -> bool:
+        return any(
+            re.search(pattern, topic, re.IGNORECASE) for pattern in self.command_topic_patterns
+        )
+
+
+@dataclass(frozen=True)
 class AnalyticsConfig:
     rate_rules: tuple[RateRule, ...]
     topic_relationships: tuple[TopicRelationshipRule, ...] = ()
+    domain: DomainAnalyticsConfig = field(default_factory=DomainAnalyticsConfig)
     gap_threshold_multiplier: float = 1.5
     minimum_rate_ratio: float = 0.8
     maximum_rate_ratio: float = 1.2
@@ -78,7 +102,7 @@ class PipelineConfig:
 def analytics_fingerprint(config: AnalyticsConfig) -> str:
     """Return a stable cache key for every setting that affects analytics output."""
     payload = {
-        "analysis_engine_version": 2,
+        "analysis_engine_version": 3,
         "config": asdict(config),
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -89,6 +113,13 @@ def _positive_number(value: Any, name: str) -> float:
     number = float(value)
     if not math.isfinite(number) or number <= 0:
         raise ValueError(f"{name} must be finite and greater than zero")
+    return number
+
+
+def _nonnegative_number(value: Any, name: str) -> float:
+    number = float(value)
+    if not math.isfinite(number) or number < 0:
+        raise ValueError(f"{name} must be finite and greater than or equal to zero")
     return number
 
 
@@ -206,9 +237,91 @@ def load_pipeline_config(
         )
         relationship_names.add(name)
 
+    domain_raw = analytics_raw.get("domain_analyzers", {})
+    if not isinstance(domain_raw, dict):
+        raise ValueError("domain_analyzers must be a mapping")
+    domain_enabled = domain_raw.get("enabled", True)
+    if not isinstance(domain_enabled, bool):
+        raise ValueError("domain_analyzers enabled must be true or false")
+    patterns_raw = domain_raw.get(
+        "command_topic_patterns",
+        DomainAnalyticsConfig().command_topic_patterns,
+    )
+    if isinstance(patterns_raw, str) or not isinstance(patterns_raw, (list, tuple)):
+        raise ValueError("command_topic_patterns must be a list of regular expressions")
+    if any(not isinstance(value, str) or not value for value in patterns_raw):
+        raise ValueError("command_topic_patterns entries must be non-empty strings")
+    command_topic_patterns = tuple(patterns_raw)
+    for pattern in command_topic_patterns:
+        try:
+            re.compile(pattern)
+        except re.error as exc:
+            raise ValueError(f"invalid command topic pattern {pattern!r}: {exc}") from exc
+    domain = DomainAnalyticsConfig(
+        enabled=domain_enabled,
+        command_topic_patterns=command_topic_patterns,
+        stationary_speed_threshold_mps=_nonnegative_number(
+            domain_raw.get("stationary_speed_threshold_mps", 0.05),
+            "stationary_speed_threshold_mps",
+        ),
+        odometry_pose_jump_warn_m=_positive_number(
+            domain_raw.get("odometry_pose_jump_warn_m", 1.0),
+            "odometry_pose_jump_warn_m",
+        ),
+        imu_acceleration_warn_mps2=_positive_number(
+            domain_raw.get("imu_acceleration_warn_mps2", 30.0),
+            "imu_acceleration_warn_mps2",
+        ),
+        imu_angular_velocity_warn_rad_s=_positive_number(
+            domain_raw.get("imu_angular_velocity_warn_rad_s", 10.0),
+            "imu_angular_velocity_warn_rad_s",
+        ),
+        command_motion_threshold_mps=_nonnegative_number(
+            domain_raw.get("command_motion_threshold_mps", 0.1),
+            "command_motion_threshold_mps",
+        ),
+        command_tracking_error_warn_mps=_nonnegative_number(
+            domain_raw.get("command_tracking_error_warn_mps", 0.5),
+            "command_tracking_error_warn_mps",
+        ),
+        command_response_window_ns=int(
+            _positive_number(
+                domain_raw.get("command_response_window_ms", 500.0),
+                "command_response_window_ms",
+            )
+            * 1_000_000
+        ),
+        tf_translation_jump_warn_m=_positive_number(
+            domain_raw.get("tf_translation_jump_warn_m", 1.0),
+            "tf_translation_jump_warn_m",
+        ),
+        image_dark_warn_mean=_nonnegative_number(
+            domain_raw.get("image_dark_warn_mean", 20.0),
+            "image_dark_warn_mean",
+        ),
+        image_bright_warn_mean=_nonnegative_number(
+            domain_raw.get("image_bright_warn_mean", 235.0),
+            "image_bright_warn_mean",
+        ),
+        image_sharpness_warn=_nonnegative_number(
+            domain_raw.get("image_sharpness_warn", 2.0),
+            "image_sharpness_warn",
+        ),
+        event_merge_gap_ns=int(
+            _positive_number(
+                domain_raw.get("event_merge_gap_ms", 500.0),
+                "event_merge_gap_ms",
+            )
+            * 1_000_000
+        ),
+    )
+    if domain.image_dark_warn_mean >= domain.image_bright_warn_mean:
+        raise ValueError("image_dark_warn_mean must be less than image_bright_warn_mean")
+
     analytics = AnalyticsConfig(
         rate_rules=rate_rules,
         topic_relationships=tuple(topic_relationships),
+        domain=domain,
         gap_threshold_multiplier=_positive_number(
             analytics_raw.get("gap_threshold_multiplier", 1.5),
             "gap_threshold_multiplier",

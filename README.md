@@ -1,9 +1,9 @@
 # ROS Telemetry Analytics
 
-Automatic, local-first ingestion and timing-quality analysis for ROS bag
-telemetry. The pipeline discovers mixed bag formats, indexes message metadata in
-streaming batches, runs configurable topic and VSLAM checks, and publishes
-idempotent Parquet and JSON results.
+Automatic, local-first analysis for ROS bag telemetry. The pipeline discovers
+mixed bag formats, indexes message metadata in streaming batches, checks timing
+and VSLAM health, selectively derives robot-state features from supported
+payloads, and publishes idempotent Parquet, JSON, and Markdown results.
 
 It runs on macOS or Linux with Python 3.11+ and does not require a ROS
 installation, CUDA, Docker, a simulator, or GPU tooling.
@@ -20,6 +20,7 @@ installation, CUDA, Docker, a simulator, or GPU tooling.
 - Multiple nested input roots in one run
 - Per-bag failure isolation, source fingerprinting, and unchanged-input skips
 - Streaming message-index writes for large recordings
+- Payload-aware odometry, IMU, command, TF, diagnostics, and image analyzers
 - Atomic per-bag output publication and an exclusive pipeline lock
 
 Discovery emits one canonical record per logical bag. Contained DB3/MCAP files
@@ -92,21 +93,40 @@ data/bronze/
 ├── latest_run.json
 ├── runs/<run-id>.json
 └── bags/<bag-id>/
+    ├── anomaly_events.parquet
+    ├── bag_report.md
+    ├── domain_metrics.parquet
+    ├── domain_summary.json
     ├── message_index.parquet
     ├── relationship_health.parquet
     ├── topic_manifest.parquet
     ├── topic_health.parquet
     ├── vslam_quality.parquet
+    ├── domain_records/
+    │   ├── commands.parquet
+    │   ├── diagnostics.parquet
+    │   ├── extraction_errors.parquet
+    │   ├── images.parquet
+    │   ├── imu.parquet
+    │   ├── odometry.parquet
+    │   └── transforms.parquet
     └── summary.json
 ```
 
 `message_index.parquet` contains one row per message with bag ID, global read
-sequence, topic, message type, and nanosecond timestamp. Raw payloads are never
-persisted or deserialized.
+sequence, topic, message type, and nanosecond timestamp. Supported payloads are
+selectively deserialized during that same streaming pass, but raw payloads are
+never persisted. Only typed, derived fields and bounded image features are
+written under `domain_records/`.
 
 `summary.json` is the stable machine-readable contract for one bag.
+`bag_report.md` is the shareable engineering summary, while
+`domain_metrics.parquet` and `anomaly_events.parquet` retain the evidence behind
+that narrative. Payloads that cannot be deserialized are recorded in
+`extraction_errors.parquet` without hiding the timing analysis for the bag.
 `latest_run.json` records processed, skipped, and failed sources without hiding
-partial batch failures. See [the example report](examples/sample_report.md).
+partial batch failures. See the sanitized [data-health example](examples/sample_report.md)
+and [domain-analysis example](examples/sample_domain_report.md).
 
 ## Analysis
 
@@ -150,11 +170,35 @@ which allows one pipeline configuration to cover heterogeneous datasets. If
 only one side is present, `required: true` reports an error and
 `required: false` reports a warning.
 
+### Domain analyzers
+
+The domain lane analyzes what happened during the recorded robot run:
+
+- **Odometry:** distance traveled, duration, mean/maximum speed, stationary
+  fraction, covariance traces, and pose jumps.
+- **IMU:** acceleration and angular-velocity magnitude, configured threshold
+  intervals, orientation, and covariance traces.
+- **Command response:** configured Twist command topics matched to nearby
+  odometry, speed-tracking error, and command-without-motion intervals.
+- **TF:** frame pairs, connected components, empty/self frames, directed cycles,
+  per-pair translation path/speed, and translation jumps.
+- **Diagnostics:** OK/warn/error/stale counts plus grouped non-OK intervals and
+  preserved key/value evidence.
+- **Images:** dimensions, encoding, payload size, sampled 8/16-bit intensity,
+  adjacent-pixel sharpness heuristic, depth-image mean/valid coverage, and
+  consecutive duplicate hashes. Raw images are not published.
+
+Thresholds and command-topic patterns live under `analytics.domain_analyzers`
+in [`configs/pipeline.yaml`](configs/pipeline.yaml). Set `enabled: false` to keep
+the output contract but skip payload deserialization and domain calculations.
+The default threshold values are portable starting points and should be tuned
+to the robot, environment, and mission profile.
+
 Timestamps are bag log/receive times supplied by the recording container, not
-message payload `header.stamp` values. Continuity and stereo skew therefore
-measure recorder-observed transport timing, which includes middleware and
-delivery jitter; they do not prove hardware sensor synchronization. Payloads
-remain intentionally undeserialized.
+message payload `header.stamp` values. Topic-health continuity and stereo skew
+therefore measure recorder-observed transport timing, which includes middleware
+and delivery jitter; they do not prove hardware sensor synchronization. Domain
+records retain supported payload header stamps separately when present.
 
 All rules live in [`configs/pipeline.yaml`](configs/pipeline.yaml). Topic-rate
 rules are evaluated top-to-bottom as regular expressions. This keeps sensor
@@ -175,8 +219,9 @@ cadence assumptions explicit instead of embedding them in code.
 - **Concurrency:** one process may publish to an output root at a time on a
   local filesystem. POSIX advisory locks are not a distributed lock and may not
   be enforced by every network filesystem.
-- **Memory:** raw payloads are streamed and discarded. The compact timestamp
-  index is loaded per bag for analytics.
+- **Memory:** raw payloads are deserialized one at a time for supported domains,
+  reduced to typed fields/features, and discarded. Parquet writes remain
+  batched; no full raw-payload collection is retained in memory.
 
 The fingerprint is designed for efficient local change detection, not
 cryptographic proof of a multi-gigabyte bag's content. Hash the source files

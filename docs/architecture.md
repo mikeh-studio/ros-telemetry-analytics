@@ -20,14 +20,17 @@ format adapter (.bag / ROS2 dir / .db3 / .mcap)
     |
     v
 single-pass reader -----> topic_manifest.parquet
-    |                  `-> message_index.parquet (streamed batches)
-    v
-topic health + VSLAM checks
-    |
-    +----> topic_health.parquet
-    +----> relationship_health.parquet
-    +----> vslam_quality.parquet
-    `----> summary.json
+    |                  +-> message_index.parquet (streamed batches)
+    |                  `-> selective payload fields (streamed batches)
+    |                              |
+    v                              v
+timing/VSLAM checks          domain analyzers
+    |                              |
+    +-> topic_health.parquet       +-> domain_metrics.parquet
+    +-> relationship_health        +-> anomaly_events.parquet
+    +-> vslam_quality.parquet      `-> domain_summary.json
+    |                              |
+    `------------------------------+-> summary.json + bag_report.md
 
 all bag outcomes -----> latest_run.json + latest_report.md
 ```
@@ -40,11 +43,17 @@ all bag outcomes -----> latest_run.json + latest_report.md
   Standalone DB3 and MCAP files receive temporary metadata wrappers derived from
   their own indexes; the source files are never modified.
 - `analysis.py` computes rate/gap/dropout integrity and VSLAM timing checks from
-  bag log/receive timestamps. It never deserializes message bodies or reads
-  payload `header.stamp` values, so timing includes recorder transport jitter.
+  bag log/receive timestamps, so those checks include recorder transport jitter.
   Configured topic relationships and automatically discovered left/right pairs
   share the same timestamp-pairing engine; configured stereo relationships are
   also projected into the existing VSLAM output for compatibility.
+- `domain.py` selectively deserializes supported ROS payloads during the reader's
+  single pass and writes bounded, typed records. Raw payload bytes are never
+  published. Deserialization failures become explicit records rather than bag
+  failures.
+- `domain_analysis.py` computes odometry, IMU, command-response, TF, diagnostic,
+  and image metrics; groups anomaly events; and renders the deterministic bag
+  report.
 - `pipeline.py` owns fingerprint skips, staging, publication, run locking,
   failure isolation, and operational manifests.
 - `assets.py` owns optional NVIDIA NGC sample downloads, size and SHA-256
@@ -70,9 +79,16 @@ per-topic health, `quality_check_counts` covers continuity checks, and
 `relationship_check_counts` covers cross-topic relationships. Top-level warning
 and error totals combine all three categories once.
 
-Parquet files use Zstandard compression. Message indexes are written in
-configurable batches, while analysis reads only the compact metadata index for
-one bag at a time.
+The domain output is deliberately layered. `domain_records/` contains the
+normalized evidence extracted from supported payloads, `domain_metrics.parquet`
+contains long-form calculated measures, `anomaly_events.parquet` contains
+time-bounded findings, and `bag_report.md` presents those results for humans.
+`summary.json` embeds a compact `domain_analysis` section without duplicating
+every metric or event.
+
+Parquet files use Zstandard compression. Message indexes and normalized domain
+records are written in configurable batches. Domain analyzers load the derived
+records for one bag at a time; they never load raw payload collections.
 
 ## Production boundaries
 

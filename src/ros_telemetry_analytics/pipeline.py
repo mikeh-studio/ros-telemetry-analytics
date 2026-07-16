@@ -19,18 +19,24 @@ import pyarrow.parquet as pq
 from ros_telemetry_analytics.analysis import analyze_message_index, build_analysis_summary
 from ros_telemetry_analytics.config import PipelineConfig, analytics_fingerprint
 from ros_telemetry_analytics.discovery import discover_bags, inventory_frame
+from ros_telemetry_analytics.domain import DOMAIN_RECORD_PATHS
+from ros_telemetry_analytics.domain_analysis import render_bag_report, run_domain_analysis
 from ros_telemetry_analytics.models import BagSource, ProcessResult
 from ros_telemetry_analytics.reader import scan_bag
 
 LOGGER = logging.getLogger(__name__)
 EXPECTED_BAG_ARTIFACTS = {
+    "anomaly_events.parquet",
+    "bag_report.md",
+    "domain_metrics.parquet",
+    "domain_summary.json",
     "message_index.parquet",
     "relationship_health.parquet",
     "topic_manifest.parquet",
     "topic_health.parquet",
     "vslam_quality.parquet",
     "summary.json",
-}
+} | set(DOMAIN_RECORD_PATHS.values())
 
 
 def _utc_now() -> str:
@@ -188,19 +194,29 @@ def process_source(
             topic_count=int(existing.get("topic_count", 0)),
             health_status=existing.get("health_status"),
             warning_count=int(existing.get("warning_count", 0)),
+            domain_status=(existing.get("domain_analysis") or {}).get("status"),
+            domain_event_count=int((existing.get("domain_analysis") or {}).get("event_count", 0)),
         )
 
     staging_root = config.output_root / ".staging"
     staging_root.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix=f"{source.bag_id}-", dir=staging_root))
     try:
-        scan_summary = scan_bag(source, stage, config.parquet_batch_size)
+        scan_summary = scan_bag(
+            source,
+            stage,
+            config.parquet_batch_size,
+            config.analytics.domain,
+        )
         topic_health, quality, relationships = analyze_message_index(
             stage / "message_index.parquet",
             stage,
             config.analytics,
         )
         analysis_summary = build_analysis_summary(topic_health, quality, relationships)
+        domain_metrics, domain_events, domain_summary = run_domain_analysis(
+            stage, config.analytics.domain
+        )
         summary = {
             "schema_version": 1,
             "pipeline_status": "success",
@@ -213,8 +229,12 @@ def process_source(
             "analyzed_at": _utc_now(),
             **scan_summary,
             **analysis_summary,
+            "domain_analysis": domain_summary,
         }
         _write_json(stage / "summary.json", summary)
+        _write_text(
+            stage / "bag_report.md", render_bag_report(summary, domain_metrics, domain_events)
+        )
         _publish_stage(stage, target_dir)
         return ProcessResult(
             bag_id=source.bag_id,
@@ -226,6 +246,8 @@ def process_source(
             topic_count=scan_summary["topic_count"],
             health_status=analysis_summary["health_status"],
             warning_count=analysis_summary["warning_count"],
+            domain_status=domain_summary["status"],
+            domain_event_count=domain_summary["event_count"],
         )
     except Exception:
         if stage.exists():
@@ -245,14 +267,15 @@ def _render_report(manifest: dict[str, Any]) -> str:
         f"Failed: **{manifest['failed_count']}**  ",
         f"Not attempted: **{manifest['not_attempted_count']}**",
         "",
-        "| Bag | Pipeline | Health | Messages | Topics | Warnings |",
-        "| --- | --- | --- | ---: | ---: | ---: |",
+        "| Bag | Pipeline | Health | Domain | Messages | Topics | Warnings | Domain events |",
+        "| --- | --- | --- | --- | ---: | ---: | ---: | ---: |",
     ]
     for result in manifest["results"]:
         lines.append(
             f"| `{result['bag_id']}` | {result['status']} | "
-            f"{result.get('health_status') or '-'} | {result.get('message_count', 0)} | "
-            f"{result.get('topic_count', 0)} | {result.get('warning_count', 0)} |"
+            f"{result.get('health_status') or '-'} | {result.get('domain_status') or '-'} | "
+            f"{result.get('message_count', 0)} | {result.get('topic_count', 0)} | "
+            f"{result.get('warning_count', 0)} | {result.get('domain_event_count', 0)} |"
         )
     return "\n".join(lines) + "\n"
 
