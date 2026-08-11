@@ -103,3 +103,26 @@ def test_wait_for_stack_retries_connection_resets(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(smoke_demo.time, "sleep", lambda _seconds: None)
 
     smoke_demo._wait_for_stack("http://api", "http://web", smoke_demo.time.monotonic() + 1)
+
+
+def test_start_replay_lets_the_replayer_allocate_the_default_run_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    requests: list[tuple[str, dict]] = []
+
+    def fake_json(url: str, *, body: dict | None = None) -> dict:
+        assert body is not None
+        requests.append((url, body))
+        return {"run_id": "generated-run"}
+
+    monkeypatch.setattr(smoke_demo, "_json", fake_json)
+
+    run_id = smoke_demo._start_replay(
+        "http://api",
+        rate=5,
+        scenario=None,
+        run_id=None,
+    )
+
+    assert run_id == "generated-run"
+    assert requests == [("http://api/api/replay/start", {"rate": 5, "scenario": None})]

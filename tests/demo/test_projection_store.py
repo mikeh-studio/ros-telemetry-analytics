@@ -169,6 +169,57 @@ def test_snapshot_never_verifies_files_before_summary_ready_is_projected(tmp_pat
     assert snapshot["mission_progress_ms"] == 90_000
 
 
+def test_snapshot_prefers_resumed_status_at_the_same_frozen_stream_time(
+    tmp_path: Path,
+) -> None:
+    store = ProjectionStore(tmp_path / "projection.db", tmp_path / "output")
+    statuses = [
+        ("initial-running", "running", 5_000, 1),
+        ("paused", "paused", 5_000, 0),
+        ("resumed", "running", 5_000, 0),
+    ]
+    for offset, (metric_id, status, timestamp, revision) in enumerate(statuses):
+        metric = _metric(metric_id, revision, timestamp, "run_status")
+        metric["window_start_ms"] = None
+        metric["window_end_ms"] = None
+        metric["payload"] = {"status": status}
+        store.project(
+            stream_kind="metric",
+            payload=metric,
+            kafka_topic="telemetry.metrics.v1",
+            kafka_partition=0,
+            kafka_offset=offset,
+        )
+
+    snapshot = store.snapshot("run-1")
+    assert snapshot["run"]["payload"]["status"] == "running"
+    assert snapshot["run"]["metric_id"] == _metric("resumed", 0, 5_000, "run_status")["metric_id"]
+
+
+def test_snapshot_does_not_regress_finalizing_to_a_late_active_status(
+    tmp_path: Path,
+) -> None:
+    store = ProjectionStore(tmp_path / "projection.db", tmp_path / "output")
+    statuses = [
+        ("finalizing", "finalizing", 90_000),
+        ("late-running", "running", 91_000),
+    ]
+    for offset, (metric_id, status, timestamp) in enumerate(statuses):
+        metric = _metric(metric_id, 0, timestamp, "run_status")
+        metric["window_start_ms"] = None
+        metric["window_end_ms"] = None
+        metric["payload"] = {"status": status}
+        store.project(
+            stream_kind="metric",
+            payload=metric,
+            kafka_topic="telemetry.metrics.v1",
+            kafka_partition=0,
+            kafka_offset=offset,
+        )
+
+    assert store.snapshot("run-1")["run"]["payload"]["status"] == "finalizing"
+
+
 def test_latest_topic_prefers_the_latest_partial_window_when_stream_times_tie() -> None:
     earlier = {
         "metric_type": "topic_window",

@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 
 from demo.common.config import load_streaming_config
+from demo.common.contracts import RunIdAlreadyAllocatedError
 from demo.replayer.engine import (
     RecordedMessage,
     ReplayContractError,
@@ -380,6 +381,109 @@ async def test_requested_run_id_is_deterministic_for_contract_tests(tmp_path: Pa
 
     assert state["run_id"] == "contract-run-001"
     assert {value["run_id"] for _key, value in publisher.messages} == {"contract-run-001"}
+
+
+@pytest.mark.demo_integration
+@pytest.mark.anyio
+async def test_completed_run_id_remains_reserved_across_replayer_restart(tmp_path: Path) -> None:
+    config = load_streaming_config(ROOT / "configs/streaming_demo.yaml")
+    fixture = generate_fixture(tmp_path / "mission.mcap", config)
+    state_path = tmp_path / "epoch.json"
+    clock = VirtualClock()
+    first = ReplayEngine(
+        config=config,
+        fixture_path=fixture,
+        scenario_path=ROOT / "demo/scenarios/camera-dropout.yaml",
+        epoch_state_path=state_path,
+        publisher=CapturingPublisher(),
+        monotonic=clock.monotonic,
+        sleep=clock.sleep,
+    )
+
+    await first.start(replay_rate=5, scenario_name=None, requested_run_id="completed-run")
+    await first.wait_for_completion()
+
+    restarted = ReplayEngine(
+        config=config,
+        fixture_path=fixture,
+        scenario_path=ROOT / "demo/scenarios/camera-dropout.yaml",
+        epoch_state_path=state_path,
+        publisher=CapturingPublisher(),
+    )
+    with pytest.raises(RunIdAlreadyAllocatedError, match="completed-run"):
+        await restarted.start(
+            replay_rate=5,
+            scenario_name=None,
+            requested_run_id="completed-run",
+        )
+
+
+@pytest.mark.demo_integration
+@pytest.mark.anyio
+async def test_failed_run_id_remains_reserved(tmp_path: Path) -> None:
+    config = load_streaming_config(ROOT / "configs/streaming_demo.yaml")
+    fixture = generate_fixture(tmp_path / "mission.mcap", config)
+    state_path = tmp_path / "epoch.json"
+    engine = ReplayEngine(
+        config=config,
+        fixture_path=fixture,
+        scenario_path=ROOT / "demo/scenarios/camera-dropout.yaml",
+        epoch_state_path=state_path,
+        publisher=FailingRegistrationPublisher(),
+    )
+
+    with pytest.raises(ReplayContractError, match="simulated registration failure"):
+        await engine.start(replay_rate=5, scenario_name=None, requested_run_id="failed-run-id")
+
+    restarted = ReplayEngine(
+        config=config,
+        fixture_path=fixture,
+        scenario_path=ROOT / "demo/scenarios/camera-dropout.yaml",
+        epoch_state_path=state_path,
+        publisher=CapturingPublisher(),
+    )
+    with pytest.raises(RunIdAlreadyAllocatedError, match="failed-run-id"):
+        await restarted.start(
+            replay_rate=5,
+            scenario_name=None,
+            requested_run_id="failed-run-id",
+        )
+
+
+@pytest.mark.demo_integration
+@pytest.mark.anyio
+async def test_aborted_run_id_remains_reserved_across_replayer_restart(tmp_path: Path) -> None:
+    config = load_streaming_config(ROOT / "configs/streaming_demo.yaml")
+    fixture = generate_fixture(tmp_path / "mission.mcap", config)
+    state_path = tmp_path / "epoch.json"
+    clock = BlockingClock()
+    engine = ReplayEngine(
+        config=config,
+        fixture_path=fixture,
+        scenario_path=ROOT / "demo/scenarios/camera-dropout.yaml",
+        epoch_state_path=state_path,
+        publisher=CapturingPublisher(),
+        monotonic=clock.monotonic,
+        sleep=clock.sleep,
+    )
+
+    await engine.start(replay_rate=1, scenario_name=None, requested_run_id="aborted-run")
+    await _wait_until_running(engine)
+    await engine.abort()
+
+    restarted = ReplayEngine(
+        config=config,
+        fixture_path=fixture,
+        scenario_path=ROOT / "demo/scenarios/camera-dropout.yaml",
+        epoch_state_path=state_path,
+        publisher=CapturingPublisher(),
+    )
+    with pytest.raises(RunIdAlreadyAllocatedError, match="aborted-run"):
+        await restarted.start(
+            replay_rate=1,
+            scenario_name=None,
+            requested_run_id="aborted-run",
+        )
 
 
 @pytest.mark.demo_integration

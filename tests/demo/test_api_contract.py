@@ -86,6 +86,7 @@ def test_health_reports_each_runtime_authority(monkeypatch) -> None:
         return FakeResponse()
 
     monkeypatch.setattr(api_module.CONSUMER, "_task", FakeTask())
+    monkeypatch.setattr(api_module.CONSUMER, "consumer", object())
     monkeypatch.setattr(api_module.urllib.request, "urlopen", urlopen)
 
     response = asyncio.run(api_module.health())

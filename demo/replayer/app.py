@@ -24,6 +24,7 @@ ENGINE = ReplayEngine(
     fixture_path=FIXTURE,
     scenario_path=ROOT / "demo/scenarios/camera-dropout.yaml",
     epoch_state_path=ROOT / "demo-state/replay-epoch.json",
+    run_id_state_path=ROOT / "demo-state/allocated-run-ids.json",
     publisher=PUBLISHER,
 )
 

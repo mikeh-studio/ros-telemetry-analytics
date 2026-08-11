@@ -13,6 +13,8 @@ import yaml
 
 from demo.common.config import StreamingConfig
 from demo.common.contracts import (
+    RunIdAlreadyAllocatedError,
+    RunIdRegistry,
     StreamEpochAllocator,
     envelope,
     telemetry_event,
@@ -167,6 +169,7 @@ class ReplayEngine:
         fixture_path: Path,
         scenario_path: Path,
         epoch_state_path: Path,
+        run_id_state_path: Path | None = None,
         publisher: Publisher,
         monotonic: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
@@ -175,6 +178,9 @@ class ReplayEngine:
         self.fixture_path = fixture_path
         self.scenario = load_camera_dropout_scenario(scenario_path)
         self.epoch_allocator = StreamEpochAllocator(epoch_state_path)
+        self.run_ids = RunIdRegistry(
+            run_id_state_path or epoch_state_path.with_name("allocated-run-ids.json")
+        )
         self.publisher = publisher
         self.monotonic = monotonic
         self.sleep = sleep
@@ -220,11 +226,21 @@ class ReplayEngine:
             records = load_recorded_messages(self.fixture_path)
             schedule = build_schedule(records)
             scenario_message_count = len(build_schedule(records, scenario))
-            run_id = requested_run_id or str(uuid.uuid4())
-            if not SAFE_RUN_ID.fullmatch(run_id):
+            if requested_run_id is not None and not SAFE_RUN_ID.fullmatch(requested_run_id):
                 raise ValueError(
                     "run_id must contain 1 to 128 letters, digits, dots, underscores, or hyphens"
                 )
+            if requested_run_id is not None:
+                run_id = requested_run_id
+                self.run_ids.reserve(run_id)
+            else:
+                while True:
+                    run_id = str(uuid.uuid4())
+                    try:
+                        self.run_ids.reserve(run_id)
+                    except RunIdAlreadyAllocatedError:
+                        continue
+                    break
             self._run_token += 1
             token = self._run_token
             epoch = self.epoch_allocator.allocate(

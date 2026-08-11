@@ -74,6 +74,45 @@ class StreamEpochAllocator:
         os.replace(temporary, self.state_path)
 
 
+class RunIdAlreadyAllocatedError(RuntimeError):
+    """A durable replay identity cannot be allocated more than once."""
+
+
+class RunIdRegistry:
+    """Persist every allocated replay identity across replayer restarts."""
+
+    def __init__(self, state_path: Path) -> None:
+        self.state_path = state_path
+
+    def reserve(self, run_id: str) -> None:
+        allocated = self._read_allocated()
+        if run_id in allocated:
+            raise RunIdAlreadyAllocatedError(f"run_id has already been allocated: {run_id}")
+        allocated.add(run_id)
+        self._write_allocated(allocated)
+
+    def _read_allocated(self) -> set[str]:
+        try:
+            payload = json.loads(self.state_path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return set()
+        except (json.JSONDecodeError, OSError) as exc:
+            raise RuntimeError(f"Cannot read allocated run ID state: {self.state_path}") from exc
+        values = payload.get("allocated_run_ids")
+        if not isinstance(values, list) or not all(isinstance(value, str) for value in values):
+            raise RuntimeError(f"Invalid allocated run ID state: {self.state_path}")
+        return set(values)
+
+    def _write_allocated(self, allocated: set[str]) -> None:
+        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = self.state_path.with_suffix(f"{self.state_path.suffix}.tmp")
+        temporary.write_text(
+            json.dumps({"allocated_run_ids": sorted(allocated)}, sort_keys=True),
+            encoding="utf-8",
+        )
+        os.replace(temporary, self.state_path)
+
+
 def telemetry_event(
     *,
     run_id: str,

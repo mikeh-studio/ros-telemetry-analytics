@@ -79,12 +79,20 @@ def _wait_for_stack(api: str, web: str, deadline: float) -> None:
     raise TimeoutError(f"stack did not become ready: {last_error}")
 
 
+def _start_replay(api: str, *, rate: int, scenario: str | None, run_id: str | None) -> str:
+    request_body: dict[str, Any] = {"rate": rate, "scenario": scenario}
+    if run_id is not None:
+        request_body["run_id"] = run_id
+    started = _json(f"{api}/api/replay/start", body=request_body)
+    return str(started["run_id"])
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Exercise one recorded Compose mission.")
     parser.add_argument("--api", default="http://127.0.0.1:8000")
     parser.add_argument("--web", default="http://127.0.0.1:3000")
     parser.add_argument("--timeout", type=int, default=180)
-    parser.add_argument("--run-id", default="ci-clean-smoke")
+    parser.add_argument("--run-id")
     parser.add_argument("--rate", type=int, choices=(1, 5), default=5)
     parser.add_argument("--scenario", choices=("camera-dropout",))
     parser.add_argument("--result-file", type=Path)
@@ -104,17 +112,15 @@ def main() -> None:
         previous = json.loads(args.after_result.read_text(encoding="utf-8"))
         after_stream_ms = int(previous["latest_stream_ms"])
 
-    _json(
-        f"{args.api}/api/replay/start",
-        body={
-            "rate": args.rate,
-            "scenario": args.scenario,
-            "run_id": args.run_id,
-        },
+    run_id = _start_replay(
+        args.api,
+        rate=args.rate,
+        scenario=args.scenario,
+        run_id=args.run_id,
     )
     while time.monotonic() < deadline:
         snapshot = _json(f"{args.api}/api/runs/current/snapshot")
-        if snapshot.get("run_id") == args.run_id and snapshot.get("completion", {}).get("verified"):
+        if snapshot.get("run_id") == run_id and snapshot.get("completion", {}).get("verified"):
             assert_completed_snapshot(
                 snapshot,
                 scenario=args.scenario,
@@ -122,7 +128,7 @@ def main() -> None:
             )
             result = {
                 "status": "passed",
-                "run_id": args.run_id,
+                "run_id": run_id,
                 "scenario": args.scenario,
                 "run_start_stream_ms": snapshot["run_start_stream_ms"],
                 "latest_stream_ms": snapshot["latest_stream_ms"],
@@ -136,7 +142,7 @@ def main() -> None:
             print(json.dumps(result, sort_keys=True))
             return
         time.sleep(2)
-    raise TimeoutError(f"run {args.run_id} did not complete before the smoke-test deadline")
+    raise TimeoutError(f"run {run_id} did not complete before the smoke-test deadline")
 
 
 if __name__ == "__main__":

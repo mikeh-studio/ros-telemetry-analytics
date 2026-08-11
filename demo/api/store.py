@@ -63,6 +63,7 @@ class ProjectionStore:
                     revision INTEGER NOT NULL,
                     run_id TEXT NOT NULL,
                     stream_timestamp_ms INTEGER NOT NULL,
+                    arrival_order INTEGER NOT NULL DEFAULT 0,
                     payload_json TEXT NOT NULL,
                     PRIMARY KEY (stream_kind, logical_key)
                 );
@@ -83,6 +84,15 @@ class ProjectionStore:
                 );
                 """
             )
+            columns = {
+                str(row["name"])
+                for row in connection.execute("PRAGMA table_info(current_entities)").fetchall()
+            }
+            if "arrival_order" not in columns:
+                connection.execute(
+                    "ALTER TABLE current_entities "
+                    "ADD COLUMN arrival_order INTEGER NOT NULL DEFAULT 0"
+                )
 
     def project(
         self,
@@ -101,6 +111,7 @@ class ProjectionStore:
         run_id = str(payload["run_id"])
         timestamp = int(payload.get("stream_timestamp_ms", payload.get("detected_stream_ms", 0)))
         logical_key = self._logical_key(stream_kind, payload)
+        is_run_status = stream_kind == "metric" and payload.get("metric_type") == "run_status"
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         with self._lock, self._connect() as connection:
             cursor = connection.execute(
@@ -111,23 +122,44 @@ class ProjectionStore:
                 """,
                 (stream_kind, message_id, revision, run_id, timestamp, encoded),
             )
+            message_row = connection.execute(
+                """
+                SELECT rowid FROM messages
+                WHERE stream_kind = ? AND message_id = ? AND revision = ?
+                """,
+                (stream_kind, message_id, revision),
+            ).fetchone()
+            arrival_order = int(message_row["rowid"])
             connection.execute(
                 """
                 INSERT INTO current_entities
                     (stream_kind, logical_key, message_id, revision, run_id,
-                     stream_timestamp_ms, payload_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                     stream_timestamp_ms, arrival_order, payload_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(stream_kind, logical_key) DO UPDATE SET
                     message_id = excluded.message_id,
                     revision = excluded.revision,
                     run_id = excluded.run_id,
                     stream_timestamp_ms = excluded.stream_timestamp_ms,
+                    arrival_order = excluded.arrival_order,
                     payload_json = excluded.payload_json
                 WHERE excluded.stream_timestamp_ms > current_entities.stream_timestamp_ms
                    OR (excluded.stream_timestamp_ms = current_entities.stream_timestamp_ms
-                       AND excluded.revision >= current_entities.revision)
+                       AND ((? = 1 AND excluded.arrival_order >= current_entities.arrival_order)
+                            OR (? = 0 AND excluded.revision >= current_entities.revision)))
                 """,
-                (stream_kind, logical_key, message_id, revision, run_id, timestamp, encoded),
+                (
+                    stream_kind,
+                    logical_key,
+                    message_id,
+                    revision,
+                    run_id,
+                    timestamp,
+                    arrival_order,
+                    encoded,
+                    int(is_run_status),
+                    int(is_run_status),
+                ),
             )
             connection.execute(
                 """
@@ -215,10 +247,10 @@ class ProjectionStore:
         with self._lock, self._connect() as connection:
             current = connection.execute(
                 """
-                SELECT stream_kind, payload_json
+                SELECT stream_kind, arrival_order, payload_json
                 FROM current_entities
                 WHERE run_id = ?
-                ORDER BY stream_timestamp_ms, revision
+                ORDER BY stream_timestamp_ms, arrival_order, revision
                 """,
                 (selected_run,),
             ).fetchall()
@@ -231,10 +263,24 @@ class ProjectionStore:
                 """,
                 (selected_run,),
             ).fetchall()
-        messages = [(row["stream_kind"], json.loads(row["payload_json"])) for row in current]
-        metrics = [payload for kind, payload in messages if kind == "metric"]
-        anomalies = [payload for kind, payload in messages if kind == "anomaly"]
-        run_status = self._latest_metric(metrics, "run_status")
+        messages = [
+            (
+                row["stream_kind"],
+                json.loads(row["payload_json"]),
+                int(row["arrival_order"]),
+            )
+            for row in current
+        ]
+        metrics = [payload for kind, payload, _arrival in messages if kind == "metric"]
+        anomalies = [payload for kind, payload, _arrival in messages if kind == "anomaly"]
+        metric_arrival_orders = {
+            (str(payload["metric_id"]), int(payload.get("revision", 0))): arrival
+            for kind, payload, arrival in messages
+            if kind == "metric"
+        }
+        run_status = self._latest_metric(
+            metrics, "run_status", arrival_orders=metric_arrival_orders
+        )
         robot_health = self._latest_metric(metrics, "robot_health")
         topic_metrics = self._latest_topics(metrics)
         mission_summaries = {
@@ -382,26 +428,37 @@ class ProjectionStore:
         return str(row["run_id"]) if row else None
 
     @staticmethod
-    def _latest_metric(metrics: list[dict[str, Any]], metric_type: str) -> dict[str, Any] | None:
+    def _latest_metric(
+        metrics: list[dict[str, Any]],
+        metric_type: str,
+        *,
+        arrival_orders: dict[tuple[str, int], int] | None = None,
+    ) -> dict[str, Any] | None:
         candidates = [item for item in metrics if item.get("metric_type") == metric_type]
-        run_status_order = {
+        lifecycle_phase = {
             "starting": 0,
-            "running": 1,
-            "paused": 2,
-            "finalizing": 3,
-            "failed": 4,
-            "summary_ready": 5,
+            "running": 0,
+            "paused": 0,
+            "finalizing": 1,
+            "aborted": 2,
+            "failed": 2,
+            "summary_ready": 2,
         }
 
-        def order(item: dict[str, Any]) -> tuple[int, int, int]:
-            status_rank = (
-                run_status_order.get(str(item.get("payload", {}).get("status")), -1)
+        def order(item: dict[str, Any]) -> tuple[int, int, int, int]:
+            phase = (
+                lifecycle_phase.get(str(item.get("payload", {}).get("status")), -1)
                 if metric_type == "run_status"
                 else 0
             )
+            arrival_order = (arrival_orders or {}).get(
+                (str(item.get("metric_id", "")), int(item.get("revision", 0))),
+                0,
+            )
             return (
+                phase,
                 int(item.get("stream_timestamp_ms", 0)),
-                status_rank,
+                arrival_order,
                 int(item.get("revision", 0)),
             )
 

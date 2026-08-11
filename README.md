@@ -11,6 +11,19 @@ installation, CUDA, Docker, a simulator, or GPU tooling.
 > **Project status:** Alpha. The analysis is suitable for engineering triage and
 > dataset QA, not safety-critical robot control or certification.
 
+## Who It Is For
+
+This project is for robotics platform, reliability, and data engineers who need
+to triage recorded ROS runs, validate telemetry datasets, or investigate
+sensor-stream failures without setting up a ROS or GPU environment.
+
+Its primary offer is a repeatable local pipeline that turns ROS 1 and ROS 2 bags
+into inspectable timing, topic-relationship, and supported payload-derived
+evidence in Parquet, JSON, and Markdown. The bundled Flight Deck adds a
+deterministic Kafka/Flink replay for examining message rates, gaps, late
+arrivals, and recovery in a stateful event-time system. It does not interpret
+scene content or claim semantic understanding of sensor payloads.
+
 ## What It Handles
 
 - ROS 2 bag directories containing `metadata.yaml`
