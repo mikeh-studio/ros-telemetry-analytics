@@ -11,7 +11,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <flink.version>2.2.1</flink.version>
     <flink.kafka.version>5.0.0-2.2</flink.kafka.version>
-    <jackson.version>2.18.4</jackson.version>
+    <jackson.version>2.22.1</jackson.version>
     <junit.version>5.12.2</junit.version>
     <json-schema-validator.version>2.0.4</json-schema-validator.version>
   </properties>
