@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mikeh-studio/ros-telemetry-analytics/schemas/telemetry-anomaly-v1.schema.json",
+  "title": "TelemetryAnomalyV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "anomaly_id",
+    "run_id",
+    "robot_id",
+    "topic",
+    "condition_type",
+    "status",
+    "severity",
+    "revision",
+    "effective_start_stream_ms",
+    "detected_stream_ms",
+    "evidence"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "anomaly_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "run_id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "robot_id": { "type": "string", "minLength": 1 },
+    "topic": { "type": ["string", "null"] },
+    "condition_type": { "enum": ["NEVER_SEEN", "GAP", "RATE", "ROBOT_OFFLINE"] },
+    "status": { "enum": ["active", "recovered"] },
+    "severity": { "enum": ["warn", "error"] },
+    "revision": { "type": "integer", "minimum": 0 },
+    "effective_start_stream_ms": { "type": "integer", "minimum": 0 },
+    "detected_stream_ms": { "type": "integer", "minimum": 0 },
+    "recovered_stream_ms": { "type": ["integer", "null"] },
+    "evidence": { "type": "object" }
+  }
+}

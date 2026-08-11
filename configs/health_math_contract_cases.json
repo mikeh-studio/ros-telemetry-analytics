@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "gap_threshold_multiplier": 1.5,
+  "minimum_rate_ratio": 0.8,
+  "maximum_rate_ratio": 1.2,
+  "cases": [
+    {
+      "name": "rate-gap-and-drops",
+      "timestamps_ns": [0, 1000000000, 2000000000, 4000000000],
+      "expected_rate_hz": 1.0,
+      "expected": {
+        "message_count": 4,
+        "first_timestamp_ns": 0,
+        "last_timestamp_ns": 4000000000,
+        "duration_s": 4.0,
+        "mean_rate_hz": 0.75,
+        "rate_ratio": 0.75,
+        "max_inter_message_gap_s": 2.0,
+        "p95_inter_message_gap_s": 2.0,
+        "gap_event_count": 1,
+        "estimated_dropped_messages": 1,
+        "status": "warn"
+      }
+    },
+    {
+      "name": "never-seen",
+      "timestamps_ns": [],
+      "expected_rate_hz": 30.0,
+      "expected": {
+        "message_count": 0,
+        "first_timestamp_ns": null,
+        "last_timestamp_ns": null,
+        "duration_s": null,
+        "mean_rate_hz": null,
+        "rate_ratio": 0.0,
+        "max_inter_message_gap_s": null,
+        "p95_inter_message_gap_s": null,
+        "gap_event_count": 0,
+        "estimated_dropped_messages": 0,
+        "status": "error"
+      }
+    },
+    {
+      "name": "one-message",
+      "timestamps_ns": [5000000000],
+      "expected_rate_hz": 1.0,
+      "expected": {
+        "message_count": 1,
+        "first_timestamp_ns": 5000000000,
+        "last_timestamp_ns": 5000000000,
+        "duration_s": 0.0,
+        "mean_rate_hz": null,
+        "rate_ratio": null,
+        "max_inter_message_gap_s": null,
+        "p95_inter_message_gap_s": null,
+        "gap_event_count": 0,
+        "estimated_dropped_messages": 0,
+        "status": "warn"
+      }
+    },
+    {
+      "name": "same-timestamp",
+      "timestamps_ns": [5000000000, 5000000000],
+      "expected_rate_hz": 1.0,
+      "expected": {
+        "message_count": 2,
+        "first_timestamp_ns": 5000000000,
+        "last_timestamp_ns": 5000000000,
+        "duration_s": 0.0,
+        "mean_rate_hz": null,
+        "rate_ratio": null,
+        "max_inter_message_gap_s": 0.0,
+        "p95_inter_message_gap_s": 0.0,
+        "gap_event_count": 0,
+        "estimated_dropped_messages": 0,
+        "status": "error"
+      }
+    },
+    {
+      "name": "half-even-drop-rounding",
+      "timestamps_ns": [0, 500000000],
+      "expected_rate_hz": 1.0,
+      "expected": {
+        "message_count": 2,
+        "first_timestamp_ns": 0,
+        "last_timestamp_ns": 500000000,
+        "duration_s": 0.5,
+        "mean_rate_hz": 2.0,
+        "rate_ratio": 2.0,
+        "max_inter_message_gap_s": 0.5,
+        "p95_inter_message_gap_s": 0.5,
+        "gap_event_count": 0,
+        "estimated_dropped_messages": 0,
+        "status": "warn"
+      }
+    }
+  ]
+}

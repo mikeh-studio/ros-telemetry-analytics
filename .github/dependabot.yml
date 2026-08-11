@@ -17,3 +17,13 @@ updates:
       github-actions:
         patterns:
           - "*"
+
+  - package-ecosystem: npm
+    directory: /demo/web
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: maven
+    directory: /streaming/flink-job
+    schedule:
+      interval: weekly

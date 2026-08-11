@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mikeh-studio/ros-telemetry-analytics/schemas/telemetry-envelope-v1.schema.json",
+  "title": "TelemetryEnvelopeV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "envelope_id",
+    "envelope_type",
+    "run_id",
+    "robot_id",
+    "topic",
+    "event_timestamp_ns",
+    "stream_timestamp_ms",
+    "ingest_timestamp_ms",
+    "body"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "envelope_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "envelope_type": {
+      "enum": [
+        "run_started",
+        "topic_registered",
+        "telemetry",
+        "run_paused",
+        "run_resumed",
+        "run_aborted",
+        "run_failed",
+        "run_ended",
+        "watermark_flush"
+      ]
+    },
+    "run_id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "robot_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "topic": { "type": ["string", "null"], "maxLength": 512 },
+    "event_timestamp_ns": { "type": "integer", "minimum": 0 },
+    "stream_timestamp_ms": { "type": "integer", "minimum": 0 },
+    "ingest_timestamp_ms": { "type": "integer", "minimum": 0 },
+    "body": { "type": "object" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "envelope_type": { "const": "telemetry" } } },
+      "then": {
+        "properties": {
+          "topic": { "type": "string", "pattern": "^/" },
+          "body": { "$ref": "telemetry-event-v1.schema.json" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "envelope_type": { "const": "topic_registered" } } },
+      "then": {
+        "properties": {
+          "topic": { "type": "string", "pattern": "^/" },
+          "body": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "message_type",
+              "expected_rate_hz",
+              "startup_grace_ms",
+              "dropout_threshold_ms"
+            ],
+            "properties": {
+              "message_type": { "type": "string", "minLength": 1 },
+              "expected_rate_hz": { "type": "number", "exclusiveMinimum": 0 },
+              "startup_grace_ms": { "type": "integer", "minimum": 0 },
+              "dropout_threshold_ms": { "type": "integer", "exclusiveMinimum": 0 }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

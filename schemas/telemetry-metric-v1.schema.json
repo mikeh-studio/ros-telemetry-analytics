@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mikeh-studio/ros-telemetry-analytics/schemas/telemetry-metric-v1.schema.json",
+  "title": "TelemetryMetricV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "metric_id",
+    "metric_type",
+    "run_id",
+    "robot_id",
+    "topic",
+    "revision",
+    "stream_timestamp_ms",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "metric_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "metric_type": { "enum": ["topic_window", "mission_summary", "run_status", "robot_health"] },
+    "run_id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "robot_id": { "type": "string", "minLength": 1 },
+    "topic": { "type": ["string", "null"] },
+    "window_start_ms": { "type": ["integer", "null"] },
+    "window_end_ms": { "type": ["integer", "null"] },
+    "revision": { "type": "integer", "minimum": 0 },
+    "stream_timestamp_ms": { "type": "integer", "minimum": 0 },
+    "payload": { "type": "object" }
+  }
+}

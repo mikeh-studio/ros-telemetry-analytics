@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mikeh-studio/ros-telemetry-analytics/schemas/telemetry-event-v1.schema.json",
+  "title": "TelemetryEventV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "run_id",
+    "robot_id",
+    "bag_id",
+    "sequence",
+    "topic",
+    "message_type",
+    "event_timestamp_ns",
+    "stream_timestamp_ms",
+    "ingest_timestamp_ms",
+    "source_mode",
+    "attributes"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "event_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "run_id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "robot_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "bag_id": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "sequence": { "type": "integer", "minimum": 0 },
+    "topic": { "type": "string", "pattern": "^/", "maxLength": 512 },
+    "message_type": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "event_timestamp_ns": { "type": "integer", "minimum": 0 },
+    "stream_timestamp_ms": { "type": "integer", "minimum": 0 },
+    "ingest_timestamp_ms": { "type": "integer", "minimum": 0 },
+    "source_mode": { "enum": ["recorded_replay", "live_ros2"] },
+    "attributes": {
+      "type": "object",
+      "maxProperties": 64,
+      "additionalProperties": {
+        "type": ["string", "number", "integer", "boolean", "null"]
+      }
+    }
+  }
+}

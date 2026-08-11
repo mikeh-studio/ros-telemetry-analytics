@@ -1,31 +1,25 @@
 # ROS Telemetry Analytics
 
-Automatic, local-first analysis for ROS bag telemetry. The pipeline discovers
-mixed bag formats, indexes message metadata in streaming batches, checks timing
-and VSLAM health, selectively derives robot-state features from supported
-payloads, and publishes idempotent Parquet, JSON, and Markdown results.
+Local-first analysis for recorded ROS telemetry. The project discovers ROS 1
+and ROS 2 bags, checks timing and sensor-stream health, derives selected robot
+state features, and publishes inspectable Parquet, JSON, and Markdown results.
 
-It runs on macOS or Linux with Python 3.11+ and does not require a ROS
-installation, CUDA, Docker, a simulator, or GPU tooling.
+It is designed for robotics platform, reliability, and data engineers who need
+to triage runs or validate datasets without installing ROS, CUDA, a simulator,
+or GPU tooling. It runs on macOS and Linux with Python 3.11+.
 
-> **Project status:** Alpha. The analysis is suitable for engineering triage and
-> dataset QA, not safety-critical robot control or certification.
+> **Project status:** Alpha. The analysis supports engineering triage and
+> dataset QA, not safety-critical control or certification.
 
-## What It Handles
+## Two Workflows
 
-- ROS 2 bag directories containing `metadata.yaml`
-- Standalone ROS 2 SQLite `.db3` files
-- Standalone ROS 2 `.mcap` files
-- ROS 1 `.bag` files
-- Multiple nested input roots in one run
-- Per-bag failure isolation, source fingerprinting, and unchanged-input skips
-- Streaming message-index writes for large recordings
-- Payload-aware odometry, IMU, command, TF, diagnostics, and image analyzers
-- Atomic per-bag output publication and an exclusive pipeline lock
+- **Recorded-bag analysis:** process mixed ROS bag formats into repeatable
+  timing, relationship, and payload-derived evidence.
+- **Real-time Flight Deck:** replay a deterministic ROS 2 MCAP fixture through
+  Kafka and Apache Flink, then inspect event-time health in a React console.
 
-Discovery emits one canonical record per logical bag. Contained DB3/MCAP files
-are not double-counted, overlapping roots are deduplicated, and download caches
-are excluded by default.
+The Flight Deck is a streaming demonstration of the same telemetry-health
+ideas; it does not replace the batch pipeline.
 
 ## Quick Start
 
@@ -36,17 +30,12 @@ make setup
 make test
 ```
 
-Place bags anywhere under `data/raw/`, then run:
+Place bags under `data/raw/`, then run:
 
 ```bash
 make discover
 make analyze
 ```
-
-When installed as a wheel rather than run from a repository checkout, relative
-configuration and download paths are resolved from the directory where the CLI
-is invoked. Run it from the workspace that should own the `data/` directory, or
-pass absolute `--input` and `--output` paths.
 
 Analyze arbitrary paths without changing configuration:
 
@@ -57,30 +46,67 @@ Analyze arbitrary paths without changing configuration:
   --output data/bronze
 ```
 
-Reruns skip bags whose fingerprint already has a complete successful output.
-Changes to analytics rules automatically invalidate cached results. Use
-`--force` when the underlying analysis implementation changes without a release
-or when every bag should be recomputed explicitly.
+When installed as a wheel, relative configuration and data paths are resolved
+from the current working directory. Run the CLI from the workspace that should
+own `data/`, or pass absolute input and output paths.
 
-## Optional NVIDIA Sample Assets
+## Supported Inputs
+
+- ROS 2 bag directories containing `metadata.yaml`
+- Standalone ROS 2 SQLite `.db3` and `.mcap` files
+- ROS 1 `.bag` files
+- Multiple nested input roots in one run
+
+Discovery emits one canonical record per logical bag. Contained DB3/MCAP files
+are not double-counted, overlapping roots are deduplicated, and download caches
+are excluded by default.
+
+## Real-Time Flight Deck
+
+The self-contained demo replays a deterministic 90-second MCAP mission for
+`robot-17` through Kafka, computes stateful event-time metrics in a Java Flink
+DataStream job, projects revisions into SQLite through FastAPI, and presents the
+results in a responsive React operations console.
+
+Start the stack:
 
 ```bash
-make download-visual-slam
-make download-nvblox
+docker compose up --build
 ```
 
-These optional NVIDIA Isaac ROS archives provide external ROS2 validation data;
-they are not required to run the pipeline. Archives are stored under
-`data/raw/downloads/` and extracted under `data/raw/isaac_ros_assets/`. The
-downloader enforces the configured version, byte size, and SHA-256 checksum,
-rejects unsafe tar members, and publishes an extraction only after it
-completes. A failed pinned download never falls back to a mutable `latest`
-asset. The current nvblox archive is approximately 9.3 GB.
+Then open:
 
-NVIDIA assets are not included in this repository and remain subject to their
-upstream terms. This independent project is not affiliated with or endorsed by
-NVIDIA; NVIDIA, Isaac, and related names are trademarks of their respective
-owners.
+- Flight Deck: [http://localhost:3000](http://localhost:3000)
+- Projection API: [http://localhost:8000/api/runs/current/snapshot](http://localhost:8000/api/runs/current/snapshot)
+- Flink dashboard: [http://localhost:8081](http://localhost:8081)
+
+Run a clean mission at 1x or 5x, or use the 1x camera-dropout scenario to
+exercise late arrivals, gap detection, and recovery. The demo includes:
+
+- independent Kafka, Flink, projection, and replayer readiness
+- bounded out-of-orderness, allowed lateness, idle-partition detection, and
+  sliding event-time windows
+- checkpointed Flink state and exactly-once Kafka sinks
+- persistent replay epochs and transactional SQLite projection offsets
+- independently verified per-topic summary files
+
+Exercise TaskManager checkpoint recovery during an active mission:
+
+```bash
+./scripts/demo_recovery.sh
+```
+
+Compare a completed clean run with the batch-analysis oracle:
+
+```bash
+docker compose exec api \
+  python scripts/compare_demo_oracle.py <run-id> --root /app
+```
+
+Recorded replay is the only source in this release; a live ROS 2 bridge remains
+a future extension. See [`docs/architecture.md`](docs/architecture.md) for the
+data flow, [`configs/streaming_demo.yaml`](configs/streaming_demo.yaml) for
+runtime values, and [`schemas/`](schemas/) for versioned JSON contracts.
 
 ## Outputs
 
@@ -113,122 +139,91 @@ data/bronze/
     └── summary.json
 ```
 
-`message_index.parquet` contains one row per message with bag ID, global read
-sequence, topic, message type, and nanosecond timestamp. Supported payloads are
-selectively deserialized during that same streaming pass, but raw payloads are
-never persisted. Only typed, derived fields and bounded image features are
-written under `domain_records/`.
+`message_index.parquet` contains one row per message with its bag ID, read
+sequence, topic, type, and nanosecond timestamp. Supported payloads are reduced
+to typed fields and bounded image features under `domain_records/`; raw payloads
+and images are not published.
 
-`summary.json` is the stable machine-readable contract for one bag.
-`bag_report.md` is the shareable engineering summary, while
-`domain_metrics.parquet` and `anomaly_events.parquet` retain the evidence behind
-that narrative. Payloads that cannot be deserialized are recorded in
-`extraction_errors.parquet` without hiding the timing analysis for the bag.
-`latest_run.json` records processed, skipped, and failed sources without hiding
-partial batch failures. See the sanitized [data-health example](examples/sample_report.md)
-and [domain-analysis example](examples/sample_domain_report.md).
+`summary.json` is the stable machine-readable bag contract, while
+`bag_report.md` is the shareable engineering summary. Deserialization failures
+are recorded without hiding timing results, and `latest_run.json` reports
+processed, skipped, and failed sources. See the sanitized
+[data-health](examples/sample_report.md) and
+[domain-analysis](examples/sample_domain_report.md) examples.
 
 ## Analysis
 
-Topic health reports:
+### Timing and relationships
 
-- message count, duration, mean rate, and expected-rate ratio
-- maximum and p95 inter-message gaps
-- threshold-crossing gap events and estimated dropped messages
-- `ok`, `warn`, or `error` status
-
-VSLAM quality reports:
-
+- message counts, duration, mean rate, and expected-rate ratio
+- maximum and p95 inter-message gaps, gap events, and estimated drops
 - `/tf`, pose, odometry, and visual-SLAM continuity
-- nearest-timestamp stereo pairing within a configurable window
-- unmatched left/right frames
-- maximum, mean, and p95 stereo skew
-- configurable warning thresholds
+- automatic stereo discovery and configurable topic-pair relationships
+- pairing coverage, unmatched frames, and maximum/mean/p95 skew
 
-Topic relationships report timestamp pairing for explicitly named topic pairs.
-This covers datasets whose sensor names do not follow the automatic
-`/left/...` and `/right/...` stereo convention. Relationships can be required
-or optional and may override the global pairing and skew thresholds:
-
-```yaml
-analytics:
-  topic_relationships:
-    - name: front_stereo
-      type: stereo_sync
-      topic_a: /cam0/image_raw
-      topic_b: /cam1/image_raw
-      required: true
-      pairing_window_ms: 20.0
-      skew_warn_ms: 5.0
-```
-
-`relationship_health.parquet` identifies whether each relationship came from
-configuration or automatic stereo discovery and records paired counts,
-unmatched counts, skew statistics, status, and diagnostic detail. A configured
-relationship is evaluated only for bags containing at least one of its topics,
-which allows one pipeline configuration to cover heterogeneous datasets. If
-only one side is present, `required: true` reports an error and
-`required: false` reports a warning.
+Relationships are configured in [`configs/pipeline.yaml`](configs/pipeline.yaml)
+and can be required or optional. One configuration may cover heterogeneous bags;
+relationships are evaluated only when at least one named topic is present.
 
 ### Domain analyzers
 
-The domain lane analyzes what happened during the recorded robot run:
+- **Odometry:** distance, speed, stationary fraction, covariance, and pose jumps
+- **IMU:** acceleration, angular velocity, threshold intervals, and covariance
+- **Command response:** Twist commands matched to nearby odometry and motion
+- **TF:** frame connectivity, cycles, translation paths, speed, and jumps
+- **Diagnostics:** grouped non-OK intervals with preserved key/value evidence
+- **Images:** dimensions, encoding, bounded intensity/sharpness/depth features,
+  and duplicate hashes
 
-- **Odometry:** distance traveled, duration, mean/maximum speed, stationary
-  fraction, covariance traces, and pose jumps.
-- **IMU:** acceleration and angular-velocity magnitude, configured threshold
-  intervals, orientation, and covariance traces.
-- **Command response:** configured Twist command topics matched to nearby
-  odometry, speed-tracking error, and command-without-motion intervals.
-- **TF:** frame pairs, connected components, empty/self frames, directed cycles,
-  per-pair translation path/speed, and translation jumps.
-- **Diagnostics:** OK/warn/error/stale counts plus grouped non-OK intervals and
-  preserved key/value evidence.
-- **Images:** dimensions, encoding, payload size, sampled 8/16-bit intensity,
-  adjacent-pixel sharpness heuristic, depth-image mean/valid coverage, and
-  consecutive duplicate hashes. Raw images are not published.
+Thresholds and command-topic patterns live under `analytics.domain_analyzers` in
+`configs/pipeline.yaml`. Disable that lane to retain the output contract while
+skipping payload deserialization and domain calculations.
 
-Thresholds and command-topic patterns live under `analytics.domain_analyzers`
-in [`configs/pipeline.yaml`](configs/pipeline.yaml). Set `enabled: false` to keep
-the output contract but skip payload deserialization and domain calculations.
-The default threshold values are portable starting points and should be tuned
-to the robot, environment, and mission profile.
-
-Timestamps are bag log/receive times supplied by the recording container, not
-message payload `header.stamp` values. Topic-health continuity and stereo skew
-therefore measure recorder-observed transport timing, which includes middleware
-and delivery jitter; they do not prove hardware sensor synchronization. Domain
-records retain supported payload header stamps separately when present.
-
-All rules live in [`configs/pipeline.yaml`](configs/pipeline.yaml). Topic-rate
-rules are evaluated top-to-bottom as regular expressions. This keeps sensor
-cadence assumptions explicit instead of embedding them in code.
+Timing checks use bag log/receive timestamps, not payload `header.stamp` values,
+so they include middleware and recorder jitter and do not prove hardware sensor
+synchronization. Supported domain records retain header stamps when available.
 
 ## Reliability Model
 
-- **Idempotency:** source size/mtime metadata produces a stable fingerprint;
-  successful unchanged bags are skipped.
-- **Failure isolation:** a malformed bag is recorded as failed while remaining
-  bags continue unless `--fail-fast` is set; unattempted remainder entries are
-  still recorded explicitly.
-- **Atomicity:** files are built under `.staging/`; the final bag directory is
-  replaced only after ingestion and analysis succeed. Interrupted staging and
-  backup directories are recovered or removed on the next run.
-- **Reconciliation:** outputs for sources no longer present in the current
-  inventory are removed while the output lock is held.
+- **Idempotency:** successful bags with unchanged source fingerprints are
+  skipped; analytics-rule changes invalidate cached results.
+- **Failure isolation:** malformed bags are reported while remaining bags
+  continue unless `--fail-fast` is set.
+- **Atomicity:** results are staged and published only after analysis succeeds;
+  interrupted staging and backups are reconciled on the next run.
+- **Reconciliation:** outputs for removed sources are deleted while the output
+  lock is held.
 - **Concurrency:** one process may publish to an output root at a time on a
-  local filesystem. POSIX advisory locks are not a distributed lock and may not
-  be enforced by every network filesystem.
-- **Memory:** raw payloads are deserialized one at a time for supported domains,
-  reduced to typed fields/features, and discarded. Parquet writes remain
-  batched; no full raw-payload collection is retained in memory.
+  local filesystem; the lock is not distributed.
+- **Memory:** raw payloads are processed one at a time and discarded, while
+  Parquet writes remain batched.
 
-The fingerprint is designed for efficient local change detection, not
-cryptographic proof of a multi-gigabyte bag's content. Hash the source files
-externally when chain-of-custody guarantees are required.
+Fingerprints use names, sizes, and nanosecond modification times for efficient
+local change detection; hash source contents separately when chain-of-custody
+guarantees are required. A run that discovers zero bags exits nonzero so an
+empty or unmounted input directory cannot appear healthy in automation.
 
-An analysis run that discovers zero bags exits nonzero so an empty or unmounted
-input directory cannot look healthy in automation.
+## Optional Validation Data
+
+Validated TUM RGB-D and TUM VI datasets provide independent ROS 1 coverage:
+
+```bash
+make analyze-public-data
+```
+
+Optional NVIDIA Isaac ROS archives provide larger ROS 2 validation cases:
+
+```bash
+make download-visual-slam
+make download-nvblox
+```
+
+Downloads remain ignored by Git. Their sources, checksums, licenses, validation
+results, and known caveats are recorded in
+[`configs/public_test_datasets.yaml`](configs/public_test_datasets.yaml) and the
+[`asset configuration`](configs/asset_sources.yaml). NVIDIA data is subject to
+upstream terms; this independent project is not affiliated with or endorsed by
+NVIDIA.
 
 ## Development
 
@@ -238,38 +233,13 @@ make lint
 make test
 ```
 
-CI runs lint, formatting, and the test suite on Python 3.11, 3.12, and 3.13.
-The local test gate requires at least 80% branch-aware coverage and uses only
-generated fixtures. CI also builds the source and wheel distributions, installs
-the wheel, and smoke-tests the packaged CLI.
+CI tests Python 3.11, 3.12, and 3.13, builds and reinstalls the package, compiles
+the Java Flink job, builds/tests the React dashboard, and exercises the complete
+Compose stack with clean and camera-dropout missions.
 
-For implementation boundaries and data flow, see
-[`docs/architecture.md`](docs/architecture.md). Security reports should follow
-[`SECURITY.md`](SECURITY.md); contribution expectations are in
-[`CONTRIBUTING.md`](CONTRIBUTING.md).
-
-## Public Test Corpus
-
-Optional public datasets are stored under `data/raw/public_datasets/` and remain
-ignored by Git. Their sources, checksums, licenses, validation results, and known
-analytics caveats are recorded in
-[`configs/public_test_datasets.yaml`](configs/public_test_datasets.yaml).
-
-Run the validated TUM RGB-D and TUM VI corpus independently of the optional
-NVIDIA sample data:
-
-```bash
-make analyze-public-data
-```
-
-Legacy ROS parser fixtures are intentionally excluded from this command because
-several are malformed, use unsupported historical bag versions, or are expensive
-to decompress. They are retained as explicit failure and compatibility cases.
-
-The generated test suite exercises ROS2 SQLite and MCAP containers end to end,
-including stereo timing. The optional NVIDIA Visual SLAM sample provides a
-larger external ROS2 SQLite validation case; TUM supplies independent ROS1
-coverage.
+For implementation boundaries, see [`docs/architecture.md`](docs/architecture.md).
+Security reports should follow [`SECURITY.md`](SECURITY.md); contribution
+expectations are in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## License
 
