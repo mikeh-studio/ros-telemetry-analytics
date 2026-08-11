@@ -1,0 +1,54 @@
+schema_version: 1
+demo:
+  robot_id: robot-17
+  bag_id: warehouse-run-17
+  fixture_path: data/demo/warehouse_run_17.mcap
+  duration_s: 90
+  default_rate: 1
+  supported_rates: [1, 5]
+analytics:
+  window_size_ms: 10000
+  window_slide_ms: 1000
+  recovery_gate_ms: 1000
+  maximum_out_of_orderness_ms: 2000
+  allowed_lateness_ms: 5000
+  idle_partition_timeout_ms: 3000
+  startup_grace_ms: 2000
+  whole_robot_silence_ms: 10000
+  minimum_rate_ratio: 0.8
+  maximum_rate_ratio: 1.2
+  gap_threshold_multiplier: 1.5
+  expected_topics:
+    - topic: /camera/image_raw
+      message_type: sensor_msgs/msg/Image
+      expected_rate_hz: 30.0
+      dropout_threshold_ms: 5000
+    - topic: /imu/data
+      message_type: sensor_msgs/msg/Imu
+      expected_rate_hz: 100.0
+      dropout_threshold_ms: 1000
+    - topic: /odom
+      message_type: nav_msgs/msg/Odometry
+      expected_rate_hz: 20.0
+      dropout_threshold_ms: 2000
+    - topic: /diagnostics
+      message_type: diagnostic_msgs/msg/DiagnosticArray
+      expected_rate_hz: 1.0
+      dropout_threshold_ms: 5000
+kafka:
+  bootstrap_servers: kafka:9092
+  retention_ms: 3600000
+  topics:
+    telemetry.events.v1: 4
+    telemetry.metrics.v1: 1
+    telemetry.anomalies.v1: 1
+    telemetry.late.v1: 1
+    telemetry.dead-letter.v1: 1
+flink:
+  state_ttl_minutes: 12
+  checkpoint_interval_ms: 5000
+  checkpoint_min_pause_ms: 2000
+  checkpoint_timeout_ms: 60000
+  restart_attempts: 3
+  restart_delay_ms: 2000
+  kafka_transaction_timeout_ms: 900000

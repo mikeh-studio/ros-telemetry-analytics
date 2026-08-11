@@ -57,6 +57,82 @@ Analyze arbitrary paths without changing configuration:
   --output data/bronze
 ```
 
+## Real-Time Flight Deck Demo
+
+The repository also includes a self-contained streaming system for practicing
+Apache Flink against realistic robot telemetry. It replays a deterministic
+90-second ROS 2 MCAP recording for `robot-17` through Kafka, computes stateful
+event-time health metrics in a Java Flink DataStream job, projects results into
+SQLite through FastAPI, and presents them in a responsive React operations
+console. No ROS installation, live robot, cloud account, or external dataset is
+required.
+
+Start the complete stack with Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+Then open:
+
+- Flight Deck: [http://localhost:3000](http://localhost:3000)
+- Projection API: [http://localhost:8000/api/runs/current/snapshot](http://localhost:8000/api/runs/current/snapshot)
+- Flink dashboard: [http://localhost:8081](http://localhost:8081)
+
+The Flight Deck reports Kafka, Flink-cluster, streaming-job, projection-API,
+and MCAP-replayer readiness independently. Mission controls remain disabled
+until all five authorities are ready, and an unavailable authority replaces
+stale robot health with a reconnecting state.
+
+From the Flight Deck, run either a clean mission at 1x/5x or the 1x camera
+dropout scenario. The fault keeps the 60.0-second camera frame, holds the 61.0
+and 62.0-second frames until 67.1 seconds, drops the remaining frames before
+68.0 seconds, then recovers. This exercises bounded out-of-order event time,
+gap detection, rate suppression, and the one-second recovery gate.
+
+The streaming contract is intentionally operational rather than illustrative:
+
+- `telemetry.events.v1` has four robot-keyed source partitions; metrics,
+  anomalies, late events, and dead letters have durable one-partition topics.
+- Flink uses two-second bounded out-of-orderness, five-second allowed lateness,
+  three-second idle-partition detection, 10-second windows sliding every second,
+  five-second checkpoints, and exactly-once Kafka sinks.
+- Replay epochs persist across container restarts so event time never overlaps
+  between runs; original MCAP timestamps remain available separately.
+- FastAPI persists revisioned projections and the next consumed offset for each
+  Kafka topic-partition in one SQLite transaction.
+- Final per-topic summaries are checkpointed under
+  `data/demo-output/<run-id>/topic_health/`; the API reads those files itself
+  before showing a run as verified complete.
+
+After a clean run completes, repeat the six-invariant batch comparison inside
+the API container (replace the run ID shown in the Flight Deck):
+
+```bash
+docker compose exec api \
+  python scripts/compare_demo_oracle.py <run-id> --root /app
+```
+
+The first release deliberately uses recorded MCAP replay as its only source.
+A ROS 2 bridge remains a future extension: it can publish the same versioned
+envelopes from a live robot without changing the Flink topology, projection
+contract, or dashboard semantics.
+
+To exercise checkpoint recovery during an active mission, run this from another
+terminal. The command acts on Compose from the host; no container receives the
+Docker socket.
+
+```bash
+./scripts/demo_recovery.sh
+```
+
+The fixture is generated deterministically on first startup at
+`data/demo/warehouse_run_17.mcap` inside the persisted demo volume. Versioned
+JSON contracts live in [`schemas/`](schemas/), while replay and analytics values
+are centralized in [`configs/streaming_demo.yaml`](configs/streaming_demo.yaml).
+Shared Python/Java formula cases live in
+[`configs/health_math_contract_cases.json`](configs/health_math_contract_cases.json).
+
 Reruns skip bags whose fingerprint already has a complete successful output.
 Changes to analytics rules automatically invalidate cached results. Use
 `--force` when the underlying analysis implementation changes without a release
@@ -241,7 +317,11 @@ make test
 CI runs lint, formatting, and the test suite on Python 3.11, 3.12, and 3.13.
 The local test gate requires at least 80% branch-aware coverage and uses only
 generated fixtures. CI also builds the source and wheel distributions, installs
-the wheel, and smoke-tests the packaged CLI.
+the wheel, and smoke-tests the packaged CLI. Dedicated jobs compile/test the
+Java 17 Flink application and test/build the React dashboard. The Compose lane
+builds every image, runs a deterministic clean mission, compares all six batch
+invariants, then verifies the completed and failure-state UI in headless
+Chromium before tearing down volumes.
 
 For implementation boundaries and data flow, see
 [`docs/architecture.md`](docs/architecture.md). Security reports should follow

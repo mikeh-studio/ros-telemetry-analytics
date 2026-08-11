@@ -32,6 +32,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+demo = [
+  "aiokafka==0.14.0",
+  "fastapi==0.141.1",
+  "jsonschema==4.26.0",
+  "uvicorn[standard]==0.52.1",
+]
 dev = [
   "build>=1.2,<2",
   "pytest>=8,<10",
@@ -53,6 +59,9 @@ ros_telemetry_analytics = ["*.yaml"]
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers"
 testpaths = ["tests"]
+markers = [
+  "demo_integration: integration tests for generated demo assets and services",
+]
 
 [tool.coverage.run]
 branch = true

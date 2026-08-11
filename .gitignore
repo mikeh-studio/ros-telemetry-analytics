@@ -14,3 +14,13 @@ data/raw/*
 !data/raw/.gitkeep
 data/bronze/*
 !data/bronze/.gitkeep
+data/demo/*.mcap
+data/demo-output/*
+!data/demo/.gitkeep
+!data/demo-output/.gitkeep
+demo-state/
+demo/web/node_modules/
+demo/web/dist/
+demo/web/playwright-report/
+demo/web/test-results/
+streaming/flink-job/target/

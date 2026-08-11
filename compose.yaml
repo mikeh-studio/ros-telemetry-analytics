@@ -1,0 +1,206 @@
+name: robot-telemetry-flight-deck
+
+services:
+  kafka-storage-init:
+    image: apache/kafka:4.1.2
+    user: root
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["chown -R appuser:appuser /tmp/kraft-combined-logs"]
+    volumes:
+      - kafka-data:/tmp/kraft-combined-logs
+    restart: "no"
+
+  kafka:
+    image: apache/kafka:4.1.2
+    hostname: kafka
+    depends_on:
+      kafka-storage-init:
+        condition: service_completed_successfully
+    environment:
+      CLUSTER_ID: 4L6g3nShT-eMCtK--X86sw
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
+      KAFKA_TRANSACTION_MAX_TIMEOUT_MS: 900000
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    volumes:
+      - kafka-data:/tmp/kraft-combined-logs
+    restart: unless-stopped
+
+  kafka-init:
+    image: apache/kafka:4.1.2
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command:
+      - /bin/bash
+      - -ec
+      - |
+        create_topic() {
+          /opt/kafka/bin/kafka-topics.sh \
+            --bootstrap-server kafka:9092 \
+            --create --if-not-exists \
+            --topic "$1" --partitions "$2" --replication-factor 1 \
+            --config retention.ms=3600000
+        }
+        create_topic telemetry.events.v1 4
+        create_topic telemetry.metrics.v1 1
+        create_topic telemetry.anomalies.v1 1
+        create_topic telemetry.late.v1 1
+        create_topic telemetry.dead-letter.v1 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
+    restart: "no"
+
+  flink-storage-init:
+    build:
+      context: .
+      dockerfile: streaming/flink-job/Dockerfile
+    user: root
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["chown -R flink:flink /checkpoints /opt/demo-output"]
+    volumes:
+      - flink-checkpoints:/checkpoints
+      - demo-output:/opt/demo-output
+    restart: "no"
+
+  flink-jobmanager:
+    build:
+      context: .
+      dockerfile: streaming/flink-job/Dockerfile
+    command: standalone-job --job-classname io.github.mikehstudio.rostelemetry.TelemetryStreamingJob
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      flink-storage-init:
+        condition: service_completed_successfully
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      DEMO_OUTPUT_URI: file:///opt/demo-output
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        parallelism.default: 4
+        state.checkpoints.dir: file:///checkpoints
+        state.checkpoints.num-retained: 3
+    ports:
+      - "8081:8081"
+    volumes:
+      - flink-checkpoints:/checkpoints
+      - demo-output:/opt/demo-output
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/overview >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  flink-taskmanager:
+    build:
+      context: .
+      dockerfile: streaming/flink-job/Dockerfile
+    command: taskmanager
+    depends_on:
+      flink-jobmanager:
+        condition: service_healthy
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 4
+        parallelism.default: 4
+        state.checkpoints.dir: file:///checkpoints
+    volumes:
+      - flink-checkpoints:/checkpoints
+      - demo-output:/opt/demo-output
+    restart: unless-stopped
+
+  replayer:
+    build:
+      context: .
+      dockerfile: demo/Dockerfile.python
+    command: uvicorn demo.replayer.app:app --host 0.0.0.0 --port 8001
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      DEMO_ROOT: /app
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    volumes:
+      - demo-data:/app/data/demo
+      - demo-state:/app/demo-state
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8001/healthz >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: demo/Dockerfile.python
+    command: uvicorn demo.api.app:app --host 0.0.0.0 --port 8000
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      flink-taskmanager:
+        condition: service_started
+      replayer:
+        condition: service_healthy
+    environment:
+      DEMO_ROOT: /app
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REPLAYER_URL: http://replayer:8001
+      FLINK_URL: http://flink-jobmanager:8081
+      WEB_ORIGIN: http://localhost:3000
+      PROJECTION_DB_PATH: /app/demo-state/projection.db
+      DEMO_OUTPUT_ROOT: /app/data/demo-output
+    ports:
+      - "8000:8000"
+    volumes:
+      - demo-state:/app/demo-state
+      - demo-data:/app/data/demo:ro
+      - demo-output:/app/data/demo-output:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/healthz >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: demo/web/Dockerfile
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "3000:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+volumes:
+  kafka-data:
+  flink-checkpoints:
+  demo-data:
+  demo-state:
+  demo-output:

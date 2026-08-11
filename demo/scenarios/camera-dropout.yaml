@@ -1,0 +1,9 @@
+schema_version: 1
+name: camera-dropout
+description: Hold two camera frames, drop the remaining frames for eight mission seconds, then recover.
+topic: /camera/image_raw
+start_offset_ms: 60000
+end_offset_ms: 68000
+held_offsets_ms: [61000, 62000]
+release_offset_ms: 67100
+allowed_rates: [1]

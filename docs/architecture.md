@@ -35,6 +35,54 @@ timing/VSLAM checks          domain analyzers
 all bag outcomes -----> latest_run.json + latest_report.md
 ```
 
+## Recorded streaming demo
+
+The Flight Deck is a second execution path over a compact deterministic MCAP
+fixture. It does not replace the batch pipeline:
+
+```text
+generated ROS 2 MCAP
+        |
+        v
+Python replayer -- versioned envelopes --> Kafka telemetry.events.v1
+                                                |
+                                                v
+                                  Java Flink DataStream job
+                                   |        |          |
+                                   v        v          v
+                              metrics   anomalies   late/dead-letter
+                                   |        |          |
+                                   `--------+----------'
+                                            |
+                              read-committed FastAPI projection
+                                   |                   |
+                                   v                   v
+                          bounded SQLite          verified FileSink
+                                   |                   summaries
+                                   `---------+---------'
+                                             v
+                                  React Flight Deck + SSE
+```
+
+The replayer preserves source nanoseconds while allocating non-overlapping
+stream-time epochs. Flink keys topic state by run, robot, and topic; a separate
+robot-keyed branch owns global sequence evidence and the processing-time
+liveness watchdog. Event-time windows, timers, accepted-late corrections, and
+mission summaries therefore cannot cross run boundaries.
+
+Kafka output IDs and revisions make projection replay idempotent. The SQLite
+transaction stores each projected record and its next Kafka offset together.
+`summary_ready` is not treated as completion: FastAPI independently requires
+exactly four schema-valid topic summary records in committed, non-in-progress
+part files before persisting the terminal state and notifying the browser. On
+restart, the API resumes this verification from the projected marker.
+
+The container stack pins Apache Kafka 4.1.2, Apache Flink 2.2.1, the Flink
+Kafka connector 5.0.0-2.2, and Java 17. The connector resolves Kafka client
+4.2.0; Kafka's bidirectional protocol compatibility permits that client to
+negotiate with the 4.1.2 broker. Transaction timeouts are 15 minutes on both
+sides, and compile-time contract checks cover the exactly-once sink settings.
+
 ## Components
 
 - `discovery.py` walks input roots, skips configured cache directories, treats a
@@ -101,3 +149,9 @@ object storage and a shared catalog.
 The source fingerprint uses file names, sizes, and nanosecond modification
 times. This makes normal reruns inexpensive. Regulated or forensic workflows
 should add full content hashes and immutable source storage.
+
+The streaming demo is a one-robot recorded-replay system. Kafka, Flink, and the
+projection are production-shaped learning components, but the demo is not a
+robot command or safety path. A future ROS 2 bridge may publish the same event
+schema from an edge gateway only after QoS, clock synchronization, offline
+buffering, fleet partitioning, and security are designed explicitly.
