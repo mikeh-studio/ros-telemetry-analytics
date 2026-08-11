@@ -22,6 +22,14 @@ def test_public_api_matches_the_flight_deck_contract() -> None:
         ("GET", "/api/flink/summary"),
     }
     assert expected <= routes
+    legacy_aliases = {
+        ("GET", "/api/snapshot"),
+        ("POST", "/api/runs/start"),
+        ("POST", "/api/runs/pause"),
+        ("POST", "/api/runs/resume"),
+        ("POST", "/api/runs/restart"),
+    }
+    assert routes.isdisjoint(legacy_aliases)
 
 
 def test_camera_dropout_endpoint_uses_the_running_mission_injector(monkeypatch) -> None:

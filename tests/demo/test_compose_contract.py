@@ -79,6 +79,8 @@ def test_container_versions_and_entrypoints_are_pinned() -> None:
     assert "apache/kafka:4.1.2" in compose_text
     assert "FROM flink:2.2.1-java17" in flink_dockerfile
     assert "maven:3.9.11-eclipse-temurin-17" in flink_dockerfile
+    assert "RUN mvn --batch-mode verify" in flink_dockerfile
+    assert "verify package" not in flink_dockerfile
     assert "<flink.version>2.2.1</flink.version>" in pom
     assert "<flink.kafka.version>5.0.0-2.2</flink.kafka.version>" in pom
     assert "DeliveryGuarantee.EXACTLY_ONCE" in job

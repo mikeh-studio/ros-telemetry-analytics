@@ -209,7 +209,6 @@ async def health() -> JSONResponse:
     )
 
 
-@app.get("/api/snapshot")
 @app.get("/api/runs/current/snapshot")
 async def snapshot(run_id: str | None = Query(default=None)) -> dict[str, Any]:
     return await asyncio.to_thread(STORE.snapshot, run_id)
@@ -245,7 +244,6 @@ async def events(request: Request) -> StreamingResponse:
     )
 
 
-@app.post("/api/runs/start")
 @app.post("/api/replay/start")
 async def start_run(request: StartRequest) -> dict[str, Any]:
     if request.rate not in CONFIG.demo.supported_rates:
@@ -260,19 +258,16 @@ async def start_run(request: StartRequest) -> dict[str, Any]:
     return await _replayer_post("/start", query)
 
 
-@app.post("/api/runs/pause")
 @app.post("/api/replay/pause")
 async def pause_run() -> dict[str, Any]:
     return await _replayer_post("/pause")
 
 
-@app.post("/api/runs/resume")
 @app.post("/api/replay/resume")
 async def resume_run() -> dict[str, Any]:
     return await _replayer_post("/resume")
 
 
-@app.post("/api/runs/restart")
 @app.post("/api/replay/restart")
 async def restart_run() -> dict[str, Any]:
     return await _replayer_post("/restart")

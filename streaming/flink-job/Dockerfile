@@ -6,7 +6,7 @@ COPY schemas /build/schemas
 COPY configs /build/configs
 RUN mvn --batch-mode dependency:go-offline
 COPY streaming/flink-job/src ./src
-RUN mvn --batch-mode verify package
+RUN mvn --batch-mode verify
 
 FROM flink:2.2.1-java17
 
