@@ -212,3 +212,77 @@ def test_event_matching_does_not_reuse_one_alert_for_multiple_failures() -> None
     assert summary["event_metrics"]["precision"] == 1.0
     assert summary["event_metrics"]["recall"] == 0.5
     assert matches.get_column("detected").to_list() == [True, False]
+
+
+def test_event_matching_maximizes_detected_events_before_onset_distance() -> None:
+    samples = pl.DataFrame(
+        {
+            name: (
+                [False]
+                if dtype == pl.Boolean
+                else [0.0]
+                if dtype == pl.Float64
+                else [0]
+                if dtype == pl.Int64
+                else ["run-1"]
+            )
+            for name, dtype in SAMPLE_SCHEMA.items()
+        },
+        schema=SAMPLE_SCHEMA,
+    )
+    event_defaults = {
+        "run_id": "run-1",
+        "source_file": "run.parquet",
+        "segment_id": 0,
+        "sample_count": 1,
+        "max_position_error_m": 1.0,
+        "max_heading_error_rad": 0.0,
+        "max_detector_score": 2.0,
+    }
+    events = pl.DataFrame(
+        [
+            {
+                **event_defaults,
+                "event_id": "expected-1",
+                "event_kind": "expected",
+                "start_timestamp_ns": 100,
+                "end_timestamp_ns": 200,
+            },
+            {
+                **event_defaults,
+                "event_id": "expected-2",
+                "event_kind": "expected",
+                "start_timestamp_ns": 250,
+                "end_timestamp_ns": 350,
+            },
+            {
+                **event_defaults,
+                "event_id": "observed-shared",
+                "event_kind": "observed",
+                "start_timestamp_ns": 150,
+                "end_timestamp_ns": 300,
+            },
+            {
+                **event_defaults,
+                "event_id": "observed-first-only",
+                "event_kind": "observed",
+                "start_timestamp_ns": 0,
+                "end_timestamp_ns": 110,
+            },
+        ],
+        schema=EVENT_SCHEMA,
+    )
+
+    summary, matches = score_localization(
+        samples,
+        events,
+        LocalizationEvalConfig(event_tolerance_ms=0.000001),
+    )
+
+    assert summary["event_metrics"]["matched_event_count"] == 2
+    assert summary["event_metrics"]["precision"] == 1.0
+    assert summary["event_metrics"]["recall"] == 1.0
+    assert matches.get_column("observed_event_id").to_list() == [
+        "observed-first-only",
+        "observed-shared",
+    ]

@@ -180,9 +180,12 @@ function LocalizationTrajectory({ points }) {
     const maxY = Math.max(...ys);
     const spanX = Math.max(maxX - minX, 0.1);
     const spanY = Math.max(maxY - minY, 0.1);
+    const scale = Math.min(560 / spanX, 280 / spanY);
+    const offsetX = (600 - spanX * scale) / 2;
+    const offsetY = (320 - spanY * scale) / 2;
     const project = (x, y) => [
-      20 + ((x - minX) / spanX) * 560,
-      300 - ((y - minY) / spanY) * 280,
+      offsetX + (x - minX) * scale,
+      320 - offsetY - (y - minY) * scale,
     ];
     const path = (xKey, yKey) => {
       const segments = new Map();
@@ -363,19 +366,21 @@ export default function App() {
           <span className="eyebrow">Streaming operations console</span>
           <h1><span>Robot Telemetry</span><br />Flight Deck</h1>
         </div>
-        <section className="readiness" aria-label="Stack readiness">
-          <span className="eyebrow">Stack readiness</span>
-          <div className="readiness-services">
-            {Object.entries(SERVICE_LABELS).map(([name, label]) => {
-              const status = readiness.services?.[name] || "unknown";
-              return <span className={`readiness-item ${healthTone(status)}`} key={name}><i /><span>{label}</span><strong>{status}</strong></span>;
-            })}
+        <div className="header-operations">
+          <section className="readiness" aria-label="Stack readiness">
+            <span className="eyebrow">Stack readiness</span>
+            <div className="readiness-services">
+              {Object.entries(SERVICE_LABELS).map(([name, label]) => {
+                const status = readiness.services?.[name] || "unknown";
+                return <span className={`readiness-item ${healthTone(status)}`} key={name}><i /><span>{label}</span><strong>{status}</strong></span>;
+              })}
+            </div>
+          </section>
+          <div className="header-state">
+            <span className={`connection-dot ${connected ? "live" : ""}`} />
+            {connected ? "Live data" : "Reconnecting"}
+            <span>Recorded replay</span>
           </div>
-        </section>
-        <div className="header-state">
-          <span className={`connection-dot ${connected ? "live" : ""}`} />
-          {connected ? "Live data" : "Reconnecting"}
-          <span>Recorded replay</span>
         </div>
       </header>
 

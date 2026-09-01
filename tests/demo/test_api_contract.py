@@ -88,6 +88,50 @@ def test_localization_evaluation_reports_missing_artifacts(tmp_path, monkeypatch
     assert "evaluate-localization" in payload["detail"]
 
 
+def test_localization_trajectory_sampling_preserves_short_failures(tmp_path, monkeypatch) -> None:
+    evaluation = tmp_path / "evaluation"
+    evaluation.mkdir()
+    sample_count = 1_200
+    (evaluation / "localization_eval.json").write_text(
+        json.dumps(
+            {
+                "sample_count": sample_count,
+                "sample_metrics": {"precision": 1.0, "recall": 1.0, "f1": 1.0},
+                "event_metrics": {"precision": 1.0, "recall": 1.0},
+            }
+        )
+    )
+    failure = [False] * sample_count
+    failure[1] = True
+    pl.DataFrame(
+        {
+            "timestamp_ns": list(range(sample_count)),
+            "segment_id": [0] * sample_count,
+            "ground_truth_x": [float(index) for index in range(sample_count)],
+            "ground_truth_y": [0.0] * sample_count,
+            "estimated_x": [float(index) for index in range(sample_count)],
+            "estimated_y": [0.0] * sample_count,
+            "position_error_m": [0.0] * sample_count,
+            "label_failure": failure,
+            "detector_failure": failure,
+        }
+    ).write_parquet(evaluation / "localization_samples.parquet")
+    pl.DataFrame(
+        {
+            "expected_event_id": ["expected-1"],
+            "observed_event_id": ["observed-1"],
+            "detected": [True],
+        }
+    ).write_parquet(evaluation / "localization_event_matches.parquet")
+    monkeypatch.setattr(api_module, "LOCALIZATION_EVAL_DIR", evaluation)
+
+    payload = asyncio.run(api_module.localization_evaluation())
+
+    assert payload["status"] == "available"
+    assert payload["trajectory_sample_count"] <= 600
+    assert any(row["label_failure"] for row in payload["trajectory"])
+
+
 def test_camera_dropout_endpoint_uses_the_running_mission_injector(monkeypatch) -> None:
     calls: list[tuple[str, dict | None]] = []
 

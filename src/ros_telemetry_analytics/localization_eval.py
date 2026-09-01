@@ -321,6 +321,102 @@ def _safe_ratio(numerator: int, denominator: int) -> float | None:
     return numerator / denominator if denominator else None
 
 
+def _match_event_partition(
+    expected: list[dict[str, Any]],
+    observed: list[dict[str, Any]],
+    tolerance_ns: int,
+) -> dict[str, dict[str, Any]]:
+    """Return a maximum-cardinality, minimum-onset-distance event matching.
+
+    Events of each kind are disjoint and time ordered, so an order-preserving dynamic
+    program avoids the under-counting that a nearest-candidate greedy pass can cause.
+    """
+
+    expected = sorted(expected, key=lambda row: row["start_timestamp_ns"])
+    observed = sorted(observed, key=lambda row: row["start_timestamp_ns"])
+    expected_count = len(expected)
+    observed_count = len(observed)
+    scores = [[(0, 0) for _ in range(observed_count + 1)] for _ in range(expected_count + 1)]
+    choices = [["done" for _ in range(observed_count + 1)] for _ in range(expected_count + 1)]
+
+    for expected_index in range(expected_count - 1, -1, -1):
+        for observed_index in range(observed_count - 1, -1, -1):
+            wanted = expected[expected_index]
+            seen = observed[observed_index]
+            candidates = [
+                (scores[expected_index + 1][observed_index], 0, "skip_expected"),
+                (scores[expected_index][observed_index + 1], 1, "skip_observed"),
+            ]
+            overlaps = (
+                seen["end_timestamp_ns"] + tolerance_ns >= wanted["start_timestamp_ns"]
+                and seen["start_timestamp_ns"] - tolerance_ns <= wanted["end_timestamp_ns"]
+            )
+            if overlaps:
+                remaining_matches, remaining_cost = scores[expected_index + 1][observed_index + 1]
+                candidates.append(
+                    (
+                        (
+                            remaining_matches + 1,
+                            remaining_cost
+                            + abs(seen["start_timestamp_ns"] - wanted["start_timestamp_ns"]),
+                        ),
+                        2,
+                        "match",
+                    )
+                )
+            score, _, choice = max(
+                candidates,
+                key=lambda candidate: (
+                    candidate[0][0],
+                    -candidate[0][1],
+                    candidate[1],
+                ),
+            )
+            scores[expected_index][observed_index] = score
+            choices[expected_index][observed_index] = choice
+
+    matched: dict[str, dict[str, Any]] = {}
+    expected_index = 0
+    observed_index = 0
+    while expected_index < expected_count and observed_index < observed_count:
+        choice = choices[expected_index][observed_index]
+        if choice == "match":
+            matched[expected[expected_index]["event_id"]] = observed[observed_index]
+            expected_index += 1
+            observed_index += 1
+        elif choice == "skip_observed":
+            observed_index += 1
+        else:
+            expected_index += 1
+    return matched
+
+
+def _match_localization_events(
+    expected: list[dict[str, Any]],
+    observed: list[dict[str, Any]],
+    tolerance_ns: int,
+) -> dict[str, dict[str, Any]]:
+    partitions: dict[
+        tuple[str, str, int],
+        dict[str, list[dict[str, Any]]],
+    ] = {}
+    for event_kind, rows in (("expected", expected), ("observed", observed)):
+        for row in rows:
+            key = (row["run_id"], row["source_file"], row["segment_id"])
+            partitions.setdefault(key, {"expected": [], "observed": []})[event_kind].append(row)
+
+    matched: dict[str, dict[str, Any]] = {}
+    for partition in partitions.values():
+        matched.update(
+            _match_event_partition(
+                partition["expected"],
+                partition["observed"],
+                tolerance_ns,
+            )
+        )
+    return matched
+
+
 def score_localization(
     samples: pl.DataFrame,
     events: pl.DataFrame,
@@ -344,30 +440,11 @@ def score_localization(
     expected = [row for row in event_rows if row["event_kind"] == "expected"]
     observed = [row for row in event_rows if row["event_kind"] == "observed"]
     tolerance_ns = int(config.event_tolerance_ms * 1_000_000)
-    matched_observed_ids: set[str] = set()
-    matched_expected_count = 0
+    matched_events = _match_localization_events(expected, observed, tolerance_ns)
+    matched_observed_ids = {row["event_id"] for row in matched_events.values()}
     match_rows: list[dict[str, Any]] = []
     for wanted in expected:
-        candidates = [
-            seen
-            for seen in observed
-            if seen["event_id"] not in matched_observed_ids
-            and seen["run_id"] == wanted["run_id"]
-            and seen["segment_id"] == wanted["segment_id"]
-            and seen["end_timestamp_ns"] + tolerance_ns >= wanted["start_timestamp_ns"]
-            and seen["start_timestamp_ns"] - tolerance_ns <= wanted["end_timestamp_ns"]
-        ]
-        seen = (
-            min(
-                candidates,
-                key=lambda row: abs(row["start_timestamp_ns"] - wanted["start_timestamp_ns"]),
-            )
-            if candidates
-            else None
-        )
-        if seen is not None:
-            matched_expected_count += 1
-            matched_observed_ids.add(seen["event_id"])
+        seen = matched_events.get(wanted["event_id"])
         match_rows.append(
             {
                 "expected_event_id": wanted["event_id"],
@@ -396,6 +473,7 @@ def score_localization(
         pl.DataFrame(match_rows, schema=MATCH_SCHEMA) if match_rows else _empty_frame(MATCH_SCHEMA)
     )
     event_precision = _safe_ratio(len(matched_observed_ids), len(observed))
+    matched_expected_count = len(matched_events)
     event_recall = _safe_ratio(matched_expected_count, len(expected))
     onset_lags = [row["onset_lag_ms"] for row in match_rows if row["onset_lag_ms"] is not None]
     recovery_lags = [

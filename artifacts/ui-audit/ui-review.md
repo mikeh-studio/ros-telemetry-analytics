@@ -2,7 +2,7 @@
 
 Reviewed from the live UI on 2026-08-31 at normal desktop width and 200% zoom. This review is read-only; no application code was changed.
 
-Resolution update: the title-spacing finding was fixed after this review. The title lockup now has an explicit 18 px gap, safer line height and display bounds, protected desktop columns, and a 1320 px stacking breakpoint. Chrome checks at 1440 x 900 and 1000 x 900 passed without title or readiness overlap. The remaining findings below are retained as follow-up polish.
+Resolution update: the P1/P2 findings were fixed after this review. The title lockup has an explicit 18 px gap and protected columns; operational labels now use a shared, larger legibility floor; readiness and connection state live in one stable header stack; related mission controls are grouped; and telemetry/localization hierarchy has more reading room. The P3 long-incident fixture remains follow-up polish.
 
 ## Overall assessment
 
@@ -21,7 +21,7 @@ Recommended implementation:
 - Raise the H1 line-height to roughly `.90` to `.94`; keep the two-line lockup and current letter spacing.
 - Add a visual regression check for the title at desktop, the `1050px` breakpoint, and the narrow mobile breakpoint.
 
-### P1 - Raise the microcopy legibility floor
+### Resolved P1 - Raise the microcopy legibility floor
 
 Many operational labels are between `.55rem` and `.62rem`. At normal desktop zoom, readiness states, timeline ticks, table headings, trajectory legend labels, event labels, and footer copy are difficult to scan. Uppercase plus wide tracking reduces legibility further.
 
@@ -32,7 +32,7 @@ Recommended implementation:
 - Reduce tracking on the smallest labels from `.10em` to about `.06em` to `.08em`.
 - Recheck muted text contrast after increasing size; screenshot review alone cannot establish WCAG compliance.
 
-### P2 - Rebalance the command header across widths
+### Resolved P2 - Rebalance the command header across widths
 
 At desktop width, the readiness row and connection mode occupy the far-right column while the title dominates the left, leaving a broad empty band. At 200% zoom, the header stacks cleanly but creates an oversized gap before readiness. The negative `margin-top` on `.header-state` makes this area especially brittle.
 
@@ -42,7 +42,7 @@ Recommended implementation:
 - Use a bounded gap between title, readiness, and mode instead of relying on the parent grid row gap.
 - At the `1050px` breakpoint, use a smaller stacked gap so the header does not consume most of the first viewport.
 
-### P2 - Bring mission controls and selectors into one control group
+### Resolved P2 - Bring mission controls and selectors into one control group
 
 The transport controls sit at the far left while scenario and replay speed sit at the far right. The large empty middle makes related controls feel disconnected and slows scanning.
 
@@ -52,7 +52,7 @@ Recommended implementation:
 - Keep selectors adjacent to transport controls with a clear 32px to 48px group gap.
 - Preserve the existing column stack below `720px`, where the controls remain usable.
 
-### P2 - Give telemetry and evaluation data more reading room
+### Resolved P2 - Give telemetry and evaluation data more reading room
 
 The telemetry table is structurally clear, but tiny headers, topic paths, and values make it feel compressed. In localization, the trajectory, scorecard, and event log are well organized, but the event descriptions and legend are difficult to read and the three panels compete equally for attention.
 
@@ -85,12 +85,8 @@ This was a visual and structural review, not a full accessibility audit. Keyboar
 
 ## Suggested implementation order
 
-1. Fix title spacing and remove the header state's negative margin.
-2. Introduce shared minimum sizes for operational labels and data values.
-3. Tighten the responsive header rhythm at `1050px` and `720px`.
-4. Rebalance the timeline controls and selectors.
-5. Improve telemetry and localization reading hierarchy.
-6. Add desktop, breakpoint, and long-content visual regression fixtures.
+1. Add a long-content visual regression fixture for the remaining P3 incident-summary finding.
+2. Extend future accessibility QA to keyboard order, live announcements, reduced motion, touch targets, and measured contrast.
 
 ## Evidence
 

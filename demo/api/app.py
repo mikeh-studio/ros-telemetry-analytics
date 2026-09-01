@@ -33,6 +33,51 @@ FLINK_URL = os.environ.get("FLINK_URL", "http://flink-jobmanager:8081")
 LOCALIZATION_EVAL_DIR = Path(
     os.environ.get("LOCALIZATION_EVAL_DIR", ROOT / "data/evaluations/latest")
 ).resolve()
+LOCALIZATION_TRAJECTORY_LIMIT = 600
+
+
+def _evenly_spaced_indices(length: int, count: int) -> list[int]:
+    if length <= 0 or count <= 0:
+        return []
+    if count == 1:
+        return [0]
+    return [round(index * (length - 1) / (count - 1)) for index in range(count)]
+
+
+def _bounded_localization_trajectory(
+    samples: pl.DataFrame,
+    limit: int = LOCALIZATION_TRAJECTORY_LIMIT,
+) -> tuple[pl.DataFrame, int]:
+    """Downsample a trajectory without dropping failure-state transitions."""
+
+    if samples.height <= limit:
+        return samples, 1
+
+    priority_indices = {0, samples.height - 1}
+    for column in ("label_failure", "detector_failure"):
+        values = samples.get_column(column).to_list()
+        for index in range(1, len(values)):
+            if values[index] != values[index - 1]:
+                priority_indices.update((index - 1, index))
+
+    if len(priority_indices) >= limit:
+        priority = sorted(priority_indices)
+        selected = {priority[index] for index in _evenly_spaced_indices(len(priority), limit)}
+    else:
+        selected = set(priority_indices)
+        for index in _evenly_spaced_indices(samples.height, limit):
+            selected.add(index)
+            if len(selected) == limit:
+                break
+        if len(selected) < limit:
+            for index in range(samples.height):
+                selected.add(index)
+                if len(selected) == limit:
+                    break
+
+    indices = sorted(selected)
+    stride = max(1, (samples.height + limit - 1) // limit)
+    return samples.gather(indices), stride
 
 
 class EventHub:
@@ -262,8 +307,7 @@ async def localization_evaluation() -> dict[str, Any]:
                     "detector_failure",
                 ],
             )
-            stride = max(1, (samples.height + 599) // 600)
-            trajectory = samples.gather_every(stride)
+            trajectory, stride = _bounded_localization_trajectory(samples)
             minimum_timestamp = int(samples.get_column("timestamp_ns").min())
             trajectory = trajectory.with_columns(
                 ((pl.col("timestamp_ns") - minimum_timestamp) / 1_000_000).alias("elapsed_ms")
@@ -278,6 +322,7 @@ async def localization_evaluation() -> dict[str, Any]:
             "trajectory": trajectory.to_dicts(),
             "event_matches": matches.to_dicts(),
             "trajectory_stride": stride,
+            "trajectory_sample_count": trajectory.height,
             "evaluation_start_timestamp_ns": minimum_timestamp,
         }
 
