@@ -64,3 +64,31 @@ def test_cli_download_selects_assets(tmp_path: Path, monkeypatch, capsys) -> Non
 
     with pytest.raises(SystemExit, match="Unknown asset"):
         cli.main(["download", "--asset", "missing"])
+
+
+def test_cli_evaluates_localization_data(tmp_path: Path, monkeypatch, capsys) -> None:
+    captured = {}
+
+    def evaluate(inputs, output, config):
+        captured.update({"inputs": inputs, "output": output, "config": config})
+        return {"sample_count": 10}
+
+    monkeypatch.setattr(cli, "evaluate_localization_files", evaluate)
+
+    assert (
+        cli.main(
+            [
+                "evaluate-localization",
+                "--input",
+                "run.parquet",
+                "--output",
+                str(tmp_path),
+                "--particle-spread-threshold-m",
+                "0.35",
+            ]
+        )
+        == 0
+    )
+    assert captured["inputs"] == [Path("run.parquet")]
+    assert captured["config"].particle_spread_warn_m == 0.35
+    assert json.loads(capsys.readouterr().out)["sample_count"] == 10

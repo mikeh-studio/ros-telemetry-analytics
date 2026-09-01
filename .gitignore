@@ -14,6 +14,8 @@ data/raw/*
 !data/raw/.gitkeep
 data/bronze/*
 !data/bronze/.gitkeep
+data/evaluations/
+.gstack/
 data/demo/*.mcap
 data/demo-output/*
 !data/demo/.gitkeep

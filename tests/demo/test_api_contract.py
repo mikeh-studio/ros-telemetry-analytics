@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 
+import polars as pl
+
 from demo.api import app as api_module
 from demo.api.app import app
 
@@ -20,6 +22,7 @@ def test_public_api_matches_the_flight_deck_contract() -> None:
         ("POST", "/api/replay/restart"),
         ("POST", "/api/scenarios/camera-dropout"),
         ("GET", "/api/flink/summary"),
+        ("GET", "/api/localization/evaluation"),
     }
     assert expected <= routes
     legacy_aliases = {
@@ -30,6 +33,59 @@ def test_public_api_matches_the_flight_deck_contract() -> None:
         ("POST", "/api/runs/restart"),
     }
     assert routes.isdisjoint(legacy_aliases)
+
+
+def test_localization_evaluation_serves_bounded_trajectory(tmp_path, monkeypatch) -> None:
+    evaluation = tmp_path / "evaluation"
+    evaluation.mkdir()
+    (evaluation / "localization_eval.json").write_text(
+        json.dumps(
+            {
+                "sample_count": 2,
+                "input_files": ["/private/path/run.processed.parquet"],
+                "sample_metrics": {"precision": 0.8, "recall": 0.5, "f1": 0.6},
+                "event_metrics": {"precision": 0.75, "recall": 0.7},
+            }
+        )
+    )
+    pl.DataFrame(
+        {
+            "timestamp_ns": [1_000_000_000, 2_000_000_000],
+            "segment_id": [0, 0],
+            "ground_truth_x": [0.0, 1.0],
+            "ground_truth_y": [0.0, 0.0],
+            "estimated_x": [0.0, 1.2],
+            "estimated_y": [0.0, 0.1],
+            "position_error_m": [0.0, 0.22],
+            "label_failure": [False, True],
+            "detector_failure": [False, True],
+        }
+    ).write_parquet(evaluation / "localization_samples.parquet")
+    pl.DataFrame(
+        {
+            "expected_event_id": ["expected-1"],
+            "observed_event_id": ["observed-1"],
+            "detected": [True],
+        }
+    ).write_parquet(evaluation / "localization_event_matches.parquet")
+    monkeypatch.setattr(api_module, "LOCALIZATION_EVAL_DIR", evaluation)
+
+    payload = asyncio.run(api_module.localization_evaluation())
+
+    assert payload["status"] == "available"
+    assert payload["summary"]["input_files"] == ["run.processed.parquet"]
+    assert payload["evaluation_start_timestamp_ns"] == 1_000_000_000
+    assert payload["trajectory"][1]["elapsed_ms"] == 1_000
+    assert payload["event_matches"][0]["detected"] is True
+
+
+def test_localization_evaluation_reports_missing_artifacts(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(api_module, "LOCALIZATION_EVAL_DIR", tmp_path)
+
+    payload = asyncio.run(api_module.localization_evaluation())
+
+    assert payload["status"] == "unavailable"
+    assert "evaluate-localization" in payload["detail"]
 
 
 def test_camera_dropout_endpoint_uses_the_running_mission_injector(monkeypatch) -> None:
