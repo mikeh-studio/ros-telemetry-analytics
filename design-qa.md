@@ -52,6 +52,7 @@ Fresh Chrome captures at 1440 x 900 and 1000 x 900 confirmed clear separation be
 ## Primary interactions and runtime checks
 
 - Start, pause, resume, and restart button state contracts: covered by the eight passing Vitest interaction/state tests.
+- End-to-end browser contract: Playwright targets the redesigned mission summary, telemetry table, robot-health summary, and expandable incident log rather than the retired card layout.
 - Scenario selection and 1x/5x constraint: covered by Vitest; the live browser shows both selectors and current clean-mission state.
 - Live data and readiness: browser verified five ready services, completed replay data, four healthy topics, and available localization evaluation.
 - Responsive layout: browser verified at 300% zoom with no visible overlap or horizontal clipping in the title, readiness, mission summary, timeline, or transport controls.
