@@ -169,12 +169,14 @@ services:
       WEB_ORIGIN: http://localhost:3000
       PROJECTION_DB_PATH: /app/demo-state/projection.db
       DEMO_OUTPUT_ROOT: /app/data/demo-output
+      LOCALIZATION_EVAL_DIR: /app/data/evaluations/latest
     ports:
       - "8000:8000"
     volumes:
       - demo-state:/app/demo-state
       - demo-data:/app/data/demo:ro
       - demo-output:/app/data/demo-output:ro
+      - ./data/evaluations:/app/data/evaluations:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8000/healthz >/dev/null"]
       interval: 5s

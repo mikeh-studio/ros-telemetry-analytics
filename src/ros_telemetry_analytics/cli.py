@@ -8,6 +8,10 @@ from pathlib import Path
 from ros_telemetry_analytics.assets import download_asset, load_asset_config
 from ros_telemetry_analytics.config import DEFAULT_CONFIG_PATH, load_pipeline_config
 from ros_telemetry_analytics.discovery import discover_bags
+from ros_telemetry_analytics.localization_eval import (
+    LocalizationEvalConfig,
+    evaluate_localization_files,
+)
 from ros_telemetry_analytics.pipeline import run_pipeline
 
 
@@ -42,6 +46,24 @@ def build_parser() -> argparse.ArgumentParser:
     selection = assets.add_mutually_exclusive_group(required=True)
     selection.add_argument("--asset", help="Configured asset key to download.")
     selection.add_argument("--all", action="store_true", help="Download every configured asset.")
+
+    localization = subparsers.add_parser(
+        "evaluate-localization",
+        help="Evaluate an observable-only localization detector against TUHH labels.",
+    )
+    localization.add_argument(
+        "--input",
+        type=_path,
+        action="append",
+        dest="inputs",
+        required=True,
+        help="Extracted TUHH processed Parquet member; repeat for multiple members.",
+    )
+    localization.add_argument("--output", type=_path, required=True)
+    localization.add_argument("--particle-spread-threshold-m", type=float, default=0.4)
+    localization.add_argument("--pose-jump-threshold-m", type=float, default=0.5)
+    localization.add_argument("--event-merge-gap-ms", type=float, default=500.0)
+    localization.add_argument("--event-tolerance-ms", type=float, default=100.0)
     return parser
 
 
@@ -61,6 +83,20 @@ def main(argv: list[str] | None = None) -> int:
         for name in selected:
             output = download_asset(name, assets[name])
             print(f"{name}: {output}")
+        return 0
+
+    if args.command == "evaluate-localization":
+        summary = evaluate_localization_files(
+            args.inputs,
+            args.output,
+            LocalizationEvalConfig(
+                particle_spread_warn_m=args.particle_spread_threshold_m,
+                pose_jump_warn_m=args.pose_jump_threshold_m,
+                event_merge_gap_ms=args.event_merge_gap_ms,
+                event_tolerance_ms=args.event_tolerance_ms,
+            ),
+        )
+        print(json.dumps(summary, indent=2))
         return 0
 
     config = load_pipeline_config(

@@ -32,7 +32,7 @@ describe("Flight Deck", () => {
 
   it("labels the source as recorded replay and exposes mission controls", async () => {
     render(<App />);
-    expect(screen.getByText("RECORDED REPLAY")).toBeInTheDocument();
+    expect(screen.getByText("Recorded replay")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Start mission" })).toBeEnabled());
     expect(screen.getByText("Camera dropout")).toBeInTheDocument();
     expect(screen.getByText("Streaming job")).toBeInTheDocument();
@@ -65,6 +65,63 @@ describe("Flight Deck", () => {
     render(<App />);
     await waitFor(() => expect(screen.getByText(/checkpoint completed #7 \(2.0 s old\)/i)).toBeInTheDocument());
     expect(screen.getByText(/Processed 1000 · accepted late 2 · duplicate 1 · too late 0/i)).toBeInTheDocument();
+  });
+
+  it("renders localization trajectories and honest public-label evaluation metrics", async () => {
+    fetch.mockImplementation((url) => Promise.resolve({
+      ok: true,
+      json: async () => url.includes("/api/health")
+        ? { status: "ready", services: { kafka: "ready", flink: "ready", flink_job: "ready", projection_api: "ready", replayer: "ready" } }
+        : url.includes("/api/localization/evaluation")
+        ? {
+            status: "available",
+            summary: {
+              sample_metrics: { precision: 0.856, recall: 0.468, f1: 0.605 },
+              event_metrics: { precision: 0.842, recall: 0.667, false_alarm_event_count: 3 },
+            },
+            evaluation_start_timestamp_ns: 0,
+            trajectory: [
+              { segment_id: 0, elapsed_ms: 0, ground_truth_x: 0, ground_truth_y: 0, estimated_x: 0, estimated_y: 0, label_failure: false, detector_failure: false },
+              { segment_id: 0, elapsed_ms: 1000, ground_truth_x: 1, ground_truth_y: 0, estimated_x: 1.2, estimated_y: 0.2, label_failure: true, detector_failure: false },
+              { segment_id: 1, elapsed_ms: 2000, ground_truth_x: 5, ground_truth_y: 5, estimated_x: 5, estimated_y: 5, label_failure: false, detector_failure: false },
+              { segment_id: 1, elapsed_ms: 3000, ground_truth_x: 6, ground_truth_y: 5, estimated_x: 6.1, estimated_y: 5.1, label_failure: false, detector_failure: false },
+            ],
+            event_matches: [
+              {
+                expected_event_id: "expected-1",
+                expected_start_timestamp_ns: 1_000_000_000,
+                observed_start_timestamp_ns: 1_250_000_000,
+                observed_end_timestamp_ns: 1_750_000_000,
+                detected: true,
+                onset_lag_ms: 250,
+              },
+              {
+                expected_event_id: "expected-2",
+                expected_start_timestamp_ns: 2_000_000_000,
+                observed_start_timestamp_ns: null,
+                observed_end_timestamp_ns: null,
+                detected: false,
+                onset_lag_ms: null,
+              },
+            ],
+          }
+        : url.includes("/api/flink/summary")
+        ? { status: "available" }
+        : { topics: [], anomalies: [], incident_history: [], completion: {}, consumer_offsets: [], mission_progress_ms: 0 },
+    }));
+
+    const { container } = render(<App />);
+
+    await waitFor(() => expect(screen.getByText("0.856")).toBeInTheDocument());
+    expect(screen.getByRole("img", { name: /ground-truth and amcl estimated trajectories/i })).toBeInTheDocument();
+    expect(container.querySelectorAll(".trajectory-ground-truth")).toHaveLength(2);
+    expect(container.querySelectorAll(".trajectory-estimated")).toHaveLength(2);
+    expect(screen.getByText("missed")).toBeInTheDocument();
+    expect(screen.getByText("0.842")).toBeInTheDocument();
+    expect(screen.getByText("Detected failure")).toBeInTheDocument();
+    expect(screen.getByText("expected 00:01")).toBeInTheDocument();
+    expect(screen.getByText(/detected 00:01 \(\+250 ms\) · recovered 00:01/)).toBeInTheDocument();
+    expect(screen.getByText(/ground truth and published labels are scoring-only/i)).toBeInTheDocument();
   });
 
   it("replaces stale health with an actionable unavailable state", async () => {
@@ -169,6 +226,6 @@ describe("Flight Deck", () => {
       mission_progress_ms: 90_000,
     }));
     await waitFor(() => expect(screen.getByText("completed")).toBeInTheDocument());
-    expect(screen.getByText("Yes")).toBeInTheDocument();
+    expect(screen.getByText("Verified")).toBeInTheDocument();
   });
 });

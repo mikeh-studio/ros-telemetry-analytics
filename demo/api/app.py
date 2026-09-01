@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
+import polars as pl
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -29,6 +30,54 @@ STORE = ProjectionStore(
 )
 REPLAYER_URL = os.environ.get("REPLAYER_URL", "http://replayer:8001")
 FLINK_URL = os.environ.get("FLINK_URL", "http://flink-jobmanager:8081")
+LOCALIZATION_EVAL_DIR = Path(
+    os.environ.get("LOCALIZATION_EVAL_DIR", ROOT / "data/evaluations/latest")
+).resolve()
+LOCALIZATION_TRAJECTORY_LIMIT = 600
+
+
+def _evenly_spaced_indices(length: int, count: int) -> list[int]:
+    if length <= 0 or count <= 0:
+        return []
+    if count == 1:
+        return [0]
+    return [round(index * (length - 1) / (count - 1)) for index in range(count)]
+
+
+def _bounded_localization_trajectory(
+    samples: pl.DataFrame,
+    limit: int = LOCALIZATION_TRAJECTORY_LIMIT,
+) -> tuple[pl.DataFrame, int]:
+    """Downsample a trajectory without dropping failure-state transitions."""
+
+    if samples.height <= limit:
+        return samples, 1
+
+    priority_indices = {0, samples.height - 1}
+    for column in ("label_failure", "detector_failure"):
+        values = samples.get_column(column).to_list()
+        for index in range(1, len(values)):
+            if values[index] != values[index - 1]:
+                priority_indices.update((index - 1, index))
+
+    if len(priority_indices) >= limit:
+        priority = sorted(priority_indices)
+        selected = {priority[index] for index in _evenly_spaced_indices(len(priority), limit)}
+    else:
+        selected = set(priority_indices)
+        for index in _evenly_spaced_indices(samples.height, limit):
+            selected.add(index)
+            if len(selected) == limit:
+                break
+        if len(selected) < limit:
+            for index in range(samples.height):
+                selected.add(index)
+                if len(selected) == limit:
+                    break
+
+    indices = sorted(selected)
+    stride = max(1, (samples.height + limit - 1) // limit)
+    return samples.gather(indices), stride
 
 
 class EventHub:
@@ -223,6 +272,61 @@ async def current_run() -> dict[str, Any]:
         "source": current["source"],
         "completion": current["completion"],
     }
+
+
+@app.get("/api/localization/evaluation")
+async def localization_evaluation() -> dict[str, Any]:
+    """Return a bounded view of the latest offline localization evaluation."""
+
+    def load() -> dict[str, Any]:
+        summary_path = LOCALIZATION_EVAL_DIR / "localization_eval.json"
+        samples_path = LOCALIZATION_EVAL_DIR / "localization_samples.parquet"
+        matches_path = LOCALIZATION_EVAL_DIR / "localization_event_matches.parquet"
+        missing = [
+            path.name for path in (summary_path, samples_path, matches_path) if not path.is_file()
+        ]
+        if missing:
+            return {
+                "status": "unavailable",
+                "detail": "Run ros-telemetry evaluate-localization to publish an evaluation.",
+                "missing_artifacts": missing,
+            }
+        try:
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            samples = pl.read_parquet(
+                samples_path,
+                columns=[
+                    "timestamp_ns",
+                    "segment_id",
+                    "ground_truth_x",
+                    "ground_truth_y",
+                    "estimated_x",
+                    "estimated_y",
+                    "position_error_m",
+                    "label_failure",
+                    "detector_failure",
+                ],
+            )
+            trajectory, stride = _bounded_localization_trajectory(samples)
+            minimum_timestamp = int(samples.get_column("timestamp_ns").min())
+            trajectory = trajectory.with_columns(
+                ((pl.col("timestamp_ns") - minimum_timestamp) / 1_000_000).alias("elapsed_ms")
+            )
+            matches = pl.read_parquet(matches_path).head(100)
+        except (OSError, ValueError, json.JSONDecodeError, pl.exceptions.PolarsError) as exc:
+            return {"status": "error", "detail": f"Localization evaluation is unreadable: {exc}"}
+        summary["input_files"] = [Path(path).name for path in summary.get("input_files", [])]
+        return {
+            "status": "available",
+            "summary": summary,
+            "trajectory": trajectory.to_dicts(),
+            "event_matches": matches.to_dicts(),
+            "trajectory_stride": stride,
+            "trajectory_sample_count": trajectory.height,
+            "evaluation_start_timestamp_ns": minimum_timestamp,
+        }
+
+    return await asyncio.to_thread(load)
 
 
 @app.get("/api/events")

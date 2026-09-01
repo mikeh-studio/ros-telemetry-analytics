@@ -1,4 +1,51 @@
 datasets:
+  tuhh_robot_localization_failure_prediction:
+    source_page: https://tore.tuhh.de/entities/product/71944c77-d6f3-4ecf-9dce-805e51b3a57f
+    doi: https://doi.org/10.15480/882.15836
+    processed_archive_url: https://tore.tuhh.de/dspace-cris-server/api/core/bitstreams/d3e0b6d6-1985-4b8f-a702-3c680a96c88b/content
+    processed_archive_name: preprocessed_data.zip
+    processed_archive_bytes: 2460975955
+    processed_archive_md5: 8597659c2f56e2894185e5c07d4acb3e
+    format: nested_parquet_in_zip
+    license: CC-BY-4.0
+    redistribution: false
+    dataset:
+      run_count: 21
+      sample_count: 417185
+      nominal_sample_count: 320870
+      failure_sample_count: 96315
+      failure_rate: 0.23086879921377808
+      label: is_delocalized
+      position_failure_threshold_m: 0.4
+      heading_failure_threshold_rad: 0.4
+    baseline_validation:
+      status: measured
+      scope: complete rec_20250821_104113 warehouse run, both processed Parquet members
+      sample_count: 15708
+      failure_sample_count: 4537
+      detector_inputs:
+        - particle_position_spread_m
+        - estimated_pose_jump_m
+      thresholds:
+        particle_spread_warn_m: 0.4
+        pose_jump_warn_m: 0.5
+        event_merge_gap_ms: 500.0
+        event_tolerance_ms: 100.0
+      sample_precision: 0.8561064087061668
+      sample_recall: 0.4681507604143707
+      sample_f1: 0.6053006554573952
+      event_precision: 0.8421052631578947
+      expected_event_count: 24
+      matched_event_count: 16
+      event_recall: 0.6666666666666666
+      false_alarm_event_count: 3
+      mean_onset_lag_ms: 612.5000148125
+      mean_recovery_lag_ms: 370.83334225000004
+    notes:
+      - Ground-truth pose and published labels are evaluation-only fields, not detector inputs.
+      - The first measured baseline is intentionally deterministic and has not been tuned on the evaluation run.
+      - Download and extract the upstream archive locally; generated samples and scorecards are not redistributed.
+
   tum_rgbd_freiburg1_xyz:
     source_url: https://cvg.cit.tum.de/rgbd/dataset/freiburg1/rgbd_dataset_freiburg1_xyz.bag
     source_page: https://cvg.cit.tum.de/data/datasets/rgbd-dataset/download
