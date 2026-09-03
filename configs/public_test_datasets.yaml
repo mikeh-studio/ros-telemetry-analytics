@@ -86,6 +86,85 @@ datasets:
       - Camera topics run at 20 Hz and IMU data runs at approximately 200 Hz.
       - Stereo topics use cam0 and cam1 and are paired explicitly in the public test config.
 
+  lilocbench_dynamics_0:
+    public_robotics_suite: true
+    workflow: mission_control_and_ground_truth
+    source_page: https://www.ipb.uni-bonn.de/html/projects/localization_benchmark/
+    source_url: https://www.ipb.uni-bonn.de/html/projects/localization_benchmark/data/bagfiles_no_cams/dynamics_0.bag
+    ground_truth_url: https://www.ipb.uni-bonn.de/html/projects/localization_benchmark/data/gt_poses_public/dynamics_0/gt_poses.txt
+    local_input: data/raw/public_datasets/lilocbench
+    local_artifact: data/raw/public_datasets/lilocbench/dynamics_0.bag
+    pipeline_config: configs/public_robotics/lilocbench.yaml
+    format: rosbag1
+    license: CC-BY-NC-SA
+    bytes: 38063988
+    sha256: df4abb923df1bb1ff46326abab8667188f4bc17e7ae12ea16905e9d632470c58
+    redistribution: false
+    validation:
+      status: pending_updated_analyzers
+    expected_topics:
+      - /dingo_velocity_controller/cmd_vel
+      - /dingo_velocity_controller/odom
+      - /laser_scan_front/scan
+      - /laser_scan_rear/scan
+      - /tf
+      - /tf_static
+    notes:
+      - The no-camera sequence is the small CI-adjacent mission case; it contains dynamic people.
+      - Use command/odometry response, front/rear LaserScan integrity, TF continuity, and ground-truth trajectory as separate evidence lanes.
+
+  openloris_scene_cafe1_1_2:
+    public_robotics_suite: true
+    workflow: multimodal_synchronization_and_lifelong_slam
+    source_page: https://lifelong-robotic-vision.github.io/dataset/scene.html
+    source_index: https://github.com/lifelong-robotic-vision/OpenLORIS-Scene/blob/master/download.md
+    source_url: https://huggingface.co/datasets/shixuesong/openloris-scene/resolve/main/rosbag/cafe1-1_2-rosbag.tar
+    local_input: data/raw/public_datasets/openloris
+    local_artifact: data/raw/public_datasets/openloris/cafe1-1_2-rosbag.tar
+    pipeline_config: configs/public_robotics/openloris.yaml
+    format: rosbag1_in_tar
+    license: CC-BY-ND-4.0
+    bytes: 6739138560
+    sha256: 3b6022f88c35b2d672e8231735d9192c6207cfdaf85a2dfe461dbe76f7d90eb9
+    redistribution: false
+    validation:
+      status: not_installed
+    notes:
+      - This is intentionally heavyweight and opt-in; the archive is about 6.7 GB before extraction.
+      - Validate RGB/depth and fisheye pairing, independent accel/gyro rates, image/depth payload health, odometry, LaserScan, and TF.
+      - The upstream project documents historical duplicate odometry and calibration issues; preserve the original bag and record any repair as a derived copy.
+
+  arco_ros2_trajectory_1:
+    public_robotics_suite: true
+    workflow: ros2_point_cloud_radar_and_custom_type_coverage
+    source_page: https://robotics.upo.es/datasets/ArcoDataset/main.html
+    source_url: https://robotics.upo.es/datasets/ArcoDataset/bags/Trayectory1.zip
+    local_input: data/raw/public_datasets/arco
+    local_artifact: data/raw/public_datasets/arco/Trayectory1.zip
+    pipeline_config: configs/public_robotics/arco.yaml
+    format: rosbag2_sqlite3_in_zip
+    license: CC-BY-NC-SA-3.0
+    redistribution: false
+    validation:
+      status: not_installed
+      published_duration_s: 193.746
+      published_message_count: 64104
+    expected_topics:
+      - /DetectionList
+      - /ObjectList
+      - /Status
+      - /DirectionVelocity
+      - /PointCloudDetection
+      - /PointCloudObject
+      - /arco/idmind_imu/imu
+      - /ouster/imu
+      - /ouster/points
+      - /tf
+      - /tf_static
+    notes:
+      - This is intentionally heavyweight and opt-in; the extracted DB3 is about 3 GiB.
+      - Standard PointCloud2 and IMU payloads should receive full analysis; custom radar lists must appear explicitly as timing_only coverage until their message definitions are registered.
+
   ros_legacy_fixtures:
     source_root: http://download.ros.org/data/rosbag/
     local_directory: data/raw/public_datasets/ros_fixtures

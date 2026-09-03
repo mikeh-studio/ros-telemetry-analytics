@@ -1,0 +1,48 @@
+pipeline:
+  project_root: ../..
+  input_roots:
+    - data/raw/public_datasets/openloris
+  output_root: data/bronze/public_robotics/openloris
+  excluded_directory_names: []
+  parquet_batch_size: 50000
+
+analytics:
+  domain_analyzers:
+    enabled: true
+    laser_min_valid_range_fraction: 0.5
+  expected_rates:
+    - pattern: ^/d400/(?:color|depth|aligned_depth_to_color)/image_raw$
+      expected_rate_hz: 30.0
+    - pattern: ^/t265/fisheye[12]/image_raw$
+      expected_rate_hz: 30.0
+    - pattern: ^/d400/accel/sample$
+      expected_rate_hz: 250.0
+    - pattern: ^/d400/gyro/sample$
+      expected_rate_hz: 400.0
+    - pattern: ^/t265/accel/sample$
+      expected_rate_hz: 62.5
+    - pattern: ^/t265/gyro/sample$
+      expected_rate_hz: 200.0
+    - pattern: ^/odom$
+      expected_rate_hz: 20.0
+    - pattern: ^/scan$
+      expected_rate_hz: 40.0
+  topic_relationships:
+    - name: openloris_rgb_depth
+      type: timestamp_pair
+      topic_a: /d400/color/image_raw
+      topic_b: /d400/aligned_depth_to_color/image_raw
+      required: true
+      pairing_window_ms: 20.0
+      skew_warn_ms: 5.0
+    - name: openloris_t265_stereo
+      type: stereo_sync
+      topic_a: /t265/fisheye1/image_raw
+      topic_b: /t265/fisheye2/image_raw
+      required: true
+      pairing_window_ms: 20.0
+      skew_warn_ms: 5.0
+  continuity_topic_patterns:
+    - ^/tf$
+    - ^/odom$
+  continuity_gap_ratio_warn: 3.0

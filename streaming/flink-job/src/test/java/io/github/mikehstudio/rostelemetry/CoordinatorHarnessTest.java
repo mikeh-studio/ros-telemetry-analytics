@@ -63,9 +63,48 @@ final class CoordinatorHarnessTest {
         }
     }
 
+    @Test
+    void coordinatorsHonorTheDatasetTopicCountAndMetadata() throws Exception {
+        KeyedProcessOperator<String, JsonNode, String> runOperator =
+                new KeyedProcessOperator<>(new RunCoordinator());
+        try (KeyedOneInputStreamOperatorTestHarness<String, JsonNode, String> harness =
+                new KeyedOneInputStreamOperatorTestHarness<>(
+                        runOperator, ignored -> "run-2|robot-17", Types.STRING)) {
+            harness.open();
+            harness.processElement(new StreamRecord<>(registration("/scan", 2)));
+            assertTrue(harness.extractOutputValues().isEmpty());
+            harness.processElement(new StreamRecord<>(registration("/odom", 2)));
+            JsonNode ready = JsonSupport.MAPPER.readTree(harness.extractOutputValues().get(0));
+            assertEquals(2, ready.path("payload").path("expected_topic_count").asInt());
+            assertEquals("lilocbench_dynamics_0", ready.path("payload").path("dataset_id").asText());
+        }
+
+        KeyedProcessOperator<String, String, String> summaryOperator =
+                new KeyedProcessOperator<>(new SummaryCoordinator());
+        try (KeyedOneInputStreamOperatorTestHarness<String, String, String> harness =
+                new KeyedOneInputStreamOperatorTestHarness<>(
+                        summaryOperator, ignored -> "run-2|robot-17", Types.STRING)) {
+            harness.open();
+            harness.processElement(new StreamRecord<>(summary("/scan", 2)));
+            assertTrue(harness.extractOutputValues().isEmpty());
+            harness.processElement(new StreamRecord<>(summary("/odom", 2)));
+            JsonNode ready = JsonSupport.MAPPER.readTree(harness.extractOutputValues().get(0));
+            assertEquals(2, ready.path("payload").path("summary_topic_count").asInt());
+            assertEquals("lilocbench_dynamics_0", ready.path("payload").path("dataset_id").asText());
+        }
+    }
+
     private static JsonNode registration(String topic) {
         ObjectNode node = base(topic);
         node.put("envelope_type", "topic_registered");
+        return node;
+    }
+
+    private static JsonNode registration(String topic, int expectedTopicCount) {
+        ObjectNode node = (ObjectNode) registration(topic);
+        ObjectNode body = node.putObject("body");
+        body.put("expected_topic_count", expectedTopicCount);
+        body.put("dataset_id", "lilocbench_dynamics_0");
         return node;
     }
 
@@ -75,6 +114,18 @@ final class CoordinatorHarnessTest {
         node.put("metric_type", "mission_summary");
         node.put("revision", 0);
         node.putObject("payload").put("status", "ok");
+        return JsonSupport.write(node);
+    }
+
+    private static String summary(String topic, int expectedTopicCount) {
+        ObjectNode node = base(topic);
+        node.put("metric_id", JsonSupport.sha256(topic));
+        node.put("metric_type", "mission_summary");
+        node.put("revision", 0);
+        ObjectNode payload = node.putObject("payload");
+        payload.put("status", "ok");
+        payload.put("expected_topic_count", expectedTopicCount);
+        payload.put("dataset_id", "lilocbench_dynamics_0");
         return JsonSupport.write(node);
     }
 

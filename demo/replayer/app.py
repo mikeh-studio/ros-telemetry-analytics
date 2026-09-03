@@ -8,6 +8,7 @@ from typing import Annotated, Literal
 from fastapi import FastAPI, HTTPException, Query
 
 from demo.common.config import load_streaming_config
+from demo.common.datasets import DEFAULT_DATASET_ID, dataset_catalog, resolve_dataset
 from demo.replayer.engine import ReplayContractError, ReplayEngine
 from demo.replayer.generate_fixture import generate_fixture
 from demo.replayer.kafka import KafkaEnvelopePublisher
@@ -15,6 +16,7 @@ from demo.replayer.kafka import KafkaEnvelopePublisher
 ROOT = Path(os.environ.get("DEMO_ROOT", Path(__file__).resolve().parents[2])).resolve()
 CONFIG = load_streaming_config(ROOT / "configs/streaming_demo.yaml")
 FIXTURE = ROOT / CONFIG.demo.fixture_path
+UPLOAD_DIR = Path(os.environ.get("DATASET_UPLOAD_DIR", ROOT / "data/uploads")).resolve()
 PUBLISHER = KafkaEnvelopePublisher(
     bootstrap_servers=os.environ.get("KAFKA_BOOTSTRAP_SERVERS", CONFIG.kafka.bootstrap_servers),
     topic="telemetry.events.v1",
@@ -26,12 +28,19 @@ ENGINE = ReplayEngine(
     epoch_state_path=ROOT / "demo-state/replay-epoch.json",
     run_id_state_path=ROOT / "demo-state/allocated-run-ids.json",
     publisher=PUBLISHER,
+    dataset_resolver=lambda dataset_id: resolve_dataset(
+        dataset_id,
+        root=ROOT,
+        fixture_path=FIXTURE,
+        upload_dir=UPLOAD_DIR,
+    ),
 )
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     generate_fixture(FIXTURE, CONFIG)
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     await PUBLISHER.start()
     yield
     await ENGINE.abort()
@@ -62,17 +71,34 @@ async def state() -> dict[str, object]:
     return ENGINE.snapshot()
 
 
+@app.get("/datasets")
+async def datasets() -> dict[str, object]:
+    return {
+        "default_dataset_id": DEFAULT_DATASET_ID,
+        "datasets": [
+            dataset.public_dict()
+            for dataset in dataset_catalog(
+                root=ROOT,
+                fixture_path=FIXTURE,
+                upload_dir=UPLOAD_DIR,
+            )
+        ],
+    }
+
+
 @app.post("/start")
 async def start(
     replay_rate: Annotated[int, Query(alias="rate")] = 1,
     scenario: Literal["camera-dropout"] | None = None,
     run_id: str | None = None,
+    dataset_id: str = DEFAULT_DATASET_ID,
 ) -> dict[str, object]:
     try:
         return await ENGINE.start(
             replay_rate=replay_rate,
             scenario_name=scenario,
             requested_run_id=run_id,
+            dataset_id=dataset_id,
         )
     except (RuntimeError, ValueError) as exc:
         raise _translate_error(exc) from exc

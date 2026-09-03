@@ -139,6 +139,12 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
         value.sourceStartNs = envelope.path("event_timestamp_ns").asLong();
         value.streamStartMs = streamStart;
         value.expectedRateHz = body.path("expected_rate_hz").asDouble();
+        value.expectedTopicCount = body.path("expected_topic_count")
+                .asInt(StreamingDefaults.EXPECTED_TOPIC_COUNT);
+        value.datasetId = body.path("dataset_id").asText("warehouse_run_17");
+        value.datasetName = body.path("dataset_name").asText("Warehouse Run 17");
+        value.sourceFormat = body.path("source_format").asText("rosbag2_mcap");
+        value.missionDurationMs = body.path("mission_duration_ms").asLong(90_000L);
         value.startupGraceMs = body.path("startup_grace_ms").asLong();
         value.dropoutThresholdMs = body.path("dropout_threshold_ms").asLong();
         registration.update(value);
@@ -409,6 +415,11 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
         payload.put("accepted_late_count", countLate(points));
         payload.put("duplicate_count", longValue(duplicateCount));
         payload.put("too_late_count", longValue(tooLateCount));
+        payload.put("expected_topic_count", registered.expectedTopicCount);
+        payload.put("dataset_id", registered.datasetId);
+        payload.put("dataset_name", registered.datasetName);
+        payload.put("source_format", registered.sourceFormat);
+        payload.put("mission_duration_ms", registered.missionDurationMs);
         boolean recoveryInProgress = recoveryInProgress();
         payload.put("recovery_in_progress", recoveryInProgress);
         payload.put("health_status", conditions.isEmpty()
@@ -489,6 +500,11 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
         payload.put("accepted_late_count", longValue(acceptedLateCount));
         payload.put("duplicate_count", longValue(duplicateCount));
         payload.put("too_late_count", longValue(tooLateCount));
+        payload.put("expected_topic_count", registered.expectedTopicCount);
+        payload.put("dataset_id", registered.datasetId);
+        payload.put("dataset_name", registered.datasetName);
+        payload.put("source_format", registered.sourceFormat);
+        payload.put("mission_duration_ms", registered.missionDurationMs);
         Long end = missionEndStream.value();
         output.collect(metric("mission_summary", key, null, null, 0, end, payload));
     }
@@ -765,6 +781,11 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
         public long sourceStartNs;
         public long streamStartMs;
         public double expectedRateHz;
+        public int expectedTopicCount;
+        public String datasetId;
+        public String datasetName;
+        public String sourceFormat;
+        public long missionDurationMs;
         public long startupGraceMs;
         public long dropoutThresholdMs;
 

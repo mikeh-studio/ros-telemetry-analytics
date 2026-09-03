@@ -1,0 +1,36 @@
+pipeline:
+  project_root: ../..
+  input_roots:
+    - data/raw/public_datasets/lilocbench
+  output_root: data/bronze/public_robotics/lilocbench
+  excluded_directory_names: []
+  parquet_batch_size: 50000
+
+analytics:
+  domain_analyzers:
+    enabled: true
+    command_topic_patterns:
+      - cmd_vel$
+    command_response_window_ms: 500.0
+    laser_min_valid_range_fraction: 0.5
+  expected_rates:
+    - pattern: ^/dingo_velocity_controller/cmd_vel$
+      expected_rate_hz: 43.0
+    - pattern: ^/dingo_velocity_controller/odom$
+      expected_rate_hz: 15.0
+    - pattern: ^/joint_states$
+      expected_rate_hz: 15.0
+    - pattern: ^/laser_scan_(?:front|rear)/scan$
+      expected_rate_hz: 15.0
+  topic_relationships:
+    - name: liloc_front_rear_scan
+      type: timestamp_pair
+      topic_a: /laser_scan_front/scan
+      topic_b: /laser_scan_rear/scan
+      required: true
+      pairing_window_ms: 20.0
+      skew_warn_ms: 5.0
+  continuity_topic_patterns:
+    - ^/tf$
+    - odom
+  continuity_gap_ratio_warn: 3.0

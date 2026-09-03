@@ -54,6 +54,7 @@ def test_pipeline_is_idempotent_and_publishes_complete_outputs(
     bag_output = config.output_root / "bags" / bag_id
     assert {
         "anomaly_events.parquet",
+        "analysis_coverage.parquet",
         "bag_report.md",
         "domain_metrics.parquet",
         "domain_summary.json",

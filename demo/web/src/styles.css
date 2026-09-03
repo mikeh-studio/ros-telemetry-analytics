@@ -17,8 +17,8 @@
 * { box-sizing: border-box; }
 html, body { background: #000; }
 body { margin: 0; min-width: 320px; min-height: 100vh; }
-button, select { font: inherit; }
-button:focus-visible, select:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--white); outline-offset: 4px; }
+button, select, input { font: inherit; }
+button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--white); outline-offset: 4px; }
 h1, h2, h3, p { margin: 0; }
 h2 { font-size: 1.45rem; line-height: 1; letter-spacing: .015em; text-transform: uppercase; }
 h3 { font-size: 1rem; text-transform: uppercase; }
@@ -88,6 +88,14 @@ dd { margin: 4px 0 0; font-size: .8rem; }
 .selector-grid { display: grid; grid-template-columns: minmax(170px, 1fr) minmax(170px, 1fr); gap: 22px; min-width: min(420px, 100%); }
 label { display: grid; gap: 7px; color: var(--muted); font: var(--label-size)/1.3 "IBM Plex Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
 select { width: 100%; padding: 10px 30px 10px 10px; border: 0; border-bottom: 1px solid var(--line-strong); border-radius: 0; color: var(--white); background: #000; }
+.upload-control { position: relative; align-content: end; min-height: 57px; padding: 10px; border: 1px dashed var(--line-strong); cursor: pointer; }
+.upload-control input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.upload-control span { color: var(--white); font-size: var(--detail-size); line-height: 1.4; }
+.upload-control:has(input:disabled) { opacity: .42; cursor: not-allowed; }
+.dataset-note { display: flex; justify-content: space-between; gap: 18px; margin-top: 16px; padding: 12px 0; border-block: 1px solid var(--line); font: var(--detail-size)/1.4 "IBM Plex Mono", monospace; letter-spacing: .04em; text-transform: uppercase; }
+.dataset-note strong { color: var(--green); font-weight: 400; }
+.dataset-note span { color: var(--muted); }
+.dataset-note.unavailable strong { color: var(--amber); }
 .telemetry-table-wrap { overflow-x: auto; border-block: 1px solid var(--line-strong); }
 .telemetry-table { width: 100%; min-width: 760px; border-collapse: collapse; }
 .telemetry-table th { padding: 13px 16px; color: var(--muted); font: 400 var(--label-size)/1.3 "IBM Plex Mono", monospace; letter-spacing: .06em; text-align: left; text-transform: uppercase; }
@@ -187,6 +195,7 @@ footer { display: flex; justify-content: space-between; gap: 20px; margin-top: 2
   .transport-action button { width: 48px; height: 46px; }
   .transport-action > span { max-width: 64px; text-align: center; }
   .selector-grid { min-width: 0; }
+  .dataset-note { align-items: flex-start; flex-direction: column; }
   .timeline-labels span:nth-child(2n) { display: none; }
   .operations-grid, .localization-grid, .technical-grid { grid-template-columns: 1fr; }
   .operations-grid { gap: 32px; }

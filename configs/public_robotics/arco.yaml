@@ -1,0 +1,40 @@
+pipeline:
+  project_root: ../..
+  input_roots:
+    - data/raw/public_datasets/arco
+  output_root: data/bronze/public_robotics/arco
+  excluded_directory_names: []
+  parquet_batch_size: 50000
+
+analytics:
+  domain_analyzers:
+    enabled: true
+  expected_rates:
+    - pattern: ^/(?:DetectionList|ObjectList|Status|DirectionVelocity)$
+      expected_rate_hz: 20.0
+    - pattern: ^/PointCloud(?:Detection|Object)$
+      expected_rate_hz: 20.0
+    - pattern: ^/arco/idmind_imu/imu$
+      expected_rate_hz: 68.0
+    - pattern: ^/ouster/imu$
+      expected_rate_hz: 100.0
+    - pattern: ^/ouster/points$
+      expected_rate_hz: 10.0
+  topic_relationships:
+    - name: arco_radar_detection_cloud
+      type: timestamp_pair
+      topic_a: /DetectionList
+      topic_b: /PointCloudDetection
+      required: true
+      pairing_window_ms: 60.0
+      skew_warn_ms: 25.0
+    - name: arco_radar_object_cloud
+      type: timestamp_pair
+      topic_a: /ObjectList
+      topic_b: /PointCloudObject
+      required: true
+      pairing_window_ms: 60.0
+      skew_warn_ms: 25.0
+  continuity_topic_patterns:
+    - ^/tf$
+  continuity_gap_ratio_warn: 3.0

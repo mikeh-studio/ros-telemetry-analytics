@@ -39,6 +39,9 @@ def _messages() -> list[tuple[str, object, int]]:
     DiagnosticArray = types["diagnostic_msgs/msg/DiagnosticArray"]
     Image = types["sensor_msgs/msg/Image"]
     CompressedImage = types["sensor_msgs/msg/CompressedImage"]
+    LaserScan = types["sensor_msgs/msg/LaserScan"]
+    PointField = types["sensor_msgs/msg/PointField"]
+    PointCloud2 = types["sensor_msgs/msg/PointCloud2"]
 
     def header(timestamp_ns: int, frame_id: str):
         return Header(Time(timestamp_ns // 1_000_000_000, timestamp_ns % 1_000_000_000), frame_id)
@@ -105,6 +108,33 @@ def _messages() -> list[tuple[str, object, int]]:
         "jpeg",
         np.array([255, 216, 255, 217], dtype=np.uint8),
     )
+    laser_scan = LaserScan(
+        header(0, "laser"),
+        -1.0,
+        1.0,
+        0.5,
+        0.01,
+        0.1,
+        0.1,
+        10.0,
+        np.array([1.0, 2.0, np.inf, 0.05], dtype=np.float32),
+        np.array([], dtype=np.float32),
+    )
+    point_fields = [
+        PointField(name, offset, PointField.FLOAT32, 1)
+        for name, offset in (("x", 0), ("y", 4), ("z", 8))
+    ]
+    point_cloud = PointCloud2(
+        header(0, "lidar"),
+        1,
+        2,
+        point_fields,
+        False,
+        12,
+        24,
+        np.zeros(24, dtype=np.uint8),
+        True,
+    )
     return [
         *odometry,
         ("/imu", imu, 0),
@@ -116,6 +146,8 @@ def _messages() -> list[tuple[str, object, int]]:
         ("/camera/mono16", mono16_image, 0),
         ("/camera/depth", depth_image, 0),
         ("/camera/image/compressed", compressed_image, 0),
+        ("/scan", laser_scan, 0),
+        ("/points", point_cloud, 0),
     ]
 
 
@@ -137,7 +169,16 @@ def test_pipeline_deserializes_payloads_and_publishes_domain_summary(
     assert manifest["processed_count"] == 1
     bag_id = manifest["results"][0]["bag_id"]
     bag_output = config.output_root / "bags" / bag_id
-    for dataset in ("odometry", "imu", "commands", "transforms", "diagnostics", "images"):
+    for dataset in (
+        "odometry",
+        "imu",
+        "commands",
+        "transforms",
+        "diagnostics",
+        "images",
+        "laser_scans",
+        "point_clouds",
+    ):
         assert pl.read_parquet(bag_output / "domain_records" / f"{dataset}.parquet").height
     assert pl.read_parquet(bag_output / "domain_records" / "extraction_errors.parquet").is_empty()
 
@@ -155,6 +196,21 @@ def test_pipeline_deserializes_payloads_and_publishes_domain_summary(
     assert compressed["mean_intensity"] is None
     assert compressed["content_hash"]
 
+    scan = pl.read_parquet(bag_output / "domain_records" / "laser_scans.parquet").row(0, named=True)
+    assert scan["beam_count"] == 4
+    assert scan["valid_range_count"] == 2
+    assert scan["valid_range_fraction"] == pytest.approx(0.5)
+    cloud = pl.read_parquet(bag_output / "domain_records" / "point_clouds.parquet").row(
+        0, named=True
+    )
+    assert cloud["point_count"] == 2
+    assert cloud["has_xyz"] is True
+    assert cloud["payload_complete"] is True
+
+    coverage = pl.read_parquet(bag_output / "analysis_coverage.parquet")
+    assert set(coverage.get_column("analysis_status")) == {"full"}
+    assert coverage.get_column("analyzed_message_count").sum() == len(_messages())
+
     summary = json.loads((bag_output / "summary.json").read_text())
     events = pl.read_parquet(bag_output / "anomaly_events.parquet")
     assert summary["domain_analysis"]["status"] == "warn"
@@ -169,6 +225,8 @@ def test_pipeline_deserializes_payloads_and_publishes_domain_summary(
     report = (bag_output / "bag_report.md").read_text()
     assert "# Robot Bag Analysis" in report
     assert "distance_traveled" in report
+    assert "minimum_valid_range_fraction" in report
+    assert "mean_point_count" in report
 
 
 def test_disabled_domain_writer_publishes_complete_empty_contract(

@@ -288,11 +288,17 @@ class ProjectionStore:
             for payload in metrics
             if payload.get("metric_type") == "mission_summary" and payload.get("topic")
         }
+        run_metadata = run_status.get("payload", {}) if run_status else {}
         summary_ready = (
             run_status is not None
             and run_status.get("payload", {}).get("status") == "summary_ready"
         )
-        completion = self.completion(selected_run, allow_verify=summary_ready)
+        completion = self.completion(
+            selected_run,
+            allow_verify=summary_ready,
+            expected_topic_count=int(run_metadata.get("expected_topic_count", 4)),
+        )
+        mission_duration_ms = int(run_metadata.get("mission_duration_ms", 90_000))
         run_start_ms = min(
             (
                 int(payload.get("stream_timestamp_ms", 0))
@@ -312,10 +318,15 @@ class ProjectionStore:
             "run_start_stream_ms": run_start_ms,
             "latest_stream_ms": latest_stream_ms,
             "mission_progress_ms": (
-                min(90_000, max(0, latest_stream_ms - run_start_ms))
+                min(mission_duration_ms, max(0, latest_stream_ms - run_start_ms))
                 if run_start_ms is not None and latest_stream_ms is not None
                 else 0
             ),
+            "dataset_id": run_metadata.get("dataset_id", "warehouse_run_17"),
+            "dataset_name": run_metadata.get("dataset_name", "Warehouse Run 17"),
+            "source_format": run_metadata.get("source_format", "rosbag2_mcap"),
+            "mission_duration_ms": mission_duration_ms,
+            "topic_count": int(run_metadata.get("expected_topic_count", 4)),
             "robot_health": robot_health,
             "topics": topic_metrics,
             "anomalies": anomalies,
@@ -367,11 +378,23 @@ class ProjectionStore:
         topics = [str(payload["topic"]) for payload in summaries]
         if len(topics) != len(set(topics)):
             errors.append("duplicate topic summaries")
-        verified = len(summaries) == 4 and set(topics) == EXPECTED_TOPICS and not errors
+        expected_counts = {
+            int(payload.get("payload", {}).get("expected_topic_count"))
+            for payload in summaries
+            if payload.get("payload", {}).get("expected_topic_count") is not None
+        }
+        if len(expected_counts) > 1:
+            errors.append("inconsistent expected topic counts")
+        expected_topic_count = next(iter(expected_counts), len(EXPECTED_TOPICS))
+        if expected_topic_count <= 0:
+            errors.append("invalid expected topic count")
+        legacy_topics_valid = bool(expected_counts) or set(topics) == EXPECTED_TOPICS
+        verified = len(summaries) == expected_topic_count and legacy_topics_valid and not errors
         result = {
             "verified": verified,
             "state": "completed" if verified else "pending",
             "summary_file_count": len(summaries),
+            "expected_topic_count": expected_topic_count,
             "path": str(directory),
             "topics": sorted(topics),
             "errors": errors,
@@ -395,7 +418,13 @@ class ProjectionStore:
                     )
         return result
 
-    def completion(self, run_id: str, *, allow_verify: bool = False) -> dict[str, Any]:
+    def completion(
+        self,
+        run_id: str,
+        *,
+        allow_verify: bool = False,
+        expected_topic_count: int = 4,
+    ) -> dict[str, Any]:
         with self._lock, self._connect() as connection:
             row = connection.execute(
                 "SELECT state, verified_at_ms, manifest_json FROM completed_runs WHERE run_id = ?",
@@ -408,6 +437,7 @@ class ProjectionStore:
                 "verified": False,
                 "state": "pending",
                 "summary_file_count": 0,
+                "expected_topic_count": expected_topic_count,
                 "path": str(self.output_root / run_id / "topic_health"),
                 "topics": [],
                 "errors": ["waiting for committed summary_ready"],
@@ -499,11 +529,21 @@ class ProjectionStore:
             "run_start_stream_ms": None,
             "latest_stream_ms": None,
             "mission_progress_ms": 0,
+            "dataset_id": "warehouse_run_17",
+            "dataset_name": "Warehouse Run 17",
+            "source_format": "rosbag2_mcap",
+            "mission_duration_ms": 90_000,
+            "topic_count": 4,
             "robot_health": None,
             "topics": [],
             "anomalies": [],
             "incident_history": [],
             "mission_summaries": {},
-            "completion": {"verified": False, "summary_file_count": 0, "path": None},
+            "completion": {
+                "verified": False,
+                "summary_file_count": 0,
+                "expected_topic_count": 4,
+                "path": None,
+            },
             "consumer_offsets": [],
         }

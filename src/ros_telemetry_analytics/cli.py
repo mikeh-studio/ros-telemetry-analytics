@@ -13,6 +13,7 @@ from ros_telemetry_analytics.localization_eval import (
     evaluate_localization_files,
 )
 from ros_telemetry_analytics.pipeline import run_pipeline
+from ros_telemetry_analytics.public_suite import run_public_robotics_suite
 
 
 def _path(value: str) -> Path:
@@ -64,6 +65,13 @@ def build_parser() -> argparse.ArgumentParser:
     localization.add_argument("--pose-jump-threshold-m", type=float, default=0.5)
     localization.add_argument("--event-merge-gap-ms", type=float, default=500.0)
     localization.add_argument("--event-tolerance-ms", type=float, default=100.0)
+
+    public_suite = subparsers.add_parser(
+        "validate-public-robotics",
+        help="Run installed LILocBench, OpenLORIS, and ARCO dataset profiles.",
+    )
+    public_suite.add_argument("--manifest", type=_path)
+    public_suite.add_argument("--force", action="store_true")
     return parser
 
 
@@ -98,6 +106,14 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(json.dumps(summary, indent=2))
         return 0
+
+    if args.command == "validate-public-robotics":
+        kwargs = {"force": args.force}
+        if args.manifest is not None:
+            kwargs["manifest_path"] = args.manifest
+        summary = run_public_robotics_suite(**kwargs)
+        print(json.dumps(summary, indent=2))
+        return 1 if summary["failed_count"] else 0
 
     config = load_pipeline_config(
         args.config,

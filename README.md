@@ -65,10 +65,11 @@ are excluded by default.
 
 ## Real-Time Flight Deck
 
-The self-contained demo replays a deterministic 90-second MCAP mission for
-`robot-17` through Kafka, computes stateful event-time metrics in a Java Flink
-DataStream job, projects revisions into SQLite through FastAPI, and presents the
-results in a responsive React operations console.
+The self-contained demo replays selectable ROS recordings through Kafka,
+computes stateful event-time metrics in a Java Flink DataStream job, projects
+revisions into SQLite through FastAPI, and presents the results in a responsive
+React operations console. It includes the deterministic 90-second MCAP mission
+for `robot-17`, installed public validation datasets, and user uploads.
 
 Start the stack:
 
@@ -82,8 +83,14 @@ Then open:
 - Projection API: [http://localhost:8000/api/runs/current/snapshot](http://localhost:8000/api/runs/current/snapshot)
 - Flink dashboard: [http://localhost:8081](http://localhost:8081)
 
-Run a clean mission at 1x or 5x, or use the 1x camera-dropout scenario to
-exercise late arrivals, gap detection, and recovery. The demo includes:
+Choose an available dataset in the Flight Deck before starting a 1x or 5x
+replay. The catalog includes the TUM fixtures plus the LILocBench, OpenLORIS,
+and ARCO datasets in `configs/public_test_datasets.yaml`; datasets that have not
+been downloaded or extracted remain visible but disabled. Uploads accept one
+direct `.bag`, `.mcap`, or `.db3` recording at a time and persist in the local
+`dataset-uploads` Docker volume. The built-in warehouse mission also supports
+the 1x camera-dropout scenario for exercising late arrivals, gap detection, and
+recovery. The demo includes:
 
 - independent Kafka, Flink, projection, and replayer readiness
 - bounded out-of-orderness, allowed lateness, idle-partition detection, and

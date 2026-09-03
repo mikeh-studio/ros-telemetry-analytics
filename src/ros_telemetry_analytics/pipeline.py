@@ -26,6 +26,7 @@ from ros_telemetry_analytics.reader import scan_bag
 
 LOGGER = logging.getLogger(__name__)
 EXPECTED_BAG_ARTIFACTS = {
+    "analysis_coverage.parquet",
     "anomaly_events.parquet",
     "bag_report.md",
     "domain_metrics.parquet",

@@ -4,6 +4,7 @@ import asyncio
 import re
 import time
 import uuid
+from collections import defaultdict
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -11,7 +12,7 @@ from typing import Any, Protocol
 
 import yaml
 
-from demo.common.config import StreamingConfig
+from demo.common.config import StreamingConfig, TopicSpec
 from demo.common.contracts import (
     RunIdAlreadyAllocatedError,
     RunIdRegistry,
@@ -20,6 +21,7 @@ from demo.common.contracts import (
     telemetry_event,
     topic_registration_envelope,
 )
+from demo.common.datasets import DEFAULT_DATASET_ID, ReplayDataset
 from ros_telemetry_analytics.discovery import discover_bags
 from ros_telemetry_analytics.reader import open_bag
 
@@ -73,6 +75,12 @@ class RunState:
     total_messages: int = 0
     stream_start_ms: int | None = None
     detail: str | None = None
+    dataset_id: str = DEFAULT_DATASET_ID
+    dataset_name: str = "Warehouse Run 17"
+    source_format: str = "rosbag2_mcap"
+    mission_duration_ms: int = 90_000
+    topic_count: int = 4
+    supports_camera_dropout: bool = True
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -110,6 +118,33 @@ def load_recorded_messages(fixture_path: Path) -> list[RecordedMessage]:
         )
         for sequence, topic, message_type, timestamp_ns, payload_size in raw_records
     ]
+
+
+def infer_topic_specs(records: Sequence[RecordedMessage]) -> tuple[TopicSpec, ...]:
+    """Infer a replay baseline from the recording without decoding message payloads."""
+
+    by_topic: dict[str, list[RecordedMessage]] = defaultdict(list)
+    for record in records:
+        by_topic[record.topic].append(record)
+    recording_duration_s = max(record.source_offset_ms for record in records) / 1_000
+    specs: list[TopicSpec] = []
+    for topic, topic_records in sorted(by_topic.items()):
+        timestamps = sorted(record.source_timestamp_ns for record in topic_records)
+        topic_duration_s = (timestamps[-1] - timestamps[0]) / 1_000_000_000
+        if len(timestamps) > 1 and topic_duration_s > 0:
+            expected_rate_hz = (len(timestamps) - 1) / topic_duration_s
+        else:
+            expected_rate_hz = max(0.01, 1 / max(recording_duration_s, 1))
+        dropout_threshold_ms = round(min(60_000, max(1_000, 3_000 / expected_rate_hz)))
+        specs.append(
+            TopicSpec(
+                topic=topic,
+                message_type=topic_records[0].message_type,
+                expected_rate_hz=expected_rate_hz,
+                dropout_threshold_ms=dropout_threshold_ms,
+            )
+        )
+    return tuple(specs)
 
 
 def load_camera_dropout_scenario(path: Path) -> CameraDropoutScenario:
@@ -171,6 +206,7 @@ class ReplayEngine:
         epoch_state_path: Path,
         run_id_state_path: Path | None = None,
         publisher: Publisher,
+        dataset_resolver: Callable[[str], ReplayDataset] | None = None,
         monotonic: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
@@ -182,6 +218,7 @@ class ReplayEngine:
             run_id_state_path or epoch_state_path.with_name("allocated-run-ids.json")
         )
         self.publisher = publisher
+        self.dataset_resolver = dataset_resolver
         self.monotonic = monotonic
         self.sleep = sleep
         self.state = RunState(replay_rate=config.demo.default_rate)
@@ -193,6 +230,28 @@ class ReplayEngine:
         self._accumulated_pause_s = 0.0
         self._wall_start = 0.0
         self._lock = asyncio.Lock()
+        self._active_dataset = self._default_dataset()
+        self._active_topic_specs = config.analytics.expected_topics
+
+    def _default_dataset(self) -> ReplayDataset:
+        return ReplayDataset(
+            dataset_id=DEFAULT_DATASET_ID,
+            name="Warehouse Run 17",
+            description="Deterministic recorded mission.",
+            source="built_in",
+            file_format="rosbag2_mcap",
+            path=self.fixture_path,
+            status="ready",
+            size_bytes=self.fixture_path.stat().st_size if self.fixture_path.is_file() else None,
+            supports_camera_dropout=True,
+        )
+
+    def _resolve_dataset(self, dataset_id: str) -> ReplayDataset:
+        if self.dataset_resolver is not None:
+            return self.dataset_resolver(dataset_id)
+        if dataset_id != DEFAULT_DATASET_ID:
+            raise ValueError(f"Unknown dataset: {dataset_id}")
+        return self._default_dataset()
 
     def snapshot(self) -> dict[str, Any]:
         return self.state.as_dict()
@@ -209,23 +268,33 @@ class ReplayEngine:
         replay_rate: int,
         scenario_name: str | None,
         requested_run_id: str | None = None,
+        dataset_id: str = DEFAULT_DATASET_ID,
     ) -> dict[str, Any]:
         async with self._lock:
             if self._task and not self._task.done():
                 raise RuntimeError("A replay is already active")
             if replay_rate not in self.config.demo.supported_rates:
                 raise ValueError(f"Unsupported replay rate: {replay_rate}")
+            dataset = self._resolve_dataset(dataset_id)
+            assert dataset.path is not None
             scenario = None
             if scenario_name:
+                if not dataset.supports_camera_dropout:
+                    raise ValueError("Camera dropout is available only for Warehouse Run 17")
                 if scenario_name != self.scenario.name:
                     raise ValueError(f"Unknown scenario: {scenario_name}")
                 if replay_rate not in self.scenario.allowed_rates:
                     raise ValueError(f"{scenario_name} is available only at 1x replay")
                 scenario = self.scenario
 
-            records = load_recorded_messages(self.fixture_path)
-            schedule = build_schedule(records)
-            scenario_message_count = len(build_schedule(records, scenario))
+            records = load_recorded_messages(dataset.path)
+            topic_specs = (
+                self.config.analytics.expected_topics
+                if dataset.supports_camera_dropout
+                else infer_topic_specs(records)
+            )
+            duration_ms = max(1, max(record.source_offset_ms for record in records))
+            schedule = build_schedule(records, scenario)
             if requested_run_id is not None and not SAFE_RUN_ID.fullmatch(requested_run_id):
                 raise ValueError(
                     "run_id must contain 1 to 128 letters, digits, dots, underscores, or hyphens"
@@ -244,7 +313,7 @@ class ReplayEngine:
             self._run_token += 1
             token = self._run_token
             epoch = self.epoch_allocator.allocate(
-                self.config.demo.duration_s * 1_000,
+                duration_ms,
                 self.config.analytics.allowed_lateness_ms
                 + self.config.analytics.maximum_out_of_orderness_ms
                 + 1_000,
@@ -255,15 +324,28 @@ class ReplayEngine:
                 status="starting",
                 replay_rate=replay_rate,
                 scenario=scenario_name,
-                total_messages=scenario_message_count,
+                total_messages=len(schedule),
                 stream_start_ms=epoch.start_ms,
+                dataset_id=dataset.dataset_id,
+                dataset_name=dataset.name,
+                source_format=dataset.file_format,
+                mission_duration_ms=duration_ms,
+                topic_count=len(topic_specs),
+                supports_camera_dropout=dataset.supports_camera_dropout,
             )
+            self._active_dataset = dataset
+            self._active_topic_specs = topic_specs
             self._pause_gate.set()
             self._pause_started_at = None
             self._accumulated_pause_s = 0.0
             source_start_ns = min(item.record.source_timestamp_ns for item in schedule)
             try:
-                await self._establish_run_contract(source_start_ns, stream_start_ms=epoch.start_ms)
+                await self._establish_run_contract(
+                    source_start_ns,
+                    stream_start_ms=epoch.start_ms,
+                    topic_specs=topic_specs,
+                    duration_ms=duration_ms,
+                )
             except Exception as exc:
                 self.state.status = "failed"
                 self.state.detail = str(exc)
@@ -274,7 +356,7 @@ class ReplayEngine:
                 raise ReplayContractError(self.state.detail) from exc
             self.state.status = "running"
             self._task = asyncio.create_task(
-                self._run(token, schedule, epoch.start_ms),
+                self._run(token, schedule, epoch.start_ms, duration_ms),
                 name=f"recorded-replay-{self.state.run_id}",
             )
             return self.snapshot()
@@ -283,13 +365,16 @@ class ReplayEngine:
         async with self._lock:
             if self.state.status != "running" or self._task is None or self._task.done():
                 raise RuntimeError("Camera dropout requires a running mission")
+            if not self.state.supports_camera_dropout:
+                raise RuntimeError("Camera dropout is available only for Warehouse Run 17")
             if self.state.replay_rate not in self.scenario.allowed_rates:
                 raise RuntimeError("Camera dropout is available only during a 1x replay")
             if self.state.scenario is not None:
                 raise RuntimeError("A replay scenario is already active")
             if self.state.mission_offset_ms > self.scenario.start_offset_ms:
                 raise RuntimeError("Camera dropout injection window has already passed")
-            records = load_recorded_messages(self.fixture_path)
+            assert self._active_dataset.path is not None
+            records = load_recorded_messages(self._active_dataset.path)
             self.state.scenario = self.scenario.name
             self.state.total_messages = len(build_schedule(records, self.scenario))
             return self.snapshot()
@@ -334,6 +419,7 @@ class ReplayEngine:
     async def restart(self) -> dict[str, Any]:
         replay_rate = self.state.replay_rate
         scenario = self.state.scenario
+        dataset_id = self.state.dataset_id
         await self.abort()
         task = self._task
         if task:
@@ -341,13 +427,18 @@ class ReplayEngine:
                 await task
             except asyncio.CancelledError:
                 pass
-        return await self.start(replay_rate=replay_rate, scenario_name=scenario)
+        return await self.start(
+            replay_rate=replay_rate,
+            scenario_name=scenario,
+            dataset_id=dataset_id,
+        )
 
     async def _run(
         self,
         token: int,
         schedule: Sequence[ScheduledMessage],
         stream_start_ms: int,
+        duration_ms: int,
     ) -> None:
         try:
             assert self.state.run_id is not None
@@ -387,11 +478,11 @@ class ReplayEngine:
                 for held_record in held_records:
                     await self._publish_telemetry(held_record, stream_start_ms)
 
-            self.state.mission_offset_ms = self.config.demo.duration_s * 1_000
+            self.state.mission_offset_ms = duration_ms
             await self._publish_lifecycle("run_ended")
             flush_time = (
                 stream_start_ms
-                + self.config.demo.duration_s * 1_000
+                + duration_ms
                 + self.config.analytics.allowed_lateness_ms
                 + self.config.analytics.maximum_out_of_orderness_ms
                 + 1
@@ -399,7 +490,7 @@ class ReplayEngine:
             await self._publish_lifecycle(
                 "watermark_flush",
                 stream_timestamp_ms=flush_time,
-                event_timestamp_ns=(source_start_ns + self.config.demo.duration_s * 1_000_000_000),
+                event_timestamp_ns=(source_start_ns + duration_ms * 1_000_000),
                 reason="recorded_mission_complete",
             )
             self.state.status = "completed"
@@ -413,13 +504,20 @@ class ReplayEngine:
             except Exception as lifecycle_exc:
                 self.state.detail = f"{exc}; failed to publish run_failed: {lifecycle_exc}"
 
-    async def _establish_run_contract(self, source_start_ns: int, *, stream_start_ms: int) -> None:
+    async def _establish_run_contract(
+        self,
+        source_start_ns: int,
+        *,
+        stream_start_ms: int,
+        topic_specs: Sequence[TopicSpec],
+        duration_ms: int,
+    ) -> None:
         assert self.state.run_id is not None
         await self._publish_lifecycle(
             "run_started",
-            mission_duration_ms=self.config.demo.duration_s * 1_000,
+            mission_duration_ms=duration_ms,
         )
-        for topic_spec in self.config.analytics.expected_topics:
+        for topic_spec in topic_specs:
             registration = topic_registration_envelope(
                 run_id=self.state.run_id,
                 robot_id=self.config.demo.robot_id,
@@ -427,6 +525,11 @@ class ReplayEngine:
                 source_start_ns=source_start_ns,
                 stream_start_ms=stream_start_ms,
                 startup_grace_ms=self.config.analytics.startup_grace_ms,
+                expected_topic_count=len(topic_specs),
+                dataset_id=self.state.dataset_id,
+                dataset_name=self.state.dataset_name,
+                source_format=self.state.source_format,
+                mission_duration_ms=duration_ms,
             )
             await self.publisher.publish(self.config.demo.robot_id, registration)
 
@@ -435,7 +538,7 @@ class ReplayEngine:
         event = telemetry_event(
             run_id=self.state.run_id,
             robot_id=self.config.demo.robot_id,
-            bag_id=self.config.demo.bag_id,
+            bag_id=self.state.dataset_id,
             sequence=record.sequence,
             topic=record.topic,
             message_type=record.message_type,
@@ -489,7 +592,7 @@ class ReplayEngine:
             "run_ended",
             "watermark_flush",
         }:
-            fanout_topics += tuple(topic.topic for topic in self.config.analytics.expected_topics)
+            fanout_topics += tuple(topic.topic for topic in self._active_topic_specs)
         for topic in fanout_topics:
             message = envelope(
                 envelope_type=lifecycle_type,  # type: ignore[arg-type]
@@ -502,6 +605,11 @@ class ReplayEngine:
                 body={
                     "replay_rate": self.state.replay_rate,
                     "scenario_active": self.state.scenario is not None,
+                    "dataset_id": self.state.dataset_id,
+                    "dataset_name": self.state.dataset_name,
+                    "source_format": self.state.source_format,
+                    "mission_duration_ms": self.state.mission_duration_ms,
+                    "expected_topic_count": self.state.topic_count,
                     **body,
                 },
             )

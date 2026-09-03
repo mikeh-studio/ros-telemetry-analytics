@@ -139,9 +139,12 @@ services:
     environment:
       DEMO_ROOT: /app
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      DATASET_UPLOAD_DIR: /app/data/uploads
     volumes:
       - demo-data:/app/data/demo
+      - dataset-uploads:/app/data/uploads
       - demo-state:/app/demo-state
+      - ./data/raw/public_datasets:/app/data/raw/public_datasets:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8001/healthz >/dev/null"]
       interval: 5s
@@ -170,13 +173,16 @@ services:
       PROJECTION_DB_PATH: /app/demo-state/projection.db
       DEMO_OUTPUT_ROOT: /app/data/demo-output
       LOCALIZATION_EVAL_DIR: /app/data/evaluations/latest
+      DATASET_UPLOAD_DIR: /app/data/uploads
     ports:
       - "8000:8000"
     volumes:
       - demo-state:/app/demo-state
       - demo-data:/app/data/demo:ro
+      - dataset-uploads:/app/data/uploads
       - demo-output:/app/data/demo-output:ro
       - ./data/evaluations:/app/data/evaluations:ro
+      - ./data/raw/public_datasets:/app/data/raw/public_datasets:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8000/healthz >/dev/null"]
       interval: 5s
@@ -204,5 +210,6 @@ volumes:
   kafka-data:
   flink-checkpoints:
   demo-data:
+  dataset-uploads:
   demo-state:
   demo-output:

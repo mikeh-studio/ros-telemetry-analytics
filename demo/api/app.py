@@ -7,6 +7,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -21,6 +22,9 @@ from pydantic import BaseModel, Field
 from demo.api.consumer import ProjectionConsumer
 from demo.api.store import ProjectionStore
 from demo.common.config import load_streaming_config
+from demo.common.datasets import DEFAULT_DATASET_ID, dataset_catalog, safe_upload_name
+from ros_telemetry_analytics.discovery import discover_bags
+from ros_telemetry_analytics.reader import open_bag
 
 ROOT = Path(os.environ.get("DEMO_ROOT", Path(__file__).resolve().parents[2])).resolve()
 CONFIG = load_streaming_config(ROOT / "configs/streaming_demo.yaml")
@@ -34,6 +38,9 @@ LOCALIZATION_EVAL_DIR = Path(
     os.environ.get("LOCALIZATION_EVAL_DIR", ROOT / "data/evaluations/latest")
 ).resolve()
 LOCALIZATION_TRAJECTORY_LIMIT = 600
+FIXTURE = ROOT / CONFIG.demo.fixture_path
+UPLOAD_DIR = Path(os.environ.get("DATASET_UPLOAD_DIR", ROOT / "data/uploads")).resolve()
+MAX_UPLOAD_BYTES = int(os.environ.get("DATASET_UPLOAD_MAX_BYTES", 4 * 1024**3))
 
 
 def _evenly_spaced_indices(length: int, count: int) -> list[int]:
@@ -123,8 +130,7 @@ async def _verify_summary_files(run_id: str) -> None:
                 "type": "completion_failed",
                 "run_id": run_id,
                 "detail": (
-                    "Summary files did not satisfy the durable four-topic contract "
-                    "within 60 seconds"
+                    "Summary files did not satisfy the dataset topic contract within 60 seconds"
                 ),
             }
         )
@@ -174,6 +180,7 @@ CONSUMER = ProjectionConsumer(
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     await CONSUMER.start()
     await _resume_pending_summary_verification()
     yield
@@ -192,6 +199,7 @@ app.add_middleware(
 class StartRequest(BaseModel):
     rate: int = Field(default=1)
     scenario: str | None = None
+    dataset_id: str = Field(default=DEFAULT_DATASET_ID, min_length=1, max_length=255)
     run_id: str | None = Field(
         default=None,
         min_length=1,
@@ -206,7 +214,8 @@ async def _replayer_post(path: str, query: dict[str, str | int] | None = None) -
     def call() -> dict[str, Any]:
         request = urllib.request.Request(f"{REPLAYER_URL}{path}{suffix}", method="POST")
         try:
-            with urllib.request.urlopen(request, timeout=10) as response:
+            timeout = 120 if path == "/start" else 10
+            with urllib.request.urlopen(request, timeout=timeout) as response:
                 return json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8")
@@ -272,6 +281,83 @@ async def current_run() -> dict[str, Any]:
         "source": current["source"],
         "completion": current["completion"],
     }
+
+
+@app.get("/api/datasets")
+async def datasets() -> dict[str, Any]:
+    catalog = await asyncio.to_thread(
+        dataset_catalog,
+        root=ROOT,
+        fixture_path=FIXTURE,
+        upload_dir=UPLOAD_DIR,
+    )
+    return {
+        "default_dataset_id": DEFAULT_DATASET_ID,
+        "datasets": [dataset.public_dict() for dataset in catalog],
+    }
+
+
+@app.post("/api/datasets/upload", status_code=201)
+async def upload_dataset(
+    request: Request,
+    filename: str = Query(min_length=1, max_length=255),
+) -> dict[str, Any]:
+    try:
+        safe_name = safe_upload_name(filename)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Recording exceeds the upload size limit")
+
+    destination = UPLOAD_DIR / safe_name
+    stem, suffix = destination.stem, destination.suffix
+    counter = 2
+    while destination.exists():
+        destination = UPLOAD_DIR / f"{stem}-{counter}{suffix}"
+        counter += 1
+    temporary = UPLOAD_DIR / f".upload-{uuid.uuid4().hex}-{destination.name}"
+    size = 0
+    try:
+        with temporary.open("xb") as output:
+            async for chunk in request.stream():
+                size += len(chunk)
+                if size > MAX_UPLOAD_BYTES:
+                    raise HTTPException(
+                        status_code=413,
+                        detail="Recording exceeds the upload size limit",
+                    )
+                output.write(chunk)
+        if size == 0:
+            raise HTTPException(status_code=422, detail="Uploaded recording is empty")
+
+        def validate() -> None:
+            sources = discover_bags([temporary])
+            if len(sources) != 1:
+                raise ValueError("Upload must contain one ROS recording")
+            with open_bag(sources[0]) as reader:
+                if next(iter(reader.messages()), None) is None:
+                    raise ValueError("Uploaded recording contains no messages")
+
+        await asyncio.to_thread(validate)
+        temporary.replace(destination)
+    except HTTPException:
+        temporary.unlink(missing_ok=True)
+        raise
+    except (OSError, ValueError) as exc:
+        temporary.unlink(missing_ok=True)
+        detail = f"Recording could not be opened: {exc}"
+        raise HTTPException(status_code=422, detail=detail) from exc
+
+    catalog = await asyncio.to_thread(
+        dataset_catalog,
+        root=ROOT,
+        fixture_path=FIXTURE,
+        upload_dir=UPLOAD_DIR,
+    )
+    dataset = next(item for item in catalog if item.path == destination)
+    return dataset.public_dict()
 
 
 @app.get("/api/localization/evaluation")
@@ -354,7 +440,10 @@ async def start_run(request: StartRequest) -> dict[str, Any]:
         raise HTTPException(status_code=422, detail="Replay rate must be 1 or 5")
     if request.scenario and request.rate != 1:
         raise HTTPException(status_code=422, detail="Fault injection is available only at 1x")
-    query: dict[str, str | int] = {"rate": request.rate}
+    query: dict[str, str | int] = {
+        "rate": request.rate,
+        "dataset_id": request.dataset_id,
+    }
     if request.scenario:
         query["scenario"] = request.scenario
     if request.run_id:
