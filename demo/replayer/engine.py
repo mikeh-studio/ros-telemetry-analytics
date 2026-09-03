@@ -243,6 +243,7 @@ class ReplayEngine:
             path=self.fixture_path,
             status="ready",
             size_bytes=self.fixture_path.stat().st_size if self.fixture_path.is_file() else None,
+            mission_duration_ms=90_000,
             supports_camera_dropout=True,
         )
 
@@ -293,7 +294,8 @@ class ReplayEngine:
                 if dataset.supports_camera_dropout
                 else infer_topic_specs(records)
             )
-            duration_ms = max(1, max(record.source_offset_ms for record in records))
+            recorded_duration_ms = max(1, max(record.source_offset_ms for record in records))
+            duration_ms = max(recorded_duration_ms, dataset.mission_duration_ms or 0)
             schedule = build_schedule(records, scenario)
             if requested_run_id is not None and not SAFE_RUN_ID.fullmatch(requested_run_id):
                 raise ValueError(

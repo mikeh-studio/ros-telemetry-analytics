@@ -54,7 +54,16 @@ def test_topic_specs_are_inferred_for_uploaded_recordings() -> None:
 
 
 @pytest.mark.anyio
-async def test_replay_uses_the_selected_dataset_contract(tmp_path: Path, monkeypatch) -> None:
+@pytest.mark.parametrize(
+    ("declared_duration_ms", "expected_duration_ms"),
+    [(None, 1000), (1500, 1500)],
+)
+async def test_replay_uses_the_selected_dataset_contract(
+    tmp_path: Path,
+    monkeypatch,
+    declared_duration_ms: int | None,
+    expected_duration_ms: int,
+) -> None:
     config = load_streaming_config(ROOT / "configs/streaming_demo.yaml")
     source = tmp_path / "custom.bag"
     source.touch()
@@ -72,6 +81,7 @@ async def test_replay_uses_the_selected_dataset_contract(tmp_path: Path, monkeyp
         file_format="rosbag1",
         path=source,
         status="ready",
+        mission_duration_ms=declared_duration_ms,
         uploaded=True,
     )
     publisher = CapturingPublisher()
@@ -99,7 +109,7 @@ async def test_replay_uses_the_selected_dataset_contract(tmp_path: Path, monkeyp
     ended = [value for _key, value in publisher.messages if value["envelope_type"] == "run_ended"]
 
     assert started["dataset_id"] == dataset.dataset_id
-    assert started["mission_duration_ms"] == 1000
+    assert started["mission_duration_ms"] == expected_duration_ms
     assert started["topic_count"] == 2
     assert completed["published_messages"] == 3
     assert len(registrations) == 2
