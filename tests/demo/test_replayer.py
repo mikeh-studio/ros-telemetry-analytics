@@ -50,7 +50,41 @@ def test_topic_specs_are_inferred_for_uploaded_recordings() -> None:
 
     assert specs["/scan"].expected_rate_hz == 10
     assert specs["/scan"].dropout_threshold_ms == 1000
+    assert specs["/scan"].rate_monitoring_enabled is True
     assert specs["/odom"].expected_rate_hz == 1
+    assert specs["/odom"].rate_monitoring_enabled is False
+
+
+def test_topic_specs_disable_rate_monitoring_for_startup_bursts() -> None:
+    sensor_records = [
+        RecordedMessage(
+            sequence=index,
+            topic="/scan",
+            message_type="sensor_msgs/msg/LaserScan",
+            source_timestamp_ns=index * 1_000_000_000,
+            source_offset_ms=index * 1_000,
+            payload_size_bytes=10,
+        )
+        for index in range(101)
+    ]
+    static_records = [
+        RecordedMessage(
+            sequence=101 + index,
+            topic="/tf_static",
+            message_type="tf2_msgs/msg/TFMessage",
+            source_timestamp_ns=index * 1_000_000,
+            source_offset_ms=index,
+            payload_size_bytes=10,
+        )
+        for index in range(4)
+    ]
+
+    specs = {spec.topic: spec for spec in infer_topic_specs([*sensor_records, *static_records])}
+
+    assert specs["/scan"].rate_monitoring_enabled is True
+    assert specs["/tf_static"].rate_monitoring_enabled is False
+    assert specs["/tf_static"].expected_rate_hz == pytest.approx(0.04)
+    assert specs["/tf_static"].dropout_threshold_ms == 100_001
 
 
 @pytest.mark.anyio

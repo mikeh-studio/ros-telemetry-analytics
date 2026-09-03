@@ -189,6 +189,7 @@ def topic_registration_envelope(
     body: dict[str, Any] = {
         "message_type": topic_spec.message_type,
         "expected_rate_hz": topic_spec.expected_rate_hz,
+        "rate_monitoring_enabled": topic_spec.rate_monitoring_enabled,
         "expected_topic_count": expected_topic_count,
         "startup_grace_ms": startup_grace_ms,
         "dropout_threshold_ms": topic_spec.dropout_threshold_ms,

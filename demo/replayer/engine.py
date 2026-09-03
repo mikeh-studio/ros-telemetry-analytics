@@ -131,17 +131,21 @@ def infer_topic_specs(records: Sequence[RecordedMessage]) -> tuple[TopicSpec, ..
     for topic, topic_records in sorted(by_topic.items()):
         timestamps = sorted(record.source_timestamp_ns for record in topic_records)
         topic_duration_s = (timestamps[-1] - timestamps[0]) / 1_000_000_000
-        if len(timestamps) > 1 and topic_duration_s > 0:
+        coverage_ratio = topic_duration_s / recording_duration_s if recording_duration_s else 0.0
+        rate_monitoring_enabled = len(timestamps) > 1 and coverage_ratio >= 0.8
+        if rate_monitoring_enabled:
             expected_rate_hz = (len(timestamps) - 1) / topic_duration_s
+            dropout_threshold_ms = round(min(60_000, max(1_000, 3_000 / expected_rate_hz)))
         else:
-            expected_rate_hz = max(0.01, 1 / max(recording_duration_s, 1))
-        dropout_threshold_ms = round(min(60_000, max(1_000, 3_000 / expected_rate_hz)))
+            expected_rate_hz = max(0.01, len(timestamps) / max(recording_duration_s, 1))
+            dropout_threshold_ms = max(1_000, round(recording_duration_s * 1_000) + 1)
         specs.append(
             TopicSpec(
                 topic=topic,
                 message_type=topic_records[0].message_type,
                 expected_rate_hz=expected_rate_hz,
                 dropout_threshold_ms=dropout_threshold_ms,
+                rate_monitoring_enabled=rate_monitoring_enabled,
             )
         )
     return tuple(specs)

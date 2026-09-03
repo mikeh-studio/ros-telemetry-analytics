@@ -343,12 +343,12 @@ async def upload_dataset(
         await asyncio.to_thread(validate)
         temporary.replace(destination)
     except HTTPException:
-        temporary.unlink(missing_ok=True)
         raise
-    except (OSError, ValueError) as exc:
-        temporary.unlink(missing_ok=True)
+    except Exception as exc:
         detail = f"Recording could not be opened: {exc}"
         raise HTTPException(status_code=422, detail=detail) from exc
+    finally:
+        temporary.unlink(missing_ok=True)
 
     catalog = await asyncio.to_thread(
         dataset_catalog,

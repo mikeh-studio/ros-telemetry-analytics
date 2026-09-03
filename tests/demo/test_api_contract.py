@@ -208,6 +208,25 @@ def test_upload_rejects_unsupported_extensions(tmp_path, monkeypatch) -> None:
         asyncio.run(api_module.upload_dataset(UploadRequest(), "archive.zip"))
 
 
+@pytest.mark.parametrize("suffix", [".bag", ".db3", ".mcap"])
+def test_upload_rejects_malformed_recordings_without_leaving_temporary_files(
+    suffix, tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setattr(api_module, "UPLOAD_DIR", tmp_path)
+
+    class UploadRequest:
+        headers: dict[str, str] = {}
+
+        async def stream(self):
+            yield b"not-a-ros-bag"
+
+    with pytest.raises(HTTPException) as raised:
+        asyncio.run(api_module.upload_dataset(UploadRequest(), f"broken{suffix}"))
+
+    assert raised.value.status_code == 422
+    assert not list(tmp_path.iterdir())
+
+
 def test_api_restart_resumes_pending_summary_verification(monkeypatch) -> None:
     scheduled: list[str] = []
 
