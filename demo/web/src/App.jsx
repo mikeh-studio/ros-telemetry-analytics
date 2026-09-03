@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowCounterClockwiseIcon, PauseIcon, PlayIcon } from "@phosphor-icons/react";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -18,8 +18,26 @@ const EMPTY = {
   incident_history: [],
   completion: { verified: false, summary_file_count: 0 },
   mission_progress_ms: 0,
+  dataset_id: "warehouse_run_17",
+  dataset_name: "Warehouse Run 17",
+  source_format: "rosbag2_mcap",
+  mission_duration_ms: 90_000,
+  topic_count: 4,
   consumer_offsets: [],
 };
+const DEFAULT_DATASET = {
+  dataset_id: "warehouse_run_17",
+  name: "Warehouse Run 17",
+  description: "Deterministic 90-second ROS 2 mission with optional camera dropout.",
+  source: "built_in",
+  file_format: "rosbag2_mcap",
+  status: "ready",
+  selectable: true,
+  supports_camera_dropout: true,
+  mission_duration_ms: 90_000,
+  topic_count: 4,
+};
+const EMPTY_DATASETS = { default_dataset_id: DEFAULT_DATASET.dataset_id, datasets: [DEFAULT_DATASET] };
 
 const SERVICE_LABELS = {
   kafka: "Kafka",
@@ -55,6 +73,20 @@ function formatScore(value) {
   return value == null ? "—" : value.toFixed(3);
 }
 
+function formatBytes(value) {
+  if (value == null) return "Size unknown";
+  const units = ["B", "KB", "MB", "GB"];
+  let amount = value;
+  let unit = 0;
+  while (amount >= 1024 && unit < units.length - 1) { amount /= 1024; unit += 1; }
+  return `${amount.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+}
+
+function topicLabel(topic) {
+  if (TOPIC_LABELS[topic]) return TOPIC_LABELS[topic];
+  return topic.split("/").filter(Boolean).at(-1)?.replaceAll("_", " ") || "Topic";
+}
+
 function healthTone(status = "waiting") {
   if (["healthy", "ok", "ready", "completed", "recovered"].includes(status)) return "ok";
   if (["rate", "warn", "paused", "finalizing", "recovering", "degraded"].includes(status)) return "warn";
@@ -78,15 +110,18 @@ function formatEvidence(evidence = {}) {
 }
 
 function RateBars({ topics }) {
+  const rows = topics.length
+    ? topics
+    : Object.keys(TOPIC_LABELS).map((topic) => ({ topic, payload: {} }));
   return (
     <div className="rate-bars" aria-label="Observed versus expected message rates">
-      {Object.entries(TOPIC_LABELS).map(([topic, label]) => {
-        const metric = topics.find((item) => item.topic === topic);
-        const payload = metric?.payload || {};
+      {rows.slice(0, 12).map((metric) => {
+        const { topic } = metric;
+        const payload = metric.payload || {};
         const ratio = Math.max(0, Math.min(1.25, payload.rate_ratio || 0));
         return (
           <div className="rate-row" key={topic}>
-            <div className="rate-label"><span>{label}</span><strong>{formatRate(payload.mean_rate_hz)}</strong></div>
+            <div className="rate-label"><span>{topicLabel(topic)}</span><strong>{formatRate(payload.mean_rate_hz)}</strong></div>
             <div className="rate-track">
               <span className="target-band" />
               <span className={`rate-fill ${healthTone(payload.status)}`} style={{ width: `${Math.min(100, ratio * 80)}%` }} />
@@ -99,19 +134,21 @@ function RateBars({ topics }) {
   );
 }
 
-function MissionTimeline({ progressMs }) {
-  const progress = Math.min(100, Math.max(0, progressMs / 900));
+function MissionTimeline({ progressMs, durationMs }) {
+  const safeDuration = Math.max(1, durationMs || 90_000);
+  const progress = Math.min(100, Math.max(0, progressMs / safeDuration * 100));
+  const ticks = 6;
   return (
-    <div className={`mission-timeline ${progress >= 100 ? "complete" : ""}`} aria-label={`Mission elapsed ${formatTime(progressMs)} of 01:30`}>
+    <div className={`mission-timeline ${progress >= 100 ? "complete" : ""}`} aria-label={`Mission elapsed ${formatTime(progressMs)} of ${formatTime(safeDuration)}`}>
       <div className="timeline-rail">
         <span className="timeline-progress" style={{ width: `${progress}%` }} />
         <span className="timeline-cursor" style={{ left: `${progress}%` }} />
-        {Array.from({ length: 10 }, (_, index) => (
-          <span className="timeline-tick" style={{ left: `${(index / 9) * 100}%` }} key={index} />
+        {Array.from({ length: ticks }, (_, index) => (
+          <span className="timeline-tick" style={{ left: `${(index / (ticks - 1)) * 100}%` }} key={index} />
         ))}
       </div>
       <div className="timeline-labels" aria-hidden="true">
-        {Array.from({ length: 10 }, (_, index) => <span key={index}>{formatTime(index * 10_000)}</span>)}
+        {Array.from({ length: ticks }, (_, index) => <span key={index}>{formatTime(index * safeDuration / (ticks - 1))}</span>)}
       </div>
     </div>
   );
@@ -136,6 +173,7 @@ function TransportAction({ label, disabled, onClick, children, primary = false }
 }
 
 function TelemetryTable({ topicMap, unavailable }) {
+  const topics = Object.keys(topicMap).length ? Object.keys(topicMap) : Object.keys(TOPIC_LABELS);
   return (
     <div className="telemetry-table-wrap">
       <table className="telemetry-table">
@@ -143,12 +181,12 @@ function TelemetryTable({ topicMap, unavailable }) {
           <tr><th>Topic</th><th>Health</th><th>Observed</th><th>Expected</th><th>Max gap</th><th>Messages</th></tr>
         </thead>
         <tbody>
-          {Object.entries(TOPIC_LABELS).map(([topic, label]) => {
+          {topics.map((topic) => {
             const payload = topicMap[topic]?.payload || {};
             const status = unavailable ? "unavailable" : payload.health_status || payload.status || "waiting";
             return (
               <tr key={topic}>
-                <td data-label="Topic"><strong>{label}</strong><code>{topic}</code></td>
+                <td data-label="Topic"><strong>{topicLabel(topic)}</strong><code>{topic}</code></td>
                 <td data-label="Health"><StatusPill status={status} /></td>
                 <td data-label="Observed">{formatRate(payload.mean_rate_hz)}</td>
                 <td data-label="Expected">{formatRate(payload.expected_rate_hz)}</td>
@@ -244,12 +282,37 @@ export default function App() {
   const [flink, setFlink] = useState({ status: "unknown" });
   const [readiness, setReadiness] = useState(EMPTY_READINESS);
   const [localization, setLocalization] = useState(EMPTY_LOCALIZATION);
+  const [datasetCatalog, setDatasetCatalog] = useState(EMPTY_DATASETS);
+  const [selectedDatasetId, setSelectedDatasetId] = useState(EMPTY_DATASETS.default_dataset_id);
+  const [uploading, setUploading] = useState(false);
+  const datasetSelectionTouched = useRef(false);
+
+  const applySnapshot = useCallback((payload) => {
+    setSnapshot(payload);
+    if (!datasetSelectionTouched.current && payload.run_id && payload.dataset_id) {
+      setSelectedDatasetId(payload.dataset_id);
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     const response = await fetch(`${API_URL}/api/runs/current/snapshot`);
     if (!response.ok) throw new Error("Snapshot API is unavailable");
-    setSnapshot(await response.json());
+    applySnapshot(await response.json());
+  }, [applySnapshot]);
+
+  const loadDatasets = useCallback(async () => {
+    const response = await fetch(`${API_URL}/api/datasets`);
+    if (!response.ok) throw new Error("Dataset catalog is unavailable");
+    const payload = await response.json();
+    setDatasetCatalog({
+      default_dataset_id: payload.default_dataset_id || EMPTY_DATASETS.default_dataset_id,
+      datasets: payload.datasets || EMPTY_DATASETS.datasets,
+    });
   }, []);
+
+  useEffect(() => {
+    loadDatasets().catch((reason) => setError(reason.message));
+  }, [loadDatasets]);
 
   useEffect(() => {
     refresh().catch((reason) => setError(reason.message));
@@ -270,7 +333,7 @@ export default function App() {
           retryMs = Math.min(retryMs * 2, 10_000);
         }
       };
-      events.addEventListener("snapshot", (event) => setSnapshot(JSON.parse(event.data)));
+      events.addEventListener("snapshot", (event) => applySnapshot(JSON.parse(event.data)));
       ["metric", "anomaly", "completed"].forEach((type) => events.addEventListener(type, () => refresh().catch(() => {})));
       events.addEventListener("completion_failed", (event) => {
         const payload = JSON.parse(event.data);
@@ -280,7 +343,7 @@ export default function App() {
     };
     connect();
     return () => { stopped = true; window.clearTimeout(reconnectTimer); events?.close(); };
-  }, [refresh]);
+  }, [applySnapshot, refresh]);
 
   useEffect(() => {
     const load = () => fetch(`${API_URL}/api/flink/summary`)
@@ -316,27 +379,59 @@ export default function App() {
     if (scenario === "camera-dropout" && rate !== 1) setRate(1);
   }, [scenario, rate]);
 
+  const selectedDataset = datasetCatalog.datasets.find(
+    (dataset) => dataset.dataset_id === selectedDatasetId,
+  ) || datasetCatalog.datasets.find(
+    (dataset) => dataset.dataset_id === datasetCatalog.default_dataset_id,
+  );
+
+  useEffect(() => {
+    if (selectedDataset && !selectedDataset.supports_camera_dropout && scenario !== "clean") {
+      setScenario("clean");
+    }
+  }, [scenario, selectedDataset]);
+
+  const selectedRunMatches = !snapshot.dataset_id || snapshot.dataset_id === selectedDatasetId;
   const streamingAuthoritiesReady = connected
     && ["kafka", "flink", "flink_job", "projection_api"]
       .every((name) => readiness.services?.[name] === "ready");
-  const authorityUnavailable = Boolean(snapshot.run_id) && !streamingAuthoritiesReady;
+  const authorityUnavailable = selectedRunMatches
+    && Boolean(snapshot.run_id)
+    && !streamingAuthoritiesReady;
   const runStatus = authorityUnavailable
     ? "unavailable"
+    : !selectedRunMatches
+    ? "ready"
     : snapshot.completion?.verified
     ? "completed"
     : snapshot.run?.payload?.status || "ready";
   const robotStatus = authorityUnavailable
     ? "unavailable"
-    : snapshot.robot_health?.payload?.status || "waiting";
+    : selectedRunMatches
+    ? snapshot.robot_health?.payload?.status || "waiting"
+    : "waiting";
+  const visibleTopics = selectedRunMatches ? snapshot.topics : [];
   const topicMap = useMemo(
-    () => Object.fromEntries(snapshot.topics.map((item) => [item.topic, item])),
-    [snapshot.topics],
+    () => Object.fromEntries(visibleTopics.map((item) => [item.topic, item])),
+    [visibleTopics],
   );
-  const activeIncidents = snapshot.anomalies.filter((item) => item.status === "active");
-  const primaryAnomaly = snapshot.robot_health?.payload?.primary_anomaly;
+  const activeIncidents = selectedRunMatches
+    ? snapshot.anomalies.filter((item) => item.status === "active")
+    : [];
+  const primaryAnomaly = selectedRunMatches
+    ? snapshot.robot_health?.payload?.primary_anomaly
+    : null;
   const localizationSummary = localization.summary || {};
   const localizationSampleMetrics = localizationSummary.sample_metrics || {};
   const localizationEventMetrics = localizationSummary.event_metrics || {};
+  const selectedRunActive = selectedRunMatches && Boolean(snapshot.run_id);
+  const missionDurationMs = selectedRunActive
+    ? snapshot.mission_duration_ms
+    : selectedDataset?.mission_duration_ms || 90_000;
+  const expectedTopicCount = selectedRunActive
+    ? snapshot.topic_count
+    : selectedDataset?.topic_count;
+  const datasetLocked = ["starting", "running", "paused", "finalizing"].includes(runStatus);
 
   async function control(path, body) {
     setBusy(true);
@@ -356,6 +451,30 @@ export default function App() {
       setError(reason.message);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function uploadDataset(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    setError("");
+    try {
+      const response = await fetch(
+        `${API_URL}/api/datasets/upload?filename=${encodeURIComponent(file.name)}`,
+        { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: file },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.detail || "Dataset upload failed");
+      await loadDatasets();
+      datasetSelectionTouched.current = true;
+      setSelectedDatasetId(payload.dataset_id);
+      setScenario("clean");
+    } catch (reason) {
+      setError(reason.message);
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -393,16 +512,16 @@ export default function App() {
       <section className="mission-summary" aria-label="Mission summary">
         <div className="summary-cell mission-identity">
           <span className="eyebrow">Mission</span>
-          <div className="summary-heading"><h2>Warehouse run 17</h2><StatusPill status={runStatus} /></div>
-          <p>A deterministic 90-second ROS 2 mission replayed through Kafka and Apache Flink.</p>
+          <div className="summary-heading"><h2>{selectedDataset?.name || "Choose a dataset"}</h2><StatusPill status={runStatus} /></div>
+          <p>{selectedDataset?.description || "Select a built-in, public, or uploaded ROS recording."}</p>
         </div>
         <div className="summary-cell robot-summary">
           <span className="eyebrow">Robot health</span>
           <div className="summary-heading"><h2>robot-17</h2><StatusPill status={robotStatus} /></div>
           <dl>
-            <div><dt>Topics online</dt><dd>{snapshot.topics.length} / 4</dd></div>
-            <div><dt>Source</dt><dd>MCAP replay</dd></div>
-            <div><dt>Output</dt><dd>{snapshot.completion?.verified ? "Verified" : "Pending"}</dd></div>
+            <div><dt>Topics online</dt><dd>{visibleTopics.length} / {expectedTopicCount ?? "—"}</dd></div>
+            <div><dt>Source</dt><dd>{selectedDataset?.file_format?.replaceAll("_", " ") || "ROS bag"}</dd></div>
+            <div><dt>Output</dt><dd>{selectedRunMatches && snapshot.completion?.verified ? "Verified" : "Pending"}</dd></div>
           </dl>
         </div>
         <div className="summary-cell incident-summary">
@@ -418,17 +537,17 @@ export default function App() {
 
       <section className="timeline-section">
         <div className="section-title compact">
-          <div><span className="eyebrow">Mission timeline <b>(90 seconds)</b></span></div>
-          <strong className="elapsed">{formatTime(snapshot.mission_progress_ms)} / 01:30</strong>
+          <div><span className="eyebrow">Mission timeline <b>({formatTime(missionDurationMs)})</b></span></div>
+          <strong className="elapsed">{formatTime(selectedRunMatches ? snapshot.mission_progress_ms : 0)} / {formatTime(missionDurationMs)}</strong>
         </div>
-        <MissionTimeline progressMs={snapshot.mission_progress_ms} />
+        <MissionTimeline progressMs={selectedRunMatches ? snapshot.mission_progress_ms : 0} durationMs={missionDurationMs} />
         <div className="timeline-controls">
           <div className="transport-controls">
             <TransportAction
               label="Start mission"
               primary
-              disabled={busy || readiness.status !== "ready" || ["running", "paused"].includes(runStatus)}
-              onClick={() => control("/api/replay/start", { rate, scenario: scenario === "clean" ? null : scenario })}
+              disabled={busy || uploading || readiness.status !== "ready" || datasetLocked || !selectedDataset?.selectable}
+              onClick={() => control("/api/replay/start", { rate, dataset_id: selectedDatasetId, scenario: scenario === "clean" ? null : scenario })}
             ><PlayIcon size={26} weight="fill" /></TransportAction>
             <TransportAction label="Pause" disabled={busy || runStatus !== "running"} onClick={() => control("/api/replay/pause")}>
               <PauseIcon size={26} weight="fill" />
@@ -436,25 +555,56 @@ export default function App() {
             <TransportAction label="Resume" disabled={busy || runStatus !== "paused"} onClick={() => control("/api/replay/resume")}>
               <PlayIcon size={26} weight="fill" />
             </TransportAction>
-            <TransportAction label="Restart" disabled={busy || !snapshot.run_id} onClick={() => control("/api/replay/restart")}>
+            <TransportAction label="Restart" disabled={busy || !snapshot.run_id || !selectedRunMatches} onClick={() => control("/api/replay/restart")}>
               <ArrowCounterClockwiseIcon size={26} weight="bold" />
             </TransportAction>
           </div>
           <div className="selector-grid">
+            <label>Dataset
+              <select
+                value={selectedDatasetId}
+                onChange={(event) => {
+                  datasetSelectionTouched.current = true;
+                  setSelectedDatasetId(event.target.value);
+                }}
+                disabled={busy || uploading || datasetLocked}
+              >
+                {datasetCatalog.datasets.map((dataset) => (
+                  <option value={dataset.dataset_id} disabled={!dataset.selectable} key={dataset.dataset_id}>
+                    {dataset.name}{dataset.selectable ? "" : ` — ${dataset.status.replaceAll("_", " ")}`}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label>Scenario
-              <select value={scenario} onChange={(event) => setScenario(event.target.value)} disabled={busy}>
+              <select value={scenario} onChange={(event) => setScenario(event.target.value)} disabled={busy || datasetLocked}>
                 <option value="clean">Clean mission</option>
-                <option value="camera-dropout">Camera dropout</option>
+                <option value="camera-dropout" disabled={!selectedDataset?.supports_camera_dropout}>Camera dropout</option>
               </select>
             </label>
             <label>Replay speed
-              <select value={rate} onChange={(event) => setRate(Number(event.target.value))} disabled={busy}>
+              <select value={rate} onChange={(event) => setRate(Number(event.target.value))} disabled={busy || datasetLocked}>
                 <option value={1}>1× real time</option>
                 <option value={5} disabled={scenario !== "clean"}>5× accelerated</option>
               </select>
             </label>
+            <label className="upload-control">Upload your own
+              <input
+                type="file"
+                accept=".bag,.mcap,.db3"
+                disabled={busy || uploading || datasetLocked}
+                onChange={uploadDataset}
+              />
+              <span>{uploading ? "Validating upload…" : "Choose .bag, .mcap, or .db3"}</span>
+            </label>
           </div>
         </div>
+        {selectedDataset && (
+          <p className={`dataset-note ${selectedDataset.selectable ? "" : "unavailable"}`}>
+            <strong>{selectedDataset.selectable ? "Ready to replay" : selectedDataset.status.replaceAll("_", " ")}</strong>
+            <span>{formatBytes(selectedDataset.size_bytes)} · {selectedDataset.source.replaceAll("_", " ")}</span>
+          </p>
+        )}
         {scenario === "camera-dropout" && (
           <p className="selector-note">Camera dropout runs at 1× so the robot's processing-time watchdog stays tied to real time. Use 5× for the clean mission.</p>
         )}
@@ -512,7 +662,7 @@ export default function App() {
         <div className="operations-grid">
           <article>
             <div className="section-head"><div><span className="eyebrow">Rate monitor</span><h2>Observed throughput</h2></div><span className="legend">Target band</span></div>
-            <RateBars topics={snapshot.topics} />
+            <RateBars topics={visibleTopics} />
           </article>
           <article className="incidents">
             <div className="section-head"><div><span className="eyebrow">Incident timeline</span><h2>Detection log</h2></div><strong>{snapshot.incident_history.length}</strong></div>
@@ -520,7 +670,7 @@ export default function App() {
               {snapshot.incident_history.slice(-8).reverse().map((incident) => (
                 <li key={`${incident.anomaly_id}-${incident.revision}`}>
                   <span className={`incident-dot ${incident.status}`} />
-                  <div><strong>{incident.condition_type.replaceAll("_", " ")}</strong><span>{TOPIC_LABELS[incident.topic] || "Robot-wide"} · revision {incident.revision}</span>{formatEvidence(incident.evidence) && <span>{formatEvidence(incident.evidence)}</span>}</div>
+                  <div><strong>{incident.condition_type.replaceAll("_", " ")}</strong><span>{incident.topic ? topicLabel(incident.topic) : "Robot-wide"} · revision {incident.revision}</span>{formatEvidence(incident.evidence) && <span>{formatEvidence(incident.evidence)}</span>}</div>
                   <StatusPill status={incident.status === "active" ? "error" : "recovered"} />
                 </li>
               ))}
@@ -535,7 +685,7 @@ export default function App() {
         <div className="technical-grid">
           <div><h3>Event-time policy</h3><p>2 s out-of-orderness · 5 s allowed lateness · 3 s idle partitions</p></div>
           <div><h3>Durability</h3><p>5 s checkpoints · exactly-once Kafka sinks · SQLite offset projection</p></div>
-          <div><h3>Mission output</h3><p>{snapshot.completion?.summary_file_count || 0} / 4 topic summaries independently verified</p></div>
+          <div><h3>Mission output</h3><p>{selectedRunMatches ? snapshot.completion?.summary_file_count || 0 : 0} / {expectedTopicCount ?? "—"} topic summaries independently verified</p></div>
           <div><h3>Runtime</h3><p>{flink.status === "available" ? "Flink job available" : "Flink unavailable · metrics unknown"} · <a href="http://localhost:8081" target="_blank" rel="noreferrer">Open dashboard ↗</a></p></div>
           <div><h3>Streaming authority</h3><p>Source lag {flink.consumer_lag ?? "unknown"} · projection lag {flink.projection_lag ?? "unknown"} · watermark {flink.watermark_ms ?? "unknown"} · checkpoint {flink.checkpoints?.status?.toLowerCase() ?? "unknown"} #{flink.checkpoints?.id ?? "unknown"} ({formatDurationMs(flink.checkpoints?.age_ms)} old) · restarts {flink.restarts ?? "unknown"}</p></div>
           <div><h3>Event counters</h3><p>Processed {flink.events_processed ?? "unknown"} · accepted late {flink.accepted_late_events ?? "unknown"} · duplicate {flink.duplicate_events ?? "unknown"} · too late {flink.too_late_events ?? "unknown"} · operator in/out {flink.records_in ?? "unknown"}/{flink.records_out ?? "unknown"}</p></div>

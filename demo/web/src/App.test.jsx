@@ -10,6 +10,14 @@ class FakeEventSource {
   close() {}
 }
 
+const DEFAULT_DATASET_FOR_TEST = {
+  source: "public_dataset",
+  file_format: "rosbag1",
+  status: "ready",
+  selectable: true,
+  supports_camera_dropout: true,
+};
+
 describe("Flight Deck", () => {
   beforeEach(() => {
     FakeEventSource.instances = [];
@@ -44,6 +52,94 @@ describe("Flight Deck", () => {
     fireEvent.change(screen.getByLabelText("Scenario"), { target: { value: "camera-dropout" } });
     expect(screen.getByText(/processing-time watchdog stays tied to real time/i)).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "5× accelerated" })).toBeDisabled();
+  });
+
+  it("switches to an installed public dataset and sends it to replay", async () => {
+    fetch.mockImplementation((url, options = {}) => Promise.resolve({
+      ok: true,
+      json: async () => url.includes("/api/datasets")
+        ? {
+            default_dataset_id: "warehouse_run_17",
+            datasets: [
+              {
+                dataset_id: "warehouse_run_17",
+                name: "Warehouse Run 17",
+                source: "built_in",
+                file_format: "rosbag2_mcap",
+                status: "ready",
+                selectable: true,
+                supports_camera_dropout: true,
+              },
+              {
+                dataset_id: "lilocbench_dynamics_0",
+                name: "LILocBench · Dynamics 0",
+                description: "Dynamic people mission",
+                source: "public_dataset",
+                file_format: "rosbag1",
+                status: "ready",
+                selectable: true,
+                supports_camera_dropout: false,
+                size_bytes: 38_063_988,
+              },
+              {
+                dataset_id: "openloris_scene_cafe1_1_2",
+                name: "OpenLORIS Scene · Cafe 1-1",
+                status: "not_installed",
+                selectable: false,
+              },
+            ],
+          }
+        : url.includes("/api/health")
+        ? { status: "ready", services: { kafka: "ready", flink: "ready", flink_job: "ready", projection_api: "ready", replayer: "ready" } }
+        : options.method === "POST"
+        ? { status: "running" }
+        : { topics: [], anomalies: [], incident_history: [], completion: {}, consumer_offsets: [], mission_progress_ms: 0 },
+    }));
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByRole("option", { name: /LILocBench/ })).toBeInTheDocument());
+    expect(screen.getByRole("option", { name: /OpenLORIS/ })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Dataset"), { target: { value: "lilocbench_dynamics_0" } });
+    expect(screen.getByText("Dynamic people mission")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Camera dropout" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Start mission" }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/replay/start"),
+      expect.objectContaining({ body: expect.stringContaining('"dataset_id":"lilocbench_dynamics_0"') }),
+    ));
+  });
+
+  it("restores the dataset for the current run after a page reload", async () => {
+    fetch.mockImplementation((url) => Promise.resolve({
+      ok: true,
+      json: async () => url.includes("/api/datasets")
+        ? {
+            default_dataset_id: "warehouse_run_17",
+            datasets: [
+              { ...DEFAULT_DATASET_FOR_TEST, dataset_id: "warehouse_run_17", name: "Warehouse Run 17" },
+              { ...DEFAULT_DATASET_FOR_TEST, dataset_id: "lilocbench_dynamics_0", name: "LILocBench · Dynamics 0", supports_camera_dropout: false },
+            ],
+          }
+        : url.includes("/api/health")
+        ? { status: "ready", services: { kafka: "ready", flink: "ready", flink_job: "ready", projection_api: "ready", replayer: "ready" } }
+        : {
+            run_id: "run-liloc",
+            dataset_id: "lilocbench_dynamics_0",
+            dataset_name: "LILocBench · Dynamics 0",
+            mission_duration_ms: 159_978,
+            topic_count: 7,
+            run: { payload: { status: "summary_ready" } },
+            topics: [], anomalies: [], incident_history: [],
+            completion: { verified: true, summary_file_count: 7 },
+            consumer_offsets: [], mission_progress_ms: 159_978,
+          },
+    }));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByLabelText("Dataset")).toHaveValue("lilocbench_dynamics_0"));
+    expect(screen.getByText("02:39 / 02:39")).toBeInTheDocument();
   });
 
   it("shows checkpoint freshness and authoritative event counters", async () => {

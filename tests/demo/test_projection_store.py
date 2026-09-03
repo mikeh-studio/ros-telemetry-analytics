@@ -79,6 +79,25 @@ def test_completion_requires_all_four_independent_file_summaries(tmp_path: Path)
     assert store.verify_completion("run-1")["verified"] is True
 
 
+def test_completion_honors_the_selected_dataset_topic_count(tmp_path: Path) -> None:
+    output_root = tmp_path / "output"
+    store = ProjectionStore(tmp_path / "projection.db", output_root)
+    directory = output_root / "run-1" / "topic_health"
+    directory.mkdir(parents=True)
+    rows = []
+    for index, topic in enumerate(["/scan", "/odom"]):
+        metric = _metric(f"summary-{index}", 0, 30_000, "mission_summary")
+        metric["topic"] = topic
+        metric["payload"]["expected_topic_count"] = 2
+        rows.append(json.dumps(metric))
+    (directory / "part-0").write_text("\n".join(rows), encoding="utf-8")
+
+    completion = store.verify_completion("run-1")
+
+    assert completion["verified"] is True
+    assert completion["expected_topic_count"] == 2
+
+
 def test_completion_rejects_duplicate_and_in_progress_summaries(tmp_path: Path) -> None:
     output_root = tmp_path / "output"
     store = ProjectionStore(tmp_path / "projection.db", output_root)
@@ -167,6 +186,30 @@ def test_snapshot_never_verifies_files_before_summary_ready_is_projected(tmp_pat
     assert snapshot["run_start_stream_ms"] == 0
     assert snapshot["latest_stream_ms"] == 97_000
     assert snapshot["mission_progress_ms"] == 90_000
+
+
+def test_pending_completion_reports_selected_dataset_topic_count(tmp_path: Path) -> None:
+    store = ProjectionStore(tmp_path / "projection.db", tmp_path / "output")
+    starting = _metric("run-starting", 0, 0, "run_status")
+    starting["window_start_ms"] = None
+    starting["window_end_ms"] = None
+    starting["payload"] = {
+        "status": "starting",
+        "dataset_id": "lilocbench_dynamics_0",
+        "expected_topic_count": 7,
+    }
+    store.project(
+        stream_kind="metric",
+        payload=starting,
+        kafka_topic="telemetry.metrics.v1",
+        kafka_partition=0,
+        kafka_offset=0,
+    )
+
+    snapshot = store.snapshot("run-1")
+
+    assert snapshot["topic_count"] == 7
+    assert snapshot["completion"]["expected_topic_count"] == 7
 
 
 def test_snapshot_prefers_resumed_status_at_the_same_frozen_stream_time(

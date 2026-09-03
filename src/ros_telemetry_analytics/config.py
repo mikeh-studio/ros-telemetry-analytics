@@ -51,6 +51,7 @@ class DomainAnalyticsConfig:
     image_dark_warn_mean: float = 20.0
     image_bright_warn_mean: float = 235.0
     image_sharpness_warn: float = 2.0
+    laser_min_valid_range_fraction: float = 0.5
     event_merge_gap_ns: int = 500_000_000
 
     def is_command_topic(self, topic: str) -> bool:
@@ -102,7 +103,7 @@ class PipelineConfig:
 def analytics_fingerprint(config: AnalyticsConfig) -> str:
     """Return a stable cache key for every setting that affects analytics output."""
     payload = {
-        "analysis_engine_version": 3,
+        "analysis_engine_version": 4,
         "config": asdict(config),
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -307,6 +308,10 @@ def load_pipeline_config(
             domain_raw.get("image_sharpness_warn", 2.0),
             "image_sharpness_warn",
         ),
+        laser_min_valid_range_fraction=_nonnegative_number(
+            domain_raw.get("laser_min_valid_range_fraction", 0.5),
+            "laser_min_valid_range_fraction",
+        ),
         event_merge_gap_ns=int(
             _positive_number(
                 domain_raw.get("event_merge_gap_ms", 500.0),
@@ -317,6 +322,8 @@ def load_pipeline_config(
     )
     if domain.image_dark_warn_mean >= domain.image_bright_warn_mean:
         raise ValueError("image_dark_warn_mean must be less than image_bright_warn_mean")
+    if domain.laser_min_valid_range_fraction > 1.0:
+        raise ValueError("laser_min_valid_range_fraction must be at most one")
 
     analytics = AnalyticsConfig(
         rate_rules=rate_rules,

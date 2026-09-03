@@ -11,11 +11,12 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
 
-/** Turns four durable-topic summary records into one run-level summary-ready signal. */
+/** Turns every durable topic summary into one run-level summary-ready signal. */
 final class SummaryCoordinator extends KeyedProcessFunction<String, String, String> {
     private static final int EXPECTED_TOPIC_COUNT = StreamingDefaults.EXPECTED_TOPIC_COUNT;
     private transient MapState<String, Boolean> summaries;
     private transient ValueState<Boolean> emitted;
+    private transient ValueState<Integer> expectedTopicCount;
 
     @Override
     public void open(OpenContext ignored) {
@@ -28,6 +29,10 @@ final class SummaryCoordinator extends KeyedProcessFunction<String, String, Stri
                 new ValueStateDescriptor<>("summary-ready-v1", Boolean.class);
         emittedDescriptor.enableTimeToLive(ttl);
         emitted = getRuntimeContext().getState(emittedDescriptor);
+        ValueStateDescriptor<Integer> expectedCountDescriptor =
+                new ValueStateDescriptor<>("summary-expected-topic-count-v1", Integer.class);
+        expectedCountDescriptor.enableTimeToLive(ttl);
+        expectedTopicCount = getRuntimeContext().getState(expectedCountDescriptor);
     }
 
     @Override
@@ -35,9 +40,18 @@ final class SummaryCoordinator extends KeyedProcessFunction<String, String, Stri
             throws Exception {
         JsonNode summary = JsonSupport.MAPPER.readTree(value);
         summaries.put(summary.path("topic").asText(), true);
+        JsonNode summaryPayload = summary.path("payload");
+        int advertisedCount = summaryPayload.path("expected_topic_count")
+                .asInt(EXPECTED_TOPIC_COUNT);
+        Integer existingCount = expectedTopicCount.value();
+        if (advertisedCount <= 0) throw new IllegalArgumentException("expected_topic_count must be positive");
+        if (existingCount != null && existingCount != advertisedCount) {
+            throw new IllegalArgumentException("inconsistent expected_topic_count summaries");
+        }
+        expectedTopicCount.update(advertisedCount);
         int count = 0;
         for (Boolean ignored : summaries.values()) count++;
-        if (count != EXPECTED_TOPIC_COUNT || Boolean.TRUE.equals(emitted.value())) return;
+        if (count != advertisedCount || Boolean.TRUE.equals(emitted.value())) return;
         emitted.update(true);
         long timestamp = summary.path("stream_timestamp_ms").asLong();
         ObjectNode node = JsonSupport.object();
@@ -56,9 +70,21 @@ final class SummaryCoordinator extends KeyedProcessFunction<String, String, Stri
         ObjectNode payload = node.putObject("payload");
         payload.put("status", "summary_ready");
         payload.put("source", "recorded_replay");
-        payload.put("summary_topic_count", EXPECTED_TOPIC_COUNT);
+        payload.put("summary_topic_count", advertisedCount);
+        payload.put("expected_topic_count", advertisedCount);
+        copyText(summaryPayload, payload, "dataset_id");
+        copyText(summaryPayload, payload, "dataset_name");
+        copyText(summaryPayload, payload, "source_format");
+        if (summaryPayload.has("mission_duration_ms")) {
+            payload.put("mission_duration_ms", summaryPayload.path("mission_duration_ms").asLong());
+        }
         output.collect(JsonSupport.write(node));
         summaries.clear();
+        expectedTopicCount.clear();
+    }
+
+    private static void copyText(JsonNode source, ObjectNode destination, String field) {
+        if (source.hasNonNull(field)) destination.put(field, source.path(field).asText());
     }
 
 }

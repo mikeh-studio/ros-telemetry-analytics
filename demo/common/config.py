@@ -13,6 +13,7 @@ class TopicSpec:
     message_type: str
     expected_rate_hz: float
     dropout_threshold_ms: int
+    rate_monitoring_enabled: bool = True
 
 
 @dataclass(frozen=True)

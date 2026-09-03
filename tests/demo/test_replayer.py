@@ -8,11 +8,13 @@ import pytest
 
 from demo.common.config import load_streaming_config
 from demo.common.contracts import RunIdAlreadyAllocatedError
+from demo.common.datasets import ReplayDataset
 from demo.replayer.engine import (
     RecordedMessage,
     ReplayContractError,
     ReplayEngine,
     build_schedule,
+    infer_topic_specs,
     load_camera_dropout_scenario,
     load_recorded_messages,
 )
@@ -35,6 +37,118 @@ def _camera_message(offset_ms: int, sequence: int) -> RecordedMessage:
         source_offset_ms=offset_ms,
         payload_size_bytes=1,
     )
+
+
+def test_topic_specs_are_inferred_for_uploaded_recordings() -> None:
+    records = [
+        RecordedMessage(0, "/scan", "sensor_msgs/msg/LaserScan", 0, 0, 10),
+        RecordedMessage(1, "/scan", "sensor_msgs/msg/LaserScan", 100_000_000, 100, 10),
+        RecordedMessage(2, "/odom", "nav_msgs/msg/Odometry", 0, 0, 10),
+    ]
+
+    specs = {spec.topic: spec for spec in infer_topic_specs(records)}
+
+    assert specs["/scan"].expected_rate_hz == 10
+    assert specs["/scan"].dropout_threshold_ms == 1000
+    assert specs["/scan"].rate_monitoring_enabled is True
+    assert specs["/odom"].expected_rate_hz == 1
+    assert specs["/odom"].rate_monitoring_enabled is False
+
+
+def test_topic_specs_disable_rate_monitoring_for_startup_bursts() -> None:
+    sensor_records = [
+        RecordedMessage(
+            sequence=index,
+            topic="/scan",
+            message_type="sensor_msgs/msg/LaserScan",
+            source_timestamp_ns=index * 1_000_000_000,
+            source_offset_ms=index * 1_000,
+            payload_size_bytes=10,
+        )
+        for index in range(101)
+    ]
+    static_records = [
+        RecordedMessage(
+            sequence=101 + index,
+            topic="/tf_static",
+            message_type="tf2_msgs/msg/TFMessage",
+            source_timestamp_ns=index * 1_000_000,
+            source_offset_ms=index,
+            payload_size_bytes=10,
+        )
+        for index in range(4)
+    ]
+
+    specs = {spec.topic: spec for spec in infer_topic_specs([*sensor_records, *static_records])}
+
+    assert specs["/scan"].rate_monitoring_enabled is True
+    assert specs["/tf_static"].rate_monitoring_enabled is False
+    assert specs["/tf_static"].expected_rate_hz == pytest.approx(0.04)
+    assert specs["/tf_static"].dropout_threshold_ms == 100_001
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("declared_duration_ms", "expected_duration_ms"),
+    [(None, 1000), (1500, 1500)],
+)
+async def test_replay_uses_the_selected_dataset_contract(
+    tmp_path: Path,
+    monkeypatch,
+    declared_duration_ms: int | None,
+    expected_duration_ms: int,
+) -> None:
+    config = load_streaming_config(ROOT / "configs/streaming_demo.yaml")
+    source = tmp_path / "custom.bag"
+    source.touch()
+    records = [
+        RecordedMessage(0, "/scan", "sensor_msgs/msg/LaserScan", 1_000_000_000, 0, 10),
+        RecordedMessage(1, "/odom", "nav_msgs/msg/Odometry", 1_500_000_000, 500, 10),
+        RecordedMessage(2, "/scan", "sensor_msgs/msg/LaserScan", 2_000_000_000, 1000, 10),
+    ]
+    monkeypatch.setattr("demo.replayer.engine.load_recorded_messages", lambda _path: records)
+    dataset = ReplayDataset(
+        dataset_id="upload:custom.bag",
+        name="Custom",
+        description="Uploaded mission",
+        source="user_upload",
+        file_format="rosbag1",
+        path=source,
+        status="ready",
+        mission_duration_ms=declared_duration_ms,
+        uploaded=True,
+    )
+    publisher = CapturingPublisher()
+    clock = VirtualClock()
+    engine = ReplayEngine(
+        config=config,
+        fixture_path=source,
+        scenario_path=ROOT / "demo/scenarios/camera-dropout.yaml",
+        epoch_state_path=tmp_path / "epoch.json",
+        publisher=publisher,
+        dataset_resolver=lambda _dataset_id: dataset,
+        monotonic=clock.monotonic,
+        sleep=clock.sleep,
+    )
+
+    started = await engine.start(
+        replay_rate=5,
+        scenario_name=None,
+        dataset_id=dataset.dataset_id,
+    )
+    completed = await engine.wait_for_completion()
+    registrations = [
+        value for _key, value in publisher.messages if value["envelope_type"] == "topic_registered"
+    ]
+    ended = [value for _key, value in publisher.messages if value["envelope_type"] == "run_ended"]
+
+    assert started["dataset_id"] == dataset.dataset_id
+    assert started["mission_duration_ms"] == expected_duration_ms
+    assert started["topic_count"] == 2
+    assert completed["published_messages"] == 3
+    assert len(registrations) == 2
+    assert {item["body"]["expected_topic_count"] for item in registrations} == {2}
+    assert {item["topic"] for item in ended} == {None, "/odom", "/scan"}
 
 
 def test_camera_dropout_schedule_has_exact_hold_drop_and_recovery_boundaries() -> None:

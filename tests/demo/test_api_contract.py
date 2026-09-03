@@ -4,6 +4,8 @@ import asyncio
 import json
 
 import polars as pl
+import pytest
+from fastapi import HTTPException
 
 from demo.api import app as api_module
 from demo.api.app import app
@@ -21,6 +23,8 @@ def test_public_api_matches_the_flight_deck_contract() -> None:
         ("POST", "/api/replay/resume"),
         ("POST", "/api/replay/restart"),
         ("POST", "/api/scenarios/camera-dropout"),
+        ("GET", "/api/datasets"),
+        ("POST", "/api/datasets/upload"),
         ("GET", "/api/flink/summary"),
         ("GET", "/api/localization/evaluation"),
     }
@@ -145,6 +149,82 @@ def test_camera_dropout_endpoint_uses_the_running_mission_injector(monkeypatch) 
 
     assert result["scenario"] == "camera-dropout"
     assert calls == [("/scenarios/camera-dropout", None)]
+
+
+def test_start_forwards_the_selected_dataset(monkeypatch) -> None:
+    calls: list[tuple[str, dict | None]] = []
+
+    async def fake_replayer_post(path: str, query: dict | None = None) -> dict:
+        calls.append((path, query))
+        return {"status": "running", "dataset_id": "lilocbench_dynamics_0"}
+
+    monkeypatch.setattr(api_module, "_replayer_post", fake_replayer_post)
+
+    request = api_module.StartRequest(rate=5, dataset_id="lilocbench_dynamics_0")
+    result = asyncio.run(api_module.start_run(request))
+
+    assert result["dataset_id"] == "lilocbench_dynamics_0"
+    assert calls == [
+        (
+            "/start",
+            {"rate": 5, "dataset_id": "lilocbench_dynamics_0"},
+        )
+    ]
+
+
+def test_upload_validates_and_publishes_a_recording(tmp_path, monkeypatch, write_bag) -> None:
+    bag_directory = write_bag(
+        tmp_path / "source",
+        [("/imu/data", "sensor_msgs/msg/Imu", 1_000_000)],
+    )
+    source = next(bag_directory.glob("*.db3"))
+    upload_dir = tmp_path / "uploads"
+    upload_dir.mkdir()
+    monkeypatch.setattr(api_module, "UPLOAD_DIR", upload_dir)
+
+    class UploadRequest:
+        headers: dict[str, str] = {}
+
+        async def stream(self):
+            yield source.read_bytes()
+
+    result = asyncio.run(api_module.upload_dataset(UploadRequest(), "my mission.db3"))
+
+    assert result["dataset_id"] == "upload:my_mission.db3"
+    assert result["selectable"] is True
+    assert (upload_dir / "my_mission.db3").is_file()
+
+
+def test_upload_rejects_unsupported_extensions(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(api_module, "UPLOAD_DIR", tmp_path)
+
+    class UploadRequest:
+        headers: dict[str, str] = {}
+
+        async def stream(self):
+            yield b"not-a-bag"
+
+    with pytest.raises(HTTPException, match="supported ROS recording"):
+        asyncio.run(api_module.upload_dataset(UploadRequest(), "archive.zip"))
+
+
+@pytest.mark.parametrize("suffix", [".bag", ".db3", ".mcap"])
+def test_upload_rejects_malformed_recordings_without_leaving_temporary_files(
+    suffix, tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setattr(api_module, "UPLOAD_DIR", tmp_path)
+
+    class UploadRequest:
+        headers: dict[str, str] = {}
+
+        async def stream(self):
+            yield b"not-a-ros-bag"
+
+    with pytest.raises(HTTPException) as raised:
+        asyncio.run(api_module.upload_dataset(UploadRequest(), f"broken{suffix}"))
+
+    assert raised.value.status_code == 422
+    assert not list(tmp_path.iterdir())
 
 
 def test_api_restart_resumes_pending_summary_verification(monkeypatch) -> None:

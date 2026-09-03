@@ -45,6 +45,8 @@ PREFERRED_DOMAIN_METRICS = frozenset(
         "max_acceleration_magnitude",
         "max_angular_velocity",
         "p95_speed_tracking_error",
+        "p95_response_latency",
+        "unmatched_response_count",
         "unresponsive_command_count",
         "frame_cycle_count",
         "translation_path_length",
@@ -55,6 +57,11 @@ PREFERRED_DOMAIN_METRICS = frozenset(
         "minimum_sharpness",
         "mean_depth",
         "mean_valid_pixel_fraction",
+        "minimum_valid_range_fraction",
+        "empty_scan_count",
+        "mean_point_count",
+        "incomplete_payload_count",
+        "missing_xyz_count",
         "deserialization_error_count",
     }
 )
@@ -463,6 +470,34 @@ def _analyze_commands(
             ):
                 unresponsive_samples.append((row["timestamp_ns"], commanded_speed))
 
+        transition_indices = [
+            index
+            for index, speed in enumerate(command_speeds)
+            if speed >= config.command_motion_threshold_mps
+            and (index == 0 or command_speeds[index - 1] < config.command_motion_threshold_mps)
+        ]
+        response_latencies_ms: list[float] = []
+        unmatched_transitions: list[dict[str, Any]] = []
+        for transition_index in transition_indices:
+            transition = rows[transition_index]
+            start_index = bisect.bisect_left(odometry_times, transition["timestamp_ns"])
+            deadline = transition["timestamp_ns"] + config.command_response_window_ns
+            end_index = bisect.bisect_right(odometry_times, deadline)
+            response_index = next(
+                (
+                    index
+                    for index in range(start_index, end_index)
+                    if odometry_speeds[index] > config.stationary_speed_threshold_mps
+                ),
+                None,
+            )
+            if response_index is None:
+                unmatched_transitions.append(transition)
+            else:
+                response_latencies_ms.append(
+                    (odometry_times[response_index] - transition["timestamp_ns"]) / 1_000_000
+                )
+
         p95_error = _quantile(tracking_errors, 0.95)
         _metric(
             metrics,
@@ -508,6 +543,77 @@ def _analyze_commands(
             "messages",
             status="warn" if unresponsive_samples else "ok",
         )
+        _metric(
+            metrics,
+            bag_id,
+            "command",
+            topic,
+            "response_transition_count",
+            len(transition_indices),
+            "transitions",
+        )
+        _metric(
+            metrics,
+            bag_id,
+            "command",
+            topic,
+            "matched_response_count",
+            len(response_latencies_ms),
+            "transitions",
+        )
+        _metric(
+            metrics,
+            bag_id,
+            "command",
+            topic,
+            "unmatched_response_count",
+            len(unmatched_transitions),
+            "transitions",
+            status="warn" if unmatched_transitions else "ok",
+        )
+        if response_latencies_ms:
+            _metric(
+                metrics,
+                bag_id,
+                "command",
+                topic,
+                "mean_response_latency",
+                sum(response_latencies_ms) / len(response_latencies_ms),
+                "ms",
+            )
+            _metric(
+                metrics,
+                bag_id,
+                "command",
+                topic,
+                "p95_response_latency",
+                _quantile(response_latencies_ms, 0.95) or 0.0,
+                "ms",
+            )
+            _metric(
+                metrics,
+                bag_id,
+                "command",
+                topic,
+                "max_response_latency",
+                max(response_latencies_ms),
+                "ms",
+            )
+        for transition in unmatched_transitions:
+            _event(
+                events,
+                bag_id,
+                "command",
+                topic,
+                transition["timestamp_ns"],
+                transition["timestamp_ns"] + config.command_response_window_ns,
+                "warn",
+                "command_response_timeout",
+                config.command_response_window_ns / 1_000_000,
+                config.command_response_window_ns / 1_000_000,
+                "ms",
+                "No motion response was observed within the configured response window.",
+            )
         for start, end, maximum, count in _group_samples(
             unresponsive_samples, config.event_merge_gap_ns
         ):
@@ -977,6 +1083,139 @@ def _analyze_images(
             )
 
 
+def _analyze_laser_scans(
+    frame: pl.DataFrame,
+    config: DomainAnalyticsConfig,
+    metrics: list[dict[str, Any]],
+    events: list[dict[str, Any]],
+) -> None:
+    for partition in frame.partition_by(["bag_id", "topic"], maintain_order=True):
+        rows = sorted(partition.iter_rows(named=True), key=lambda row: row["timestamp_ns"])
+        bag_id = rows[0]["bag_id"]
+        topic = rows[0]["topic"]
+        fractions = [row["valid_range_fraction"] for row in rows]
+        empty_samples = [
+            (row["timestamp_ns"], 1.0) for row in rows if row["valid_range_count"] == 0
+        ]
+        low_valid_samples = [
+            (row["timestamp_ns"], config.laser_min_valid_range_fraction - fraction)
+            for row, fraction in zip(rows, fractions, strict=True)
+            if fraction < config.laser_min_valid_range_fraction
+        ]
+        minimum_fraction = min(fractions)
+        _metric(metrics, bag_id, "laser_scan", topic, "scan_count", len(rows), "scans")
+        _metric(
+            metrics,
+            bag_id,
+            "laser_scan",
+            topic,
+            "mean_beam_count",
+            sum(row["beam_count"] for row in rows) / len(rows),
+            "beams/scan",
+        )
+        _metric(
+            metrics,
+            bag_id,
+            "laser_scan",
+            topic,
+            "mean_valid_range_fraction",
+            sum(fractions) / len(fractions),
+            "ratio",
+        )
+        _metric(
+            metrics,
+            bag_id,
+            "laser_scan",
+            topic,
+            "minimum_valid_range_fraction",
+            minimum_fraction,
+            "ratio",
+            status=("warn" if minimum_fraction < config.laser_min_valid_range_fraction else "ok"),
+            detail=(f"warning threshold {config.laser_min_valid_range_fraction:.3f} valid ranges"),
+        )
+        _metric(
+            metrics,
+            bag_id,
+            "laser_scan",
+            topic,
+            "empty_scan_count",
+            len(empty_samples),
+            "scans",
+            status="warn" if empty_samples else "ok",
+        )
+        for start, end, maximum_deficit, count in _group_samples(
+            low_valid_samples, config.event_merge_gap_ns
+        ):
+            _event(
+                events,
+                bag_id,
+                "laser_scan",
+                topic,
+                start,
+                end,
+                "warn",
+                "low_valid_range_fraction",
+                config.laser_min_valid_range_fraction - maximum_deficit,
+                config.laser_min_valid_range_fraction,
+                "ratio",
+                f"{count} scans were below the configured valid-range fraction.",
+            )
+
+
+def _analyze_point_clouds(
+    frame: pl.DataFrame,
+    metrics: list[dict[str, Any]],
+    events: list[dict[str, Any]],
+) -> None:
+    for partition in frame.partition_by(["bag_id", "topic"], maintain_order=True):
+        rows = sorted(partition.iter_rows(named=True), key=lambda row: row["timestamp_ns"])
+        bag_id = rows[0]["bag_id"]
+        topic = rows[0]["topic"]
+        empty = [row for row in rows if row["point_count"] == 0]
+        incomplete = [row for row in rows if not row["payload_complete"]]
+        missing_xyz = [row for row in rows if not row["has_xyz"]]
+        _metric(metrics, bag_id, "point_cloud", topic, "cloud_count", len(rows), "clouds")
+        _metric(
+            metrics,
+            bag_id,
+            "point_cloud",
+            topic,
+            "mean_point_count",
+            sum(row["point_count"] for row in rows) / len(rows),
+            "points/cloud",
+        )
+        for metric_name, affected, label in (
+            ("empty_cloud_count", empty, "empty point clouds"),
+            ("incomplete_payload_count", incomplete, "truncated point-cloud payloads"),
+            ("missing_xyz_count", missing_xyz, "point clouds without x/y/z fields"),
+        ):
+            _metric(
+                metrics,
+                bag_id,
+                "point_cloud",
+                topic,
+                metric_name,
+                len(affected),
+                "clouds",
+                status="warn" if affected else "ok",
+            )
+            if affected:
+                _event(
+                    events,
+                    bag_id,
+                    "point_cloud",
+                    topic,
+                    affected[0]["timestamp_ns"],
+                    affected[-1]["timestamp_ns"],
+                    "warn",
+                    metric_name.removesuffix("_count"),
+                    len(affected),
+                    0,
+                    "clouds",
+                    f"Detected {len(affected)} {label}.",
+                )
+
+
 def _analyze_extraction_errors(
     frame: pl.DataFrame,
     metrics: list[dict[str, Any]],
@@ -1019,11 +1258,43 @@ def build_domain_summary(
     metrics: pl.DataFrame,
     events: pl.DataFrame,
     record_counts: dict[str, int],
+    coverage: pl.DataFrame | None = None,
 ) -> dict[str, Any]:
     payload_error_count = record_counts.get("extraction_errors", 0)
     normalized_record_counts = {
         name: record_counts.get(name, 0)
-        for name in ("odometry", "imu", "commands", "transforms", "diagnostics", "images")
+        for name in (
+            "odometry",
+            "imu",
+            "commands",
+            "transforms",
+            "diagnostics",
+            "images",
+            "laser_scans",
+            "point_clouds",
+        )
+    }
+    coverage_rows = list(coverage.iter_rows(named=True)) if coverage is not None else []
+    coverage_statuses = Counter(row["analysis_status"] for row in coverage_rows)
+    total_messages = sum(row["message_count"] for row in coverage_rows)
+    analyzed_messages = sum(row["analyzed_message_count"] for row in coverage_rows)
+    coverage_gaps = [
+        {
+            "topic": row["topic"],
+            "message_type": row["message_type"],
+            "message_count": row["message_count"],
+            "status": row["analysis_status"],
+            "detail": row["detail"],
+        }
+        for row in coverage_rows
+        if row["analysis_status"] not in {"full", "no_messages"}
+    ]
+    coverage_summary = {
+        "status_counts": dict(coverage_statuses),
+        "total_message_count": total_messages,
+        "analyzed_message_count": analyzed_messages,
+        "analysis_ratio": analyzed_messages / total_messages if total_messages else None,
+        "gaps": coverage_gaps,
     }
     if not enabled:
         return {
@@ -1040,6 +1311,7 @@ def build_domain_summary(
             "metric_error_count": 0,
             "metric_status_counts": {},
             "key_metrics": [],
+            "coverage": coverage_summary,
         }
     domains = sorted(metrics.get_column("domain").unique().to_list()) if metrics.height else []
     event_severities = (
@@ -1085,6 +1357,7 @@ def build_domain_summary(
         "metric_error_count": metric_statuses["error"],
         "metric_status_counts": dict(metric_statuses),
         "key_metrics": key_metrics,
+        "coverage": coverage_summary,
     }
 
 
@@ -1110,6 +1383,10 @@ def run_domain_analysis(
             _analyze_diagnostics(records["diagnostics"], config, metric_rows, event_rows)
         if records["images"].height:
             _analyze_images(records["images"], config, metric_rows, event_rows)
+        if records["laser_scans"].height:
+            _analyze_laser_scans(records["laser_scans"], config, metric_rows, event_rows)
+        if records["point_clouds"].height:
+            _analyze_point_clouds(records["point_clouds"], metric_rows, event_rows)
         if records["extraction_errors"].height:
             _analyze_extraction_errors(records["extraction_errors"], metric_rows, event_rows)
 
@@ -1128,7 +1405,9 @@ def run_domain_analysis(
     metrics.write_parquet(output_dir / "domain_metrics.parquet", compression="zstd")
     events.write_parquet(output_dir / "anomaly_events.parquet", compression="zstd")
     record_counts = {name: frame.height for name, frame in records.items()}
-    summary = build_domain_summary(config.enabled, metrics, events, record_counts)
+    coverage_path = output_dir / "analysis_coverage.parquet"
+    coverage = pl.read_parquet(coverage_path) if coverage_path.exists() else None
+    summary = build_domain_summary(config.enabled, metrics, events, record_counts, coverage)
     (output_dir / "domain_summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
@@ -1190,6 +1469,29 @@ def render_bag_report(
             "- Normalized payload records: "
             + ", ".join(f"{name} **{count}**" for name, count in domain["record_counts"].items()),
             f"- Payload extraction errors: **{domain['payload_extraction_error_count']}**",
+            f"- Messages with payload analysis: **{domain['coverage']['analyzed_message_count']}** "
+            f"of **{domain['coverage']['total_message_count']}**",
+            "",
+        ]
+    )
+    coverage_gaps = domain["coverage"]["gaps"]
+    if coverage_gaps:
+        lines.extend(
+            [
+                "| Topic | Message type | Messages | Coverage | Detail |",
+                "| --- | --- | ---: | --- | --- |",
+            ]
+        )
+        for gap in coverage_gaps:
+            lines.append(
+                f"| `{_markdown_text(gap['topic'])}` | "
+                f"`{_markdown_text(gap['message_type'])}` | {gap['message_count']} | "
+                f"{gap['status']} | {_markdown_text(gap['detail'])} |"
+            )
+    else:
+        lines.append("All observed messages were covered by registered payload analyzers.")
+    lines.extend(
+        [
             "",
             "## Key Metrics",
             "",

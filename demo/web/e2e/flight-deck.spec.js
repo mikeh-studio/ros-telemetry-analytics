@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
 
+function formatTime(milliseconds) {
+  const seconds = Math.max(0, Math.floor(milliseconds / 1000));
+  return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
 test("completed recorded mission is operationally trustworthy", async ({ page }) => {
   const pageErrors = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
@@ -14,14 +19,19 @@ test("completed recorded mission is operationally trustworthy", async ({ page })
   }
   await expect(readiness.getByText("ready", { exact: true })).toHaveCount(5, { timeout: 30_000 });
 
+  const snapshotResponse = await page.request.get("http://localhost:8000/api/runs/current/snapshot");
+  const snapshot = await snapshotResponse.json();
+
   const mission = page.locator(".mission-identity");
   await expect(mission.locator(".status-pill")).toHaveText("completed", { timeout: 30_000 });
-  await expect(page.locator(".elapsed")).toHaveText("01:30 / 01:30");
+  await expect(page.getByRole("combobox", { name: "Dataset" })).toHaveValue(snapshot.dataset_id);
+  const elapsed = formatTime(snapshot.mission_duration_ms);
+  await expect(page.locator(".elapsed")).toHaveText(`${elapsed} / ${elapsed}`);
 
-  await expect(page.locator(".telemetry-table tbody tr")).toHaveCount(4);
-  await expect(page.locator(".telemetry-table tbody .status-pill")).toHaveCount(4);
+  await expect(page.locator(".telemetry-table tbody tr")).toHaveCount(snapshot.topic_count);
+  await expect(page.locator(".telemetry-table tbody .status-pill")).toHaveCount(snapshot.topic_count);
   await page.locator(".technical summary").click();
-  await expect(page.getByText("4 / 4 topic summaries independently verified")).toBeVisible();
+  await expect(page.getByText(`${snapshot.topic_count} / ${snapshot.topic_count} topic summaries independently verified`)).toBeVisible();
   await expect(page.getByText("Flink job available")).toBeVisible();
   expect(pageErrors).toEqual([]);
 });
@@ -118,9 +128,12 @@ test("mobile controls and readiness remain usable", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
 
+  const snapshotResponse = await page.request.get("http://localhost:8000/api/runs/current/snapshot");
+  const snapshot = await snapshotResponse.json();
+
   await expect(page.getByRole("region", { name: "Stack readiness" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Start mission" })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Scenario" })).toBeVisible();
-  await expect(page.locator(".telemetry-table tbody tr")).toHaveCount(4);
+  await expect(page.locator(".telemetry-table tbody tr")).toHaveCount(snapshot.topic_count);
   await expect(page.locator("main")).toHaveCSS("width", "390px");
 });

@@ -39,6 +39,34 @@ final class JsonSchemaContractTest {
         assertInvalid("telemetry-anomaly-v1.schema.json", anomaly);
     }
 
+    @Test
+    void datasetRegistrationMetadataSatisfiesSharedEnvelopeSchema() throws Exception {
+        ObjectNode envelope = JsonSupport.object();
+        envelope.put("schema_version", 1);
+        envelope.put("envelope_id", JsonSupport.sha256("dataset-registration"));
+        envelope.put("envelope_type", "topic_registered");
+        envelope.put("run_id", "run-1");
+        envelope.put("robot_id", "robot-17");
+        envelope.put("topic", "/scan");
+        envelope.put("event_timestamp_ns", 1_000_000_000L);
+        envelope.put("stream_timestamp_ms", 10_000L);
+        envelope.put("ingest_timestamp_ms", 10_001L);
+        ObjectNode body = envelope.putObject("body");
+        body.put("message_type", "sensor_msgs/msg/LaserScan");
+        body.put("expected_rate_hz", 15.0);
+        body.put("expected_topic_count", 7);
+        body.put("dataset_id", "lilocbench_dynamics_0");
+        body.put("dataset_name", "LILocBench Dynamics 0");
+        body.put("source_format", "rosbag1");
+        body.put("mission_duration_ms", 159_978L);
+        body.put("startup_grace_ms", 2_000L);
+        body.put("dropout_threshold_ms", 1_000L);
+
+        assertValid("telemetry-envelope-v1.schema.json", envelope);
+        body.put("expected_topic_count", 0);
+        assertInvalid("telemetry-envelope-v1.schema.json", envelope);
+    }
+
     private static ObjectNode metric() {
         ObjectNode metric = JsonSupport.object();
         metric.put("schema_version", 1);

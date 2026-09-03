@@ -172,6 +172,8 @@ def test_domain_analyzers_emit_metrics_events_and_report(tmp_path: Path) -> None
         "transforms": 3,
         "diagnostics": 1,
         "images": 2,
+        "laser_scans": 0,
+        "point_clouds": 0,
     }
     assert domain_summary["payload_extraction_error_count"] == 1
     assert domain_summary["metric_error_count"] == 1
@@ -236,6 +238,8 @@ def test_disabled_domain_analysis_publishes_empty_contract(tmp_path: Path) -> No
         "transforms": 0,
         "diagnostics": 0,
         "images": 0,
+        "laser_scans": 0,
+        "point_clouds": 0,
     }
     assert (tmp_path / "domain_metrics.parquet").exists()
     assert (tmp_path / "anomaly_events.parquet").exists()

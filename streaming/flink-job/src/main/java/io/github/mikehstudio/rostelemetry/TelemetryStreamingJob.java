@@ -228,7 +228,21 @@ public final class TelemetryStreamingJob {
         ObjectNode payload = node.putObject("payload");
         payload.put("status", status);
         payload.put("source", "recorded_replay");
+        JsonNode body = envelope.path("body");
+        copyText(body, payload, "dataset_id");
+        copyText(body, payload, "dataset_name");
+        copyText(body, payload, "source_format");
+        if (body.has("mission_duration_ms")) {
+            payload.put("mission_duration_ms", body.path("mission_duration_ms").asLong());
+        }
+        if (body.has("expected_topic_count")) {
+            payload.put("expected_topic_count", body.path("expected_topic_count").asInt());
+        }
         return JsonSupport.write(node);
+    }
+
+    private static void copyText(JsonNode source, ObjectNode destination, String field) {
+        if (source.hasNonNull(field)) destination.put(field, source.path(field).asText());
     }
 
     private static String env(String name, String defaultValue) {

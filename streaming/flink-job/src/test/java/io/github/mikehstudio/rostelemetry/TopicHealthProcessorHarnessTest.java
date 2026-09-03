@@ -145,6 +145,22 @@ final class TopicHealthProcessorHarnessTest {
     }
 
     @Test
+    void nonPeriodicTopicsEmitMetricsWithoutCadenceIncidents() throws Exception {
+        try (Harness harness = harness()) {
+            ObjectNode registration = registration(0, 0.04, 2_000, 100_001);
+            ((ObjectNode) registration.path("body")).put("rate_monitoring_enabled", false);
+            harness.process(registration);
+            harness.process(telemetry("static-1", 0, 0, 0));
+            harness.watermark(20_000);
+
+            assertTrue(harness.sideValues(TopicHealthProcessor.ANOMALIES).isEmpty());
+            JsonNode window = harness.mainValues("topic_window").get(0);
+            assertEquals(false, window.path("payload").path("rate_monitoring_enabled").asBoolean());
+            assertEquals("healthy", window.path("payload").path("health_status").asText());
+        }
+    }
+
+    @Test
     void endEmitsEightyOneFullWindowsNinePartialsAndOneSummary() throws Exception {
         try (Harness harness = harness()) {
             harness.process(registration(0, 1.0, 2_000, 5_000));

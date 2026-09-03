@@ -67,6 +67,12 @@
             "properties": {
               "message_type": { "type": "string", "minLength": 1 },
               "expected_rate_hz": { "type": "number", "exclusiveMinimum": 0 },
+              "rate_monitoring_enabled": { "type": "boolean" },
+              "expected_topic_count": { "type": "integer", "minimum": 1 },
+              "dataset_id": { "type": "string", "minLength": 1, "maxLength": 255 },
+              "dataset_name": { "type": "string", "minLength": 1, "maxLength": 512 },
+              "source_format": { "type": "string", "minLength": 1, "maxLength": 128 },
+              "mission_duration_ms": { "type": "integer", "minimum": 1 },
               "startup_grace_ms": { "type": "integer", "minimum": 0 },
               "dropout_threshold_ms": { "type": "integer", "exclusiveMinimum": 0 }
             }

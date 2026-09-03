@@ -138,6 +138,72 @@ IMAGE_SCHEMA = pa.schema(
     ]
 )
 
+LASER_SCAN_SCHEMA = pa.schema(
+    [
+        ("bag_id", pa.string()),
+        ("sequence", pa.int64()),
+        ("topic", pa.string()),
+        ("timestamp_ns", pa.int64()),
+        ("source_timestamp_ns", pa.int64()),
+        ("frame_id", pa.string()),
+        ("angle_min", pa.float64()),
+        ("angle_max", pa.float64()),
+        ("angle_increment", pa.float64()),
+        ("scan_time_s", pa.float64()),
+        ("range_min", pa.float64()),
+        ("range_max", pa.float64()),
+        ("beam_count", pa.int64()),
+        ("finite_range_count", pa.int64()),
+        ("valid_range_count", pa.int64()),
+        ("below_min_count", pa.int64()),
+        ("above_max_count", pa.int64()),
+        ("intensity_count", pa.int64()),
+        ("valid_range_fraction", pa.float64()),
+        ("minimum_valid_range", pa.float64()),
+        ("mean_valid_range", pa.float64()),
+        ("maximum_valid_range", pa.float64()),
+    ]
+)
+
+POINT_CLOUD_SCHEMA = pa.schema(
+    [
+        ("bag_id", pa.string()),
+        ("sequence", pa.int64()),
+        ("topic", pa.string()),
+        ("timestamp_ns", pa.int64()),
+        ("source_timestamp_ns", pa.int64()),
+        ("frame_id", pa.string()),
+        ("height", pa.int64()),
+        ("width", pa.int64()),
+        ("point_count", pa.int64()),
+        ("field_count", pa.int64()),
+        ("field_names_json", pa.string()),
+        ("has_xyz", pa.bool_()),
+        ("is_bigendian", pa.bool_()),
+        ("point_step", pa.int64()),
+        ("row_step", pa.int64()),
+        ("data_bytes", pa.int64()),
+        ("expected_data_bytes", pa.int64()),
+        ("payload_complete", pa.bool_()),
+        ("is_dense", pa.bool_()),
+    ]
+)
+
+ANALYSIS_COVERAGE_SCHEMA = pa.schema(
+    [
+        ("bag_id", pa.string()),
+        ("topic", pa.string()),
+        ("message_type", pa.string()),
+        ("message_count", pa.int64()),
+        ("analysis_status", pa.string()),
+        ("domain", pa.string()),
+        ("analyzed_message_count", pa.int64()),
+        ("extraction_error_count", pa.int64()),
+        ("analysis_ratio", pa.float64()),
+        ("detail", pa.string()),
+    ]
+)
+
 EXTRACTION_ERROR_SCHEMA = pa.schema(
     [
         ("bag_id", pa.string()),
@@ -157,6 +223,8 @@ DOMAIN_SCHEMAS = {
     "transforms": TRANSFORM_SCHEMA,
     "diagnostics": DIAGNOSTIC_SCHEMA,
     "images": IMAGE_SCHEMA,
+    "laser_scans": LASER_SCAN_SCHEMA,
+    "point_clouds": POINT_CLOUD_SCHEMA,
     "extraction_errors": EXTRACTION_ERROR_SCHEMA,
 }
 
@@ -464,7 +532,78 @@ def _image_row(
     }
 
 
-def _message_kind(message_type: str) -> str | None:
+def _laser_scan_row(
+    bag_id: str,
+    sequence: int,
+    topic: str,
+    timestamp_ns: int,
+    message: Any,
+) -> dict[str, Any]:
+    ranges = np.asarray(message.ranges, dtype=np.float64).reshape(-1)
+    finite = np.isfinite(ranges)
+    below_min = finite & (ranges < float(message.range_min))
+    above_max = finite & (ranges > float(message.range_max))
+    valid = finite & ~below_min & ~above_max
+    valid_ranges = ranges[valid]
+    beam_count = int(ranges.size)
+    return {
+        **_base_row(bag_id, sequence, topic, timestamp_ns),
+        "source_timestamp_ns": _stamp_ns(message.header),
+        "frame_id": _frame_id(message.header),
+        "angle_min": float(message.angle_min),
+        "angle_max": float(message.angle_max),
+        "angle_increment": float(message.angle_increment),
+        "scan_time_s": float(message.scan_time),
+        "range_min": float(message.range_min),
+        "range_max": float(message.range_max),
+        "beam_count": beam_count,
+        "finite_range_count": int(finite.sum()),
+        "valid_range_count": int(valid.sum()),
+        "below_min_count": int(below_min.sum()),
+        "above_max_count": int(above_max.sum()),
+        "intensity_count": int(np.asarray(message.intensities).size),
+        "valid_range_fraction": float(valid.mean()) if beam_count else 0.0,
+        "minimum_valid_range": float(valid_ranges.min()) if valid_ranges.size else None,
+        "mean_valid_range": float(valid_ranges.mean()) if valid_ranges.size else None,
+        "maximum_valid_range": float(valid_ranges.max()) if valid_ranges.size else None,
+    }
+
+
+def _point_cloud_row(
+    bag_id: str,
+    sequence: int,
+    topic: str,
+    timestamp_ns: int,
+    message: Any,
+) -> dict[str, Any]:
+    height = int(message.height)
+    width = int(message.width)
+    row_step = int(message.row_step)
+    data_bytes = int(np.asarray(message.data, dtype=np.uint8).size)
+    fields = [str(field.name) for field in message.fields]
+    normalized_fields = {name.lower() for name in fields}
+    expected_data_bytes = max(0, height * row_step)
+    return {
+        **_base_row(bag_id, sequence, topic, timestamp_ns),
+        "source_timestamp_ns": _stamp_ns(message.header),
+        "frame_id": _frame_id(message.header),
+        "height": height,
+        "width": width,
+        "point_count": max(0, height * width),
+        "field_count": len(fields),
+        "field_names_json": json.dumps(fields, separators=(",", ":")),
+        "has_xyz": {"x", "y", "z"}.issubset(normalized_fields),
+        "is_bigendian": bool(message.is_bigendian),
+        "point_step": int(message.point_step),
+        "row_step": row_step,
+        "data_bytes": data_bytes,
+        "expected_data_bytes": expected_data_bytes,
+        "payload_complete": data_bytes >= expected_data_bytes,
+        "is_dense": bool(message.is_dense),
+    }
+
+
+def message_kind(message_type: str) -> str | None:
     canonical = message_type.lower().replace("/msg/", "/")
     return {
         "nav_msgs/odometry": "odometry",
@@ -477,7 +616,25 @@ def _message_kind(message_type: str) -> str | None:
         "diagnostic_msgs/diagnosticarray": "diagnostics",
         "sensor_msgs/compressedimage": "compressed_image",
         "sensor_msgs/image": "image",
+        "sensor_msgs/laserscan": "laser_scan",
+        "sensor_msgs/pointcloud2": "point_cloud",
     }.get(canonical)
+
+
+def _kind_domain(kind: str | None) -> str:
+    return {
+        "odometry": "odometry",
+        "imu": "imu",
+        "twist": "command",
+        "twist_stamped": "command",
+        "tf_message": "tf",
+        "transform_stamped": "tf",
+        "diagnostics": "diagnostics",
+        "image": "image",
+        "compressed_image": "image",
+        "laser_scan": "laser_scan",
+        "point_cloud": "point_cloud",
+    }.get(kind, "unclassified")
 
 
 class DomainRecordWriter:
@@ -497,6 +654,8 @@ class DomainRecordWriter:
         self.batch_size = batch_size
         self.buffers: dict[str, list[dict[str, Any]]] = {name: [] for name in DOMAIN_SCHEMAS}
         self.writers: dict[str, pq.ParquetWriter] = {}
+        self.analyzed_counts: dict[tuple[str, str], int] = {}
+        self.error_counts: dict[tuple[str, str], int] = {}
 
     def _add(self, dataset: str, row: dict[str, Any]) -> None:
         self.buffers[dataset].append(row)
@@ -528,7 +687,7 @@ class DomainRecordWriter:
     ) -> None:
         if not self.config.enabled:
             return
-        kind = _message_kind(connection.msgtype)
+        kind = message_kind(connection.msgtype)
         if kind in {"twist", "twist_stamped"} and not self.config.is_command_topic(
             connection.topic
         ):
@@ -587,7 +746,23 @@ class DomainRecordWriter:
                         compressed=kind == "compressed_image",
                     ),
                 )
+            elif kind == "laser_scan":
+                self._add(
+                    "laser_scans",
+                    _laser_scan_row(self.bag_id, sequence, connection.topic, timestamp_ns, message),
+                )
+            elif kind == "point_cloud":
+                self._add(
+                    "point_clouds",
+                    _point_cloud_row(
+                        self.bag_id, sequence, connection.topic, timestamp_ns, message
+                    ),
+                )
+            key = (connection.topic, connection.msgtype)
+            self.analyzed_counts[key] = self.analyzed_counts.get(key, 0) + 1
         except Exception as exc:
+            key = (connection.topic, connection.msgtype)
+            self.error_counts[key] = self.error_counts.get(key, 0) + 1
             self._add(
                 "extraction_errors",
                 {
@@ -598,7 +773,7 @@ class DomainRecordWriter:
                 },
             )
 
-    def close(self) -> None:
+    def close(self, topic_counts: dict[tuple[str, str], int] | None = None) -> None:
         for dataset in DOMAIN_SCHEMAS:
             self._flush(dataset)
         for writer in self.writers.values():
@@ -607,3 +782,52 @@ class DomainRecordWriter:
             path = self.output_dir / f"{dataset}.parquet"
             if not path.exists():
                 pq.write_table(pa.Table.from_pylist([], schema=schema), path, compression="zstd")
+        coverage_rows: list[dict[str, Any]] = []
+        for (topic, message_type), message_count in sorted((topic_counts or {}).items()):
+            kind = message_kind(message_type)
+            command_filtered = kind in {
+                "twist",
+                "twist_stamped",
+            } and not self.config.is_command_topic(topic)
+            analyzed_count = self.analyzed_counts.get((topic, message_type), 0)
+            error_count = self.error_counts.get((topic, message_type), 0)
+            if not self.config.enabled:
+                status = "disabled"
+                detail = "Payload analysis is disabled; timing analysis remains available."
+            elif kind is None:
+                status = "timing_only"
+                detail = "No payload analyzer is registered for this message type."
+            elif command_filtered:
+                status = "timing_only"
+                detail = "Twist payload was not selected by the command-topic patterns."
+            elif not message_count:
+                status = "no_messages"
+                detail = "The bag declared this topic/type but contained no messages."
+            elif analyzed_count == message_count and not error_count:
+                status = "full"
+                detail = "Every message was processed by the registered payload analyzer."
+            elif analyzed_count:
+                status = "partial"
+                detail = "Some messages could not be processed by the payload analyzer."
+            else:
+                status = "failed"
+                detail = "No messages could be processed by the registered payload analyzer."
+            coverage_rows.append(
+                {
+                    "bag_id": self.bag_id,
+                    "topic": topic,
+                    "message_type": message_type,
+                    "message_count": message_count,
+                    "analysis_status": status,
+                    "domain": _kind_domain(kind),
+                    "analyzed_message_count": analyzed_count,
+                    "extraction_error_count": error_count,
+                    "analysis_ratio": (analyzed_count / message_count if message_count else None),
+                    "detail": detail,
+                }
+            )
+        pq.write_table(
+            pa.Table.from_pylist(coverage_rows, schema=ANALYSIS_COVERAGE_SCHEMA),
+            self.output_dir.parent / "analysis_coverage.parquet",
+            compression="zstd",
+        )

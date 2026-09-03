@@ -180,7 +180,28 @@ def topic_registration_envelope(
     source_start_ns: int,
     stream_start_ms: int,
     startup_grace_ms: int,
+    expected_topic_count: int = 4,
+    dataset_id: str | None = None,
+    dataset_name: str | None = None,
+    source_format: str | None = None,
+    mission_duration_ms: int | None = None,
 ) -> dict[str, Any]:
+    body: dict[str, Any] = {
+        "message_type": topic_spec.message_type,
+        "expected_rate_hz": topic_spec.expected_rate_hz,
+        "rate_monitoring_enabled": topic_spec.rate_monitoring_enabled,
+        "expected_topic_count": expected_topic_count,
+        "startup_grace_ms": startup_grace_ms,
+        "dropout_threshold_ms": topic_spec.dropout_threshold_ms,
+    }
+    if dataset_id is not None:
+        body["dataset_id"] = dataset_id
+    if dataset_name is not None:
+        body["dataset_name"] = dataset_name
+    if source_format is not None:
+        body["source_format"] = source_format
+    if mission_duration_ms is not None:
+        body["mission_duration_ms"] = mission_duration_ms
     return envelope(
         envelope_type="topic_registered",
         run_id=run_id,
@@ -189,10 +210,5 @@ def topic_registration_envelope(
         event_timestamp_ns=source_start_ns,
         stream_timestamp_ms=stream_start_ms,
         ordinal=topic_spec.topic,
-        body={
-            "message_type": topic_spec.message_type,
-            "expected_rate_hz": topic_spec.expected_rate_hz,
-            "startup_grace_ms": startup_grace_ms,
-            "dropout_threshold_ms": topic_spec.dropout_threshold_ms,
-        },
+        body=body,
     )

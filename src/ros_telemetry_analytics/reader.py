@@ -281,7 +281,7 @@ def scan_bag(
             writer.close()
         finally:
             if domain_writer is not None:
-                domain_writer.close()
+                domain_writer.close(topic_counts)
 
     manifest_rows = []
     for (topic, message_type), count in sorted(topic_counts.items()):
