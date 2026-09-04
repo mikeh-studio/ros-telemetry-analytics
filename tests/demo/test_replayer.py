@@ -55,6 +55,111 @@ def test_topic_specs_are_inferred_for_uploaded_recordings() -> None:
     assert specs["/odom"].rate_monitoring_enabled is False
 
 
+@pytest.mark.parametrize(
+    "camera_offsets",
+    [
+        range(0, 50_001, 100),  # Stops halfway through the recording.
+        range(50_000, 100_001, 100),  # Starts halfway through the recording.
+        [*range(0, 20_001, 100), *range(80_000, 100_001, 100)],  # A long interior outage.
+    ],
+)
+def test_periodic_sensor_failures_do_not_disable_or_lower_the_baseline(camera_offsets) -> None:
+    records = [_camera_message(offset, index) for index, offset in enumerate(camera_offsets)]
+    next_sequence = len(records)
+    records.extend(
+        RecordedMessage(
+            next_sequence + index,
+            "/odom",
+            "nav_msgs/msg/Odometry",
+            1_700_000_000_000_000_000 + offset * 1_000_000,
+            offset,
+            10,
+        )
+        for index, offset in enumerate([0, 100_000])
+    )
+
+    camera = {spec.topic: spec for spec in infer_topic_specs(records)}["/camera/image_raw"]
+
+    assert camera.rate_monitoring_enabled is True
+    assert camera.expected_rate_hz == pytest.approx(10.0)
+    assert camera.dropout_threshold_ms == 1_000
+
+
+@pytest.mark.parametrize("topic", ["/tf_static", "/robot/tf_static"])
+def test_static_transforms_are_exempt_even_when_regular_and_full_coverage(topic: str) -> None:
+    records = [
+        RecordedMessage(index, topic, "tf2_msgs/msg/TFMessage", offset * 1_000_000, offset, 10)
+        for index, offset in enumerate(range(0, 100_001, 100))
+    ]
+
+    assert infer_topic_specs(records)[0].rate_monitoring_enabled is False
+
+
+@pytest.mark.parametrize(
+    ("message_type", "offsets"),
+    [
+        ("std_msgs/msg/String", range(0, 100_001, 100)),
+        ("diagnostic_msgs/msg/DiagnosticArray", [0, 1, 2, 3, 50_000, 50_001, 50_002]),
+        ("custom_msgs/msg/Event", [0, 1, 2, 3, 4, 5]),
+        ("sensor_msgs/msg/Image", [0, 0, 0, 0, 0, 0]),
+        ("custom_msgs/msg/Event", [0, 100, 400, 1100, 2600, 5700]),
+    ],
+)
+def test_event_driven_or_insufficient_cadence_evidence_remains_exempt(
+    message_type, offsets
+) -> None:
+    records = [
+        RecordedMessage(index, "/events", message_type, offset * 1_000_000, offset, 10)
+        for index, offset in enumerate(offsets)
+    ]
+
+    assert infer_topic_specs(records)[0].rate_monitoring_enabled is False
+
+
+def test_irregular_continuous_sensor_remains_monitored() -> None:
+    records = [
+        _camera_message(offset, index)
+        for index, offset in enumerate([0, 100, 400, 1100, 2600, 5700])
+    ]
+
+    assert infer_topic_specs(records)[0].rate_monitoring_enabled is True
+
+
+def test_camera_baseline_tolerates_jitter_missing_frames_and_duplicate_timestamps() -> None:
+    records = [
+        _camera_message(offset, index)
+        for index, offset in enumerate([0, 90, 200, 300, 410, 500, 500, 500, 800, 900, 1_000])
+    ]
+
+    spec = infer_topic_specs(records)[0]
+    assert spec.rate_monitoring_enabled is True
+    assert spec.expected_rate_hz == pytest.approx(10.0)
+
+
+def test_imu_cadence_uses_source_nanoseconds_not_rounded_replay_offsets() -> None:
+    records = [
+        RecordedMessage(index, "/imu", "sensor_msgs/msg/Imu", timestamp, 0, 10)
+        for index, timestamp in enumerate([0, 100_000, 200_000])
+    ]
+
+    spec = infer_topic_specs(records)[0]
+    assert spec.rate_monitoring_enabled is True
+    assert spec.expected_rate_hz == pytest.approx(10_000.0)
+
+
+def test_custom_type_with_sustained_regular_cadence_is_monitored() -> None:
+    records = [
+        RecordedMessage(
+            index, "/custom_sensor", "custom_msgs/msg/Sample", offset * 1_000_000, offset, 10
+        )
+        for index, offset in enumerate(range(0, 100_001, 100))
+    ]
+
+    spec = infer_topic_specs(records)[0]
+    assert spec.rate_monitoring_enabled is True
+    assert spec.expected_rate_hz == pytest.approx(10.0)
+
+
 def test_topic_specs_disable_rate_monitoring_for_startup_bursts() -> None:
     sensor_records = [
         RecordedMessage(
@@ -85,6 +190,56 @@ def test_topic_specs_disable_rate_monitoring_for_startup_bursts() -> None:
     assert specs["/tf_static"].rate_monitoring_enabled is False
     assert specs["/tf_static"].expected_rate_hz == pytest.approx(0.04)
     assert specs["/tf_static"].dropout_threshold_ms == 100_001
+
+
+@pytest.mark.anyio
+async def test_uploaded_stopped_camera_publishes_monitored_registration(
+    tmp_path, monkeypatch
+) -> None:
+    source = tmp_path / "stopped-camera.bag"
+    source.touch()
+    records = [_camera_message(offset, index) for index, offset in enumerate(range(0, 50_001, 100))]
+    records.append(
+        RecordedMessage(
+            501, "/odom", "nav_msgs/msg/Odometry", 1_700_000_100_000_000_000, 100_000, 10
+        )
+    )
+    monkeypatch.setattr("demo.replayer.engine.load_recorded_messages", lambda _path: records)
+    dataset = ReplayDataset(
+        dataset_id="upload:stopped-camera.bag",
+        name="Stopped camera",
+        description="Regression",
+        source="user_upload",
+        file_format="rosbag1",
+        path=source,
+        status="ready",
+        uploaded=True,
+    )
+    publisher = CapturingPublisher()
+    clock = VirtualClock()
+    engine = ReplayEngine(
+        config=load_streaming_config(ROOT / "configs/streaming_demo.yaml"),
+        fixture_path=source,
+        scenario_path=ROOT / "demo/scenarios/camera-dropout.yaml",
+        epoch_state_path=tmp_path / "epoch.json",
+        publisher=publisher,
+        dataset_resolver=lambda _dataset_id: dataset,
+        monotonic=clock.monotonic,
+        sleep=clock.sleep,
+    )
+
+    await engine.start(replay_rate=5, scenario_name=None, dataset_id=dataset.dataset_id)
+    await engine.wait_for_completion()
+
+    registration = next(
+        value
+        for _key, value in publisher.messages
+        if value["envelope_type"] == "topic_registered" and value["topic"] == "/camera/image_raw"
+    )
+    assert registration["body"]["rate_monitoring_enabled"] is True
+    assert registration["body"]["expected_rate_hz"] == 10.0
+    assert registration["body"]["dropout_threshold_ms"] == 1_000
+    assert registration["body"]["mission_duration_ms"] == 100_000
 
 
 @pytest.mark.anyio

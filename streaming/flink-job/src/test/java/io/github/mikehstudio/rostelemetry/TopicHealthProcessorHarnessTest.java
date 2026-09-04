@@ -145,6 +145,41 @@ final class TopicHealthProcessorHarnessTest {
     }
 
     @Test
+    void stoppedInferredCameraOpensGapAndRemainsDegradedUntilMissionEnd() throws Exception {
+        try (Harness harness = harness()) {
+            // Contract emitted by test_uploaded_stopped_camera_publishes_monitored_registration.
+            ObjectNode cameraRegistration = registration(0, 10.0, 2_000, 1_000);
+            ((ObjectNode) cameraRegistration.path("body")).put("rate_monitoring_enabled", true);
+            harness.process(cameraRegistration);
+            for (int index = 0; index <= 500; index++) {
+                long timestamp = index * 100L;
+                harness.process(telemetry("camera-" + index, timestamp, index, timestamp * 1_000_000));
+                harness.watermark(timestamp);
+            }
+            harness.watermark(50_999);
+            assertTrue(harness.sideValues(TopicHealthProcessor.ANOMALIES).isEmpty());
+            harness.watermark(51_000);
+
+            List<JsonNode> incidents = harness.sideValues(TopicHealthProcessor.ANOMALIES);
+            assertEquals(1, incidents.size());
+            assertEquals("GAP", incidents.get(0).path("condition_type").asText());
+            assertEquals("active", incidents.get(0).path("status").asText());
+            assertEquals(JsonSupport.sha256(RUN, ROBOT, TOPIC, "GAP", 51_000),
+                    incidents.get(0).path("anomaly_id").asText());
+
+            // Other topics keep the recording's watermark progressing after the camera stops.
+            harness.watermark(100_000);
+            JsonNode finalWindow = harness.mainValues("topic_window").stream()
+                    .filter(node -> node.path("window_end_ms").asLong() == 100_000)
+                    .findFirst().orElseThrow();
+            assertEquals("degraded", finalWindow.path("payload").path("health_status").asText());
+            assertTrue(finalWindow.path("payload").path("rate_monitoring_enabled").asBoolean());
+            assertEquals(1, harness.sideValues(TopicHealthProcessor.ANOMALIES).stream()
+                    .filter(node -> node.path("condition_type").asText().equals("GAP")).count());
+        }
+    }
+
+    @Test
     void nonPeriodicTopicsEmitMetricsWithoutCadenceIncidents() throws Exception {
         try (Harness harness = harness()) {
             ObjectNode registration = registration(0, 0.04, 2_000, 100_001);
