@@ -75,3 +75,47 @@ def test_discovery_isolates_a_source_that_vanishes(tmp_path: Path, monkeypatch) 
 
     assert [source.path for source in sources] == [good]
     assert errors[0][0] == vanished
+
+
+@pytest.mark.parametrize("ros2_directory", [False, True])
+def test_discovery_surfaces_directory_traversal_errors(
+    tmp_path: Path, monkeypatch, ros2_directory: bool
+) -> None:
+    blocked = tmp_path / "blocked"
+    blocked.mkdir()
+    if ros2_directory:
+        (blocked / "metadata.yaml").write_text("{}", encoding="utf-8")
+    (blocked / "recording.db3").write_bytes(b"unreadable recording")
+    good = tmp_path / "good.bag"
+    good.write_bytes(b"healthy recording")
+    real_scandir = discovery.os.scandir
+
+    def flaky_scandir(path):
+        if not isinstance(path, int) and Path(path) == blocked:
+            raise PermissionError(13, "temporarily inaccessible", str(path))
+        return real_scandir(path)
+
+    monkeypatch.setattr(discovery.os, "scandir", flaky_scandir)
+    with pytest.raises(PermissionError, match="temporarily inaccessible"):
+        discover_bags([tmp_path])
+
+    errors = []
+    sources = discover_bags([tmp_path], on_error=lambda path, exc: errors.append((path, exc)))
+    assert [source.path for source in sources] == [good]
+    assert len(errors) == 1
+    assert errors[0][0] == blocked
+    assert isinstance(errors[0][1], PermissionError)
+
+
+def test_discovery_isolates_missing_root_when_error_handler_is_supplied(tmp_path: Path) -> None:
+    missing = tmp_path / "missing"
+    good = tmp_path / "good.bag"
+    good.write_bytes(b"healthy recording")
+    errors = []
+
+    sources = discover_bags([missing, good], on_error=lambda path, exc: errors.append((path, exc)))
+
+    assert [source.path for source in sources] == [good]
+    assert len(errors) == 1
+    assert errors[0][0] == missing
+    assert isinstance(errors[0][1], FileNotFoundError)

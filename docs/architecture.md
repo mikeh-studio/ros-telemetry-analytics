@@ -114,8 +114,10 @@ sides, and compile-time contract checks cover the exactly-once sink settings.
 Outputs are partitioned by `bag_id`; one bad input cannot corrupt another bag's
 published results. `summary.json` and run manifests carry `schema_version: 1`.
 Breaking field changes require a schema-version increment and migration notes.
-Bag IDs include a stable path hash. Each locked run reconciles `bags/` against
-the current inventory and removes outputs for sources that disappeared.
+Bag IDs include a stable path hash. After complete discovery, each locked run
+reconciles `bags/` against the current inventory and removes outputs for sources
+that disappeared. Root, traversal, or fingerprint failures defer reconciliation
+and preserve prior outputs until a complete scan can confirm removals.
 
 `relationship_health.parquet` is the generic cross-topic contract. Each row
 names the relationship and its source, identifies both topics, and reports

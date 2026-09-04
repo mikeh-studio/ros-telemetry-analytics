@@ -46,12 +46,15 @@ def _source_files(path: Path) -> list[Path]:
     if path.is_file():
         return [path]
     files = [path / "metadata.yaml"]
-    files.extend(
-        child
-        for child in path.rglob("*")
-        if child.is_file() and child.suffix.lower() in BAG_SUFFIXES
-    )
-    return sorted({child.resolve() for child in files if child.exists()})
+    for current, _directories, names in os.walk(path, onerror=_raise_walk_error):
+        files.extend(
+            Path(current) / name for name in names if Path(name).suffix.lower() in BAG_SUFFIXES
+        )
+    return sorted({child.resolve() for child in files})
+
+
+def _raise_walk_error(exc: OSError) -> None:
+    raise exc
 
 
 def _fingerprint(path: Path) -> tuple[str, int]:
@@ -71,7 +74,11 @@ def _fingerprint(path: Path) -> tuple[str, int]:
     return hashlib.sha256(encoded).hexdigest(), total_size
 
 
-def _candidate_paths(root: Path, excluded_names: frozenset[str]) -> list[tuple[Path, Path]]:
+def _candidate_paths(
+    root: Path,
+    excluded_names: frozenset[str],
+    on_error: Callable[[Path, OSError], None] | None = None,
+) -> list[tuple[Path, Path]]:
     if not root.exists():
         raise FileNotFoundError(f"Input path does not exist: {root}")
     if root.is_file():
@@ -82,7 +89,13 @@ def _candidate_paths(root: Path, excluded_names: frozenset[str]) -> list[tuple[P
         return [(root.resolve(), root.parent.resolve())]
 
     candidates: list[tuple[Path, Path]] = []
-    for current, directory_names, file_names in os.walk(root):
+
+    def report_walk_error(exc: OSError) -> None:
+        if on_error is None:
+            raise exc
+        on_error(Path(exc.filename) if exc.filename else root, exc)
+
+    for current, directory_names, file_names in os.walk(root, onerror=report_walk_error):
         current_path = Path(current)
         directory_names[:] = sorted(name for name in directory_names if name not in excluded_names)
 
@@ -103,13 +116,24 @@ def discover_bags(
     excluded_directory_names: frozenset[str] = frozenset({"downloads"}),
     on_error: Callable[[Path, OSError], None] | None = None,
 ) -> list[BagSource]:
-    """Discover one canonical source per bag across all configured roots."""
+    """Discover canonical sources, reporting root, traversal, and fingerprint errors.
+
+    When an error handler is supplied, the returned source list may be incomplete.
+    """
     candidates: dict[Path, Path] = {}
     for root in roots:
-        for source_path, discovery_root in _candidate_paths(
-            root.expanduser().resolve(),
-            excluded_directory_names,
-        ):
+        try:
+            root_candidates = _candidate_paths(
+                root.expanduser().resolve(),
+                excluded_directory_names,
+                on_error,
+            )
+        except OSError as exc:
+            if on_error is None:
+                raise
+            on_error(root, exc)
+            continue
+        for source_path, discovery_root in root_candidates:
             candidates.setdefault(source_path, discovery_root)
 
     base_ids: list[str] = []

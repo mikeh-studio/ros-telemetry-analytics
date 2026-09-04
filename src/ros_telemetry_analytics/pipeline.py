@@ -299,7 +299,10 @@ def run_pipeline(
             config.excluded_directory_names,
             on_error=lambda path, exc: discovery_errors.append((path, exc)),
         )
-        _reconcile_bag_outputs(config.output_root, {source.bag_id for source in sources})
+        # An incomplete scan cannot distinguish removed sources from inaccessible ones.
+        # Keep previous outputs until a complete scan can safely reconcile them.
+        if not discovery_errors:
+            _reconcile_bag_outputs(config.output_root, {source.bag_id for source in sources})
         inventory = inventory_frame(sources)
         inventory_temp = config.output_root / ".bag_inventory.parquet.tmp"
         inventory.write_parquet(inventory_temp, compression="zstd")
