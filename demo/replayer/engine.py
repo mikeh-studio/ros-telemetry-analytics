@@ -4,7 +4,7 @@ import asyncio
 import re
 import time
 import uuid
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -155,6 +155,43 @@ def load_recorded_messages(fixture_path: Path) -> list[RecordedMessage]:
     ]
 
 
+def _active_message_rate(timestamp_counts: Counter[int], intervals_ns: list[int]) -> float:
+    """Count messages over representative active time, including coincident messages."""
+    # The upper quartile includes the space between repeating batches; the median
+    # alone may describe only the much shorter spacing inside each batch.
+    ordered_intervals = sorted(intervals_ns)
+    typical_interval = ordered_intervals[3 * (len(ordered_intervals) - 1) // 4]
+    gap_limit = max(1_000_000_000, 3 * typical_interval)
+    window_ns = max(1_000_000_000, 10 * typical_interval)
+    segments: list[list[int]] = []
+    for timestamp in sorted(timestamp_counts):
+        if not segments or timestamp - segments[-1][-1] > gap_limit:
+            segments.append([])
+        segments[-1].append(timestamp)
+
+    window_rates: list[float] = []
+    short_count = 0
+    short_duration_ns = 0
+    for segment in segments:
+        duration_ns = segment[-1] - segment[0]
+        complete_windows = duration_ns // window_ns
+        if complete_windows:
+            counts: Counter[int] = Counter()
+            for timestamp in segment:
+                window = (timestamp - segment[0]) // window_ns
+                if window < complete_windows:
+                    counts[window] += timestamp_counts[timestamp]
+            window_rates.extend(count * 1_000_000_000 / window_ns for count in counts.values())
+        elif duration_ns:
+            # A half-open interval excludes the entire last timestamp's batch,
+            # matching the count convention of the complete windows above.
+            short_count += sum(timestamp_counts[timestamp] for timestamp in segment[:-1])
+            short_duration_ns += duration_ns
+    if window_rates:
+        return median(window_rates)
+    return short_count * 1_000_000_000 / short_duration_ns
+
+
 def infer_topic_specs(records: Sequence[RecordedMessage]) -> tuple[TopicSpec, ...]:
     """Infer cadence candidates, not an authoritative sensor configuration.
 
@@ -171,7 +208,8 @@ def infer_topic_specs(records: Sequence[RecordedMessage]) -> tuple[TopicSpec, ..
     specs: list[TopicSpec] = []
     for topic, topic_records in sorted(by_topic.items()):
         message_type = topic_records[0].message_type
-        timestamps = sorted({record.source_timestamp_ns for record in topic_records})
+        timestamp_counts = Counter(record.source_timestamp_ns for record in topic_records)
+        timestamps = sorted(timestamp_counts)
         topic_duration_s = (timestamps[-1] - timestamps[0]) / 1_000_000_000
         intervals_ns = [end - start for start, end in zip(timestamps, timestamps[1:], strict=False)]
         median_interval_ns = median(intervals_ns) if intervals_ns else 0
@@ -192,7 +230,7 @@ def infer_topic_specs(records: Sequence[RecordedMessage]) -> tuple[TopicSpec, ..
             not static_or_event and bool(intervals_ns) and (continuous_type or regular_cadence)
         )
         if rate_monitoring_enabled:
-            expected_rate_hz = 1_000_000_000 / median_interval_ns
+            expected_rate_hz = _active_message_rate(timestamp_counts, intervals_ns)
             dropout_threshold_ms = round(min(60_000, max(1_000, 3_000 / expected_rate_hz)))
         else:
             expected_rate_hz = max(0.01, len(topic_records) / max(recording_duration_s, 1))

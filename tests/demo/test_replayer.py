@@ -136,6 +136,52 @@ def test_camera_baseline_tolerates_jitter_missing_frames_and_duplicate_timestamp
     assert spec.expected_rate_hz == pytest.approx(10.0)
 
 
+@pytest.mark.parametrize(("batch_offsets", "expected_rate"), [([0, 10], 20), ([0, 0, 0], 30)])
+@pytest.mark.parametrize("outage", [None, "early_stop", "interior"])
+def test_batched_camera_baseline_counts_all_messages_in_active_windows(
+    batch_offsets, expected_rate, outage
+) -> None:
+    offsets = [
+        batch + offset
+        for batch in range(0, 30_000, 100)
+        if not (outage == "early_stop" and batch >= 15_000)
+        and not (outage == "interior" and 10_000 <= batch < 20_000)
+        for offset in batch_offsets
+    ]
+    records = [_camera_message(offset, index) for index, offset in enumerate(offsets)]
+    records.append(
+        RecordedMessage(
+            len(records), "/odom", "nav_msgs/msg/Odometry", 1_700_000_030_000_000_000, 30_000, 1
+        )
+    )
+
+    camera = {spec.topic: spec for spec in infer_topic_specs(records)}["/camera/image_raw"]
+
+    assert camera.rate_monitoring_enabled is True
+    assert camera.expected_rate_hz == pytest.approx(expected_rate)
+    assert camera.dropout_threshold_ms == 1_000
+
+
+def test_short_recording_preserves_same_timestamp_message_multiplicity() -> None:
+    records = [
+        _camera_message(offset, index)
+        for index, offset in enumerate([0, 0, 0, 100, 100, 100, 200, 200, 200])
+    ]
+
+    assert infer_topic_specs(records)[0].expected_rate_hz == pytest.approx(30)
+
+
+def test_slow_batched_sensor_uses_windows_long_enough_for_its_cadence() -> None:
+    records = [
+        _camera_message(offset, index)
+        for index, offset in enumerate(
+            batch + offset for batch in range(0, 300_000, 10_000) for offset in [0, 10]
+        )
+    ]
+
+    assert infer_topic_specs(records)[0].expected_rate_hz == pytest.approx(0.2, rel=0.01)
+
+
 def test_imu_cadence_uses_source_nanoseconds_not_rounded_replay_offsets() -> None:
     records = [
         RecordedMessage(index, "/imu", "sensor_msgs/msg/Imu", timestamp, 0, 10)

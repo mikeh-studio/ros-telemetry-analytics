@@ -99,8 +99,10 @@ recovery. The demo includes:
 - persistent replay epochs and transactional SQLite projection offsets
 - independently verified per-topic summary files
 
-For public recordings and uploads, cadence baselines use median source-time
-intervals. Recognized continuous sensor and robot-state types stay monitored
+For public recordings and uploads, cadence baselines count all messages in
+representative active source-time windows, preserving batches and coincident
+timestamps while excluding long outages. Recognized continuous sensor and
+robot-state types stay monitored
 when they stop early or become irregular; static transforms and known event
 types are exempt. Custom or unknown message types need sustained regular
 cadence across most of the recording and may have cadence monitoring disabled.
