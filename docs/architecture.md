@@ -70,6 +70,29 @@ robot-keyed branch owns global sequence evidence and the processing-time
 liveness watchdog. Event-time windows, timers, accepted-late corrections, and
 mission summaries therefore cannot cross run boundaries.
 
+Active analytical state has no per-entry TTL: registration, accepted evidence,
+deduplication, and open incidents live together until cleanup. Topic summaries
+clear topic state only after the event-time lateness interval; abort/failure
+clears it immediately. The robot watchdog and sequence processor clear state on
+terminal lifecycle events. Robot health aggregation uses inactivity cleanup so
+an early terminal signal cannot erase conditions before in-flight branch outputs
+arrive. The 12-minute `state_ttl_minutes` setting applies only to the short-lived
+registration and summary coordination barriers.
+
+A checkpointed processing-time timer also clears each entire inactive key after
+`RUN_STATE_IDLE_TIMEOUT_MS` (default 86,400,000 milliseconds / 24 hours), renewed
+by incoming records. Compose passes this environment setting to both Flink
+services. It must exceed the allowed-lateness and robot-silence timeouts. This is
+an explicit inactivity bound, including pauses: topic keys receive only their
+own telemetry and routed lifecycle events, so other active topics do not keep a
+silent topic alive. Set the bound above the longest supported pause or topic
+silence. Timer callbacks do not renew it, so abandoned runs cannot retain state
+indefinitely. Full-run evidence remains in state until completion; this timeout
+bounds abandoned-key lifetime, not memory use for an unlimited active recording.
+State and timers restore together from checkpoints; this change
+has harness coverage for restoring the new state layout, not an upgrade test
+from a prior deployed checkpoint.
+
 Kafka output IDs and revisions make projection replay idempotent. The SQLite
 transaction stores each projected record and its next Kafka offset together.
 `summary_ready` is not treated as completion: FastAPI independently requires

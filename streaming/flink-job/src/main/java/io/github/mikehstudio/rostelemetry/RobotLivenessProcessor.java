@@ -6,7 +6,6 @@ import java.io.Serializable;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.streaming.api.TimeDomain;
@@ -19,6 +18,8 @@ final class RobotLivenessProcessor extends KeyedProcessFunction<String, JsonNode
     static final OutputTag<String> ANOMALIES = new OutputTag<>("robot-liveness-anomalies") {};
     private static final long OFFLINE_AFTER_MS = StreamingDefaults.WHOLE_ROBOT_SILENCE_MS;
 
+    private final long idleTimeoutMs;
+    private transient RunStateRetention retention;
     private transient ValueState<String> lifecycle;
     private transient ValueState<Boolean> watchdogEnabled;
     private transient ValueState<Long> watchdogTimer;
@@ -28,31 +29,38 @@ final class RobotLivenessProcessor extends KeyedProcessFunction<String, JsonNode
     private transient ValueState<Identity> identity;
     private transient MapState<String, Boolean> seenEventIds;
 
+    RobotLivenessProcessor() {
+        this(RunStateRetention.configuredIdleTimeoutMs());
+    }
+
+    RobotLivenessProcessor(long idleTimeoutMs) {
+        this.idleTimeoutMs = idleTimeoutMs;
+    }
+
     @Override
     public void open(OpenContext ignored) {
-        StateTtlConfig ttl = StreamingDefaults.stateTtl();
-        lifecycle = state("robot-lifecycle-v2", String.class, ttl);
-        watchdogEnabled = state("robot-watchdog-enabled-v2", Boolean.class, ttl);
-        watchdogTimer = state("robot-watchdog-timer-v2", Long.class, ttl);
-        latestStreamTimestamp = state("robot-latest-stream-v2", Long.class, ttl);
-        offline = state("robot-offline-v2", OfflineState.class, ttl);
-        recoveryEvents = state("robot-recovery-events-v2", Integer.class, ttl);
-        identity = state("robot-identity-v2", Identity.class, ttl);
+        retention = new RunStateRetention(getRuntimeContext(), idleTimeoutMs);
+        lifecycle = state("robot-lifecycle-v2", String.class);
+        watchdogEnabled = state("robot-watchdog-enabled-v2", Boolean.class);
+        watchdogTimer = state("robot-watchdog-timer-v2", Long.class);
+        latestStreamTimestamp = state("robot-latest-stream-v2", Long.class);
+        offline = state("robot-offline-v2", OfflineState.class);
+        recoveryEvents = state("robot-recovery-events-v2", Integer.class);
+        identity = state("robot-identity-v2", Identity.class);
         MapStateDescriptor<String, Boolean> seen =
                 new MapStateDescriptor<>("robot-seen-liveness-events-v3", String.class, Boolean.class);
-        seen.enableTimeToLive(ttl);
         seenEventIds = getRuntimeContext().getMapState(seen);
     }
 
-    private <T> ValueState<T> state(String name, Class<T> type, StateTtlConfig ttl) {
+    private <T> ValueState<T> state(String name, Class<T> type) {
         ValueStateDescriptor<T> descriptor = new ValueStateDescriptor<>(name, type);
-        descriptor.enableTimeToLive(ttl);
         return getRuntimeContext().getState(descriptor);
     }
 
     @Override
     public void processElement(JsonNode envelope, Context context, Collector<String> output)
             throws Exception {
+        retention.touch(context.timerService());
         String type = envelope.path("envelope_type").asText();
         long streamTimestamp = envelope.path("stream_timestamp_ms").asLong();
         switch (type) {
@@ -76,6 +84,7 @@ final class RobotLivenessProcessor extends KeyedProcessFunction<String, JsonNode
             case "run_aborted", "run_failed", "run_ended" -> {
                 lifecycle.update(type.equals("run_ended") ? "ENDED" : type.toUpperCase());
                 cancelTimer(context);
+                retention.clear(context.timerService());
                 clearState();
             }
             case "telemetry" -> {
@@ -125,6 +134,13 @@ final class RobotLivenessProcessor extends KeyedProcessFunction<String, JsonNode
     @Override
     public void onTimer(long timestamp, OnTimerContext context, Collector<String> output)
             throws Exception {
+        if (context.timeDomain() == TimeDomain.PROCESSING_TIME && retention.expires(timestamp)) {
+            Long watchdog = watchdogTimer.value();
+            if (watchdog != null) context.timerService().deleteProcessingTimeTimer(watchdog);
+            retention.clear(context.timerService());
+            clearState();
+            return;
+        }
         if (context.timeDomain() != TimeDomain.PROCESSING_TIME
                 || !"RUNNING".equals(lifecycle.value())
                 || !Boolean.TRUE.equals(watchdogEnabled.value())
