@@ -4,8 +4,6 @@ Troubleshoot robot missions from recorded ROS telemetry. Detect sensor dropouts
 and timing anomalies, evaluate localization failures, and investigate incidents
 in an interactive Flight Deck.
 
-![Flight Deck showing a completed TUM RGB-D replay, topic health, and localization evaluation results](artifacts/screenshots/flight-deck.png)
-
 *Completed TUM RGB-D replay, with a separate public localization evaluation below.*
 
 - **Analyze recordings:** turn ROS 1 and ROS 2 bags into sensor-health reports,
@@ -21,6 +19,8 @@ a live ROS 2 bridge is a future extension.
 
 > **Status:** Alpha. Supports engineering triage and dataset QA, not
 > safety-critical control or certification.
+
+![Flight Deck showing a completed TUM RGB-D replay, topic health, and localization evaluation results](artifacts/screenshots/flight-deck.png)
 
 ## Try the Flight Deck
 
