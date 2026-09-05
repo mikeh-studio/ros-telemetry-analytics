@@ -37,11 +37,12 @@ all bag outcomes -----> latest_run.json + latest_report.md
 
 ## Recorded streaming demo
 
-The Flight Deck is a second execution path over a compact deterministic MCAP
-fixture. It does not replace the batch pipeline:
+The Flight Deck is a second execution path over selectable recordings: the
+built-in deterministic MCAP fixture, installed public datasets, and uploads.
+It does not replace the batch pipeline:
 
 ```text
-generated ROS 2 MCAP
+ROS bag / MCAP recording
         |
         v
 Python replayer -- versioned envelopes --> Kafka telemetry.events.v1
@@ -96,9 +97,10 @@ from a prior deployed checkpoint.
 Kafka output IDs and revisions make projection replay idempotent. The SQLite
 transaction stores each projected record and its next Kafka offset together.
 `summary_ready` is not treated as completion: FastAPI independently requires
-exactly four schema-valid topic summary records in committed, non-in-progress
-part files before persisting the terminal state and notifying the browser. On
-restart, the API resumes this verification from the projected marker.
+schema-valid topic summary records matching the declared expected topic count
+in committed, non-in-progress part files before persisting the terminal state
+and notifying the browser. On restart, the API resumes this verification from
+the projected marker.
 
 The container stack pins Apache Kafka 4.1.2, Apache Flink 2.2.1, the Flink
 Kafka connector 5.0.0-2.2, and Java 17. The connector resolves Kafka client

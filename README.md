@@ -1,310 +1,110 @@
 # ROS Telemetry Analytics
 
-Local-first analysis for recorded ROS telemetry. The project discovers ROS 1
-and ROS 2 bags, checks timing and sensor-stream health, derives selected robot
-state features, and publishes inspectable Parquet, JSON, and Markdown results.
+Troubleshoot robot missions from recorded ROS telemetry. Detect sensor dropouts
+and timing anomalies, evaluate localization failures, and investigate incidents
+in an interactive Flight Deck.
 
-It is designed for robotics platform, reliability, and data engineers who need
-to triage runs or validate datasets without installing ROS, CUDA, a simulator,
-or GPU tooling. It runs on macOS and Linux with Python 3.11+.
+- **Analyze recordings:** turn ROS 1 and ROS 2 bags into sensor-health reports,
+  anomaly events, and inspectable Parquet and JSON evidence.
+- **Replay missions:** choose a dataset or upload a recording, replay it through
+  Kafka and Flink, and inspect topic health in a React operations console.
+- **Evaluate localization:** score an AMCL failure detector against published
+  ground-truth trajectories and failure labels.
 
-> **Project status:** Alpha. The analysis supports engineering triage and
-> dataset QA, not safety-critical control or certification.
+The Python analysis runs locally on macOS and Linux without ROS, CUDA, or a
+simulator. The Flight Deck runs with Docker Compose and uses recorded replay;
+a live ROS 2 bridge is a future extension.
 
-## Two Workflows
+> **Status:** Alpha. Supports engineering triage and dataset QA, not
+> safety-critical control or certification.
 
-- **Recorded-bag analysis:** process mixed ROS bag formats into repeatable
-  timing, relationship, and payload-derived evidence.
-- **Localization integrity evaluation:** score an observable-only AMCL failure
-  detector against published ground-truth trajectories and failure labels.
-- **Real-time Flight Deck:** replay a deterministic ROS 2 MCAP fixture through
-  Kafka and Apache Flink, then inspect event-time health in a React console.
+## Try the Flight Deck
 
-The Flight Deck is a streaming demonstration of the same telemetry-health
-ideas; it does not replace the batch pipeline.
-
-## Quick Start
+Clone the repository and start the stack with Docker Compose:
 
 ```bash
 git clone https://github.com/mikeh-studio/ros-telemetry-analytics.git
 cd ros-telemetry-analytics
-make setup
-make test
-```
-
-Place bags under `data/raw/`, then run:
-
-```bash
-make discover
-make analyze
-```
-
-Analyze arbitrary paths without changing configuration:
-
-```bash
-.venv/bin/ros-telemetry analyze \
-  --input /path/to/recordings \
-  --input /path/to/recording.mcap \
-  --output data/bronze
-```
-
-When installed as a wheel, relative configuration and data paths are resolved
-from the current working directory. Run the CLI from the workspace that should
-own `data/`, or pass absolute input and output paths.
-
-## Supported Inputs
-
-- ROS 2 bag directories containing `metadata.yaml`
-- Standalone ROS 2 SQLite `.db3` and `.mcap` files
-- ROS 1 `.bag` files
-- Multiple nested input roots in one run
-
-Discovery emits one canonical record per logical bag. Contained DB3/MCAP files
-are not double-counted, overlapping roots are deduplicated, and download caches
-are excluded by default.
-
-## Real-Time Flight Deck
-
-The self-contained demo replays selectable ROS recordings through Kafka,
-computes stateful event-time metrics in a Java Flink DataStream job, projects
-revisions into SQLite through FastAPI, and presents the results in a responsive
-React operations console. It includes the deterministic 90-second MCAP mission
-for `robot-17`, installed public validation datasets, and user uploads.
-
-Start the stack:
-
-```bash
 docker compose up --build
 ```
 
-Then open:
+Open [localhost:3000](http://localhost:3000), select a dataset, and start a 1x
+or 5x replay. The built-in warehouse mission includes a camera-dropout scenario
+at 1x speed for inspecting gaps, late arrivals, and recovery.
 
-- Flight Deck: [http://localhost:3000](http://localhost:3000)
-- Projection API: [http://localhost:8000/api/runs/current/snapshot](http://localhost:8000/api/runs/current/snapshot)
-- Flink dashboard: [http://localhost:8081](http://localhost:8081)
+You can also upload a `.bag`, `.mcap`, or `.db3` recording. Public datasets
+can be replayed once installed; unavailable archives remain visible but
+disabled. See the [Flight Deck guide](docs/flight-deck.md) for dataset
+behavior, service endpoints, and checkpoint-recovery checks.
 
-Choose an available dataset in the Flight Deck before starting a 1x or 5x
-replay. The catalog includes the TUM fixtures plus the LILocBench, OpenLORIS,
-and ARCO datasets in `configs/public_test_datasets.yaml`; datasets that have not
-been downloaded or extracted remain visible but disabled. Uploads accept one
-direct `.bag`, `.mcap`, or `.db3` recording at a time and persist in the local
-`dataset-uploads` Docker volume. The built-in warehouse mission also supports
-the 1x camera-dropout scenario for exercising late arrivals, gap detection, and
-recovery. The demo includes:
+## Analyze recordings
 
-- independent Kafka, Flink, projection, and replayer readiness
-- bounded out-of-orderness, allowed lateness, idle-partition detection, and
-  sliding event-time windows
-- checkpointed Flink state and exactly-once Kafka sinks
-- persistent replay epochs and transactional SQLite projection offsets
-- independently verified per-topic summary files
-
-For public recordings and uploads, cadence baselines count all messages in
-representative active source-time windows, preserving batches and coincident
-timestamps while excluding long outages. Recognized continuous sensor and
-robot-state types stay monitored
-when they stop early or become irregular; static transforms and known event
-types are exempt. Custom or unknown message types need sustained regular
-cadence across most of the recording and may have cadence monitoring disabled.
-These inferred expectations are estimates: on-demand sensor streams and
-recordings dominated by missing samples need an explicit sensor profile for
-reliable thresholds. Per-upload profiles are not yet supported; the built-in
-warehouse mission uses its declared configuration.
-
-Exercise TaskManager checkpoint recovery during an active mission:
+From the repository root, using Python 3.11+:
 
 ```bash
-./scripts/demo_recovery.sh
+make setup
+# Place recordings under data/raw/, then run:
+make analyze
 ```
 
-Compare a completed clean run with the batch-analysis oracle:
+Supported inputs include ROS 1 `.bag`, ROS 2 bag directories, and standalone
+`.db3` and `.mcap` files. Start with `data/bronze/latest_report.md` for the run
+summary; each recording also gets a report and structured evidence under
+`data/bronze/bags/<bag-id>/`.
 
-```bash
-docker compose exec api \
-  python scripts/compare_demo_oracle.py <run-id> --root /app
-```
+Checks cover message rates, gaps, topic-pair timing, and selected payload
+features from odometry, IMU, TF, diagnostics, and images. Timing checks use
+recorded receive timestamps and do not establish hardware synchronization.
 
-Recorded replay is the only source in this release; a live ROS 2 bridge remains
-a future extension. See [`docs/architecture.md`](docs/architecture.md) for the
-data flow, [`configs/streaming_demo.yaml`](configs/streaming_demo.yaml) for
-runtime values, and [`schemas/`](schemas/) for versioned JSON contracts.
+See the [analysis guide](docs/bag-analysis.md) for custom input paths, output
+schemas, thresholds, and reliability guarantees. Browse example
+[sensor-health](examples/sample_report.md) and
+[domain-analysis](examples/sample_domain_report.md) reports.
 
-## Outputs
+## Evaluate localization
 
-Each bag is published independently:
+The localization evaluator measures an observable-only AMCL detector against
+published failure labels, keeping ground truth separate from detector inputs.
+It produces sample and event metrics plus inspectable result files.
 
-```text
-data/bronze/
-├── bag_inventory.parquet
-├── latest_report.md
-├── latest_run.json
-├── runs/<run-id>.json
-└── bags/<bag-id>/
-    ├── anomaly_events.parquet
-    ├── bag_report.md
-    ├── domain_metrics.parquet
-    ├── domain_summary.json
-    ├── message_index.parquet
-    ├── relationship_health.parquet
-    ├── topic_manifest.parquet
-    ├── topic_health.parquet
-    ├── vslam_quality.parquet
-    ├── domain_records/
-    │   ├── commands.parquet
-    │   ├── diagnostics.parquet
-    │   ├── extraction_errors.parquet
-    │   ├── images.parquet
-    │   ├── imu.parquet
-    │   ├── odometry.parquet
-    │   └── transforms.parquet
-    └── summary.json
-```
+See the [evaluation guide](docs/localization-evaluation.md) for the command,
+dataset setup, and baseline results, or read the
+[sample evaluation](examples/sample_localization_eval.md).
 
-`message_index.parquet` contains one row per message with its bag ID, read
-sequence, topic, type, and nanosecond timestamp. Supported payloads are reduced
-to typed fields and bounded image features under `domain_records/`; raw payloads
-and images are not published.
+## Repository layout
 
-`summary.json` is the stable machine-readable bag contract, while
-`bag_report.md` is the shareable engineering summary. Deserialization failures
-are recorded without hiding timing results, and `latest_run.json` reports
-processed, skipped, and failed sources. See the sanitized
-[data-health](examples/sample_report.md) and
-[domain-analysis](examples/sample_domain_report.md) examples.
-
-## Localization Integrity Evaluation
-
-The evaluator supports the processed Parquet files from the public
-[TUHH Robot Localization Failure Prediction Dataset](https://doi.org/10.15480/882.15836).
-Download and extract the upstream `preprocessed_data.zip`, then provide one or
-more processed members from the same or different experiment runs:
-
-```bash
-.venv/bin/ros-telemetry evaluate-localization \
-  --input /path/to/parquets/processed/rec_20250821_104113_id_01.processed.parquet \
-  --input /path/to/parquets/processed/rec_20250821_104113_id_02.processed.parquet \
-  --output data/evaluations/rec_20250821_104113
-```
-
-The baseline detector uses only particle-cloud position spread and consecutive
-AMCL pose jumps. Ground-truth pose, published position/heading errors, and
-`is_delocalized` are kept on the scoring side of the contract. This prevents
-label leakage from turning the benchmark into a tautological threshold check.
-
-Each evaluation writes:
-
-```text
-localization_samples.parquet
-localization_events.parquet
-localization_event_matches.parquet
-localization_eval.json
-localization_eval.md
-```
-
-On the complete published warehouse run `rec_20250821_104113`, the unchanged
-baseline produced **0.856 sample precision**, **0.468 sample recall**, and
-**0.605 sample F1**. After merging label flicker separated by at most 500 ms,
-event precision was **0.842** and event recall was **0.667** using one-to-one
-event matching. The result is a
-starting benchmark, not a tuned model; its modest sample recall makes the next
-improvement target explicit. See the committed
-[sample evaluation](examples/sample_localization_eval.md) and
-[`configs/public_test_datasets.yaml`](configs/public_test_datasets.yaml) for the
-source manifest and exact thresholds.
-
-## Analysis
-
-### Timing and relationships
-
-- message counts, duration, mean rate, and expected-rate ratio
-- maximum and p95 inter-message gaps, gap events, and estimated drops
-- `/tf`, pose, odometry, and visual-SLAM continuity
-- automatic stereo discovery and configurable topic-pair relationships
-- pairing coverage, unmatched frames, and maximum/mean/p95 skew
-
-Relationships are configured in [`configs/pipeline.yaml`](configs/pipeline.yaml)
-and can be required or optional. One configuration may cover heterogeneous bags;
-relationships are evaluated only when at least one named topic is present.
-
-### Domain analyzers
-
-- **Odometry:** distance, speed, stationary fraction, covariance, and pose jumps
-- **IMU:** acceleration, angular velocity, threshold intervals, and covariance
-- **Command response:** Twist commands matched to nearby odometry and motion
-- **TF:** frame connectivity, cycles, translation paths, speed, and jumps
-- **Diagnostics:** grouped non-OK intervals with preserved key/value evidence
-- **Images:** dimensions, encoding, bounded intensity/sharpness/depth features,
-  and duplicate hashes
-
-Thresholds and command-topic patterns live under `analytics.domain_analyzers` in
-`configs/pipeline.yaml`. Disable that lane to retain the output contract while
-skipping payload deserialization and domain calculations.
-
-Timing checks use bag log/receive timestamps, not payload `header.stamp` values,
-so they include middleware and recorder jitter and do not prove hardware sensor
-synchronization. Supported domain records retain header stamps when available.
-
-## Reliability Model
-
-- **Idempotency:** successful bags with unchanged source fingerprints are
-  skipped; analytics-rule changes invalidate cached results.
-- **Failure isolation:** malformed bags are reported while remaining bags
-  continue unless `--fail-fast` is set.
-- **Atomicity:** results are staged and published only after analysis succeeds;
-  interrupted staging and backups are reconciled on the next run.
-- **Reconciliation:** outputs for removed sources are deleted only after complete
-  discovery, while the output lock is held. Discovery failures preserve prior
-  outputs until a complete scan can confirm removals.
-- **Concurrency:** one process may publish to an output root at a time on a
-  local filesystem; the lock is not distributed.
-- **Memory:** raw payloads are processed one at a time and discarded, while
-  Parquet writes remain batched.
-
-Fingerprints use names, sizes, and nanosecond modification times for efficient
-local change detection; hash source contents separately when chain-of-custody
-guarantees are required. A run that discovers zero bags exits nonzero so an
-empty or unmounted input directory cannot appear healthy in automation.
-
-## Optional Validation Data
-
-Validated TUM RGB-D and TUM VI datasets provide independent ROS 1 coverage and
-healthy-data robustness checks:
-
-```bash
-make analyze-public-data
-```
-
-Optional NVIDIA Isaac ROS archives provide larger ROS 2 validation cases:
-
-```bash
-make download-visual-slam
-make download-nvblox
-```
-
-Downloads remain ignored by Git. Their sources, checksums, licenses, validation
-results, and known caveats are recorded in
-[`configs/public_test_datasets.yaml`](configs/public_test_datasets.yaml) and the
-[`asset configuration`](configs/asset_sources.yaml). NVIDIA data is subject to
-upstream terms; this independent project is not affiliated with or endorsed by
-NVIDIA.
+| Path | Contents |
+| --- | --- |
+| `src/ros_telemetry_analytics/` | Python ingestion, analysis, and CLI |
+| `demo/` | Flight Deck API, replayer, shared contracts, and React UI |
+| `streaming/flink-job/` | Java event-time processing and tests |
+| `configs/` | Analysis rules, replay settings, and dataset manifests |
+| `schemas/` | Versioned streaming JSON contracts |
+| `tests/` | Python tests and fixtures |
+| `scripts/` | Stack smoke, recovery, and batch-comparison checks |
+| `docs/` | Usage guides, architecture, and design review |
+| `examples/` | Committed sample reports |
+| `artifacts/` | Design and UI review evidence |
+| `data/` | Local recordings and generated analysis outputs |
 
 ## Development
 
 ```bash
+make setup
 make format
 make lint
 make test
 ```
 
-CI tests Python 3.11, 3.12, and 3.13, builds and reinstalls the package, compiles
-the Java Flink job, builds/tests the React dashboard, and exercises the complete
-Compose stack with clean and camera-dropout missions.
+See [architecture](docs/architecture.md) for the batch and streaming data flows,
+[validation datasets](docs/validation-data.md) for optional public recordings,
+and [contributing](CONTRIBUTING.md) for test expectations. Historical UI review
+notes live in [design QA](docs/design-qa.md) and the
+[UI audit](artifacts/ui-audit/ui-review.md).
 
-For implementation boundaries, see [`docs/architecture.md`](docs/architecture.md).
-Security reports should follow [`SECURITY.md`](SECURITY.md); contribution
-expectations are in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+Report vulnerabilities through [SECURITY.md](SECURITY.md).
 
 ## License
 
-The source code is available under the [MIT License](LICENSE). ROS bag data,
-NVIDIA assets, and other third-party inputs retain their own licenses.
+[MIT](LICENSE) for source code. ROS recordings and other third-party inputs
+retain their own licenses.
