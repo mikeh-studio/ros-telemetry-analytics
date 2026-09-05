@@ -1,5 +1,8 @@
 # Design QA — exec-5027 timeline-first console
 
+> Historical review snapshot; findings describe the implementation at the time of review.
+> Evidence paths below are relative to the repository root.
+
 ## Comparison target
 
 - Source visual truth: `artifacts/design-qa/source-exec-5027.png`
