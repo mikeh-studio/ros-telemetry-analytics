@@ -4,10 +4,11 @@ import asyncio
 import re
 import time
 import uuid
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from statistics import median
 from typing import Any, Protocol
 
 import yaml
@@ -26,6 +27,40 @@ from ros_telemetry_analytics.discovery import discover_bags
 from ros_telemetry_analytics.reader import open_bag
 
 SAFE_RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+
+# These types normally represent continuously sampled robot state. Their coverage
+# or regularity must not decide whether to monitor them: failures change both.
+CONTINUOUS_MESSAGE_TYPES = frozenset(
+    f"sensor_msgs/msg/{name}"
+    for name in (
+        "Image",
+        "CompressedImage",
+        "CameraInfo",
+        "Imu",
+        "LaserScan",
+        "MultiEchoLaserScan",
+        "PointCloud",
+        "PointCloud2",
+        "Range",
+        "NavSatFix",
+        "MagneticField",
+        "FluidPressure",
+        "Temperature",
+        "RelativeHumidity",
+        "JointState",
+        "MultiDOFJointState",
+    )
+) | {"nav_msgs/msg/Odometry", "tf2_msgs/msg/TFMessage"}
+EVENT_MESSAGE_TYPES = frozenset(
+    {
+        "std_msgs/msg/String",
+        "std_msgs/msg/Empty",
+        "diagnostic_msgs/msg/DiagnosticArray",
+        "rcl_interfaces/msg/Log",
+        "rcl_interfaces/msg/ParameterEvent",
+        "rosgraph_msgs/msg/Log",
+    }
+)
 
 
 class Publisher(Protocol):
@@ -120,29 +155,90 @@ def load_recorded_messages(fixture_path: Path) -> list[RecordedMessage]:
     ]
 
 
+def _active_message_rate(timestamp_counts: Counter[int], intervals_ns: list[int]) -> float:
+    """Count messages over representative active time, including coincident messages."""
+    # The upper quartile includes the space between repeating batches; the median
+    # alone may describe only the much shorter spacing inside each batch.
+    ordered_intervals = sorted(intervals_ns)
+    typical_interval = ordered_intervals[3 * (len(ordered_intervals) - 1) // 4]
+    gap_limit = max(1_000_000_000, 3 * typical_interval)
+    window_ns = max(1_000_000_000, 10 * typical_interval)
+    segments: list[list[int]] = []
+    for timestamp in sorted(timestamp_counts):
+        if not segments or timestamp - segments[-1][-1] > gap_limit:
+            segments.append([])
+        segments[-1].append(timestamp)
+
+    window_rates: list[float] = []
+    short_count = 0
+    short_duration_ns = 0
+    for segment in segments:
+        duration_ns = segment[-1] - segment[0]
+        complete_windows = duration_ns // window_ns
+        if complete_windows:
+            counts: Counter[int] = Counter()
+            for timestamp in segment:
+                window = (timestamp - segment[0]) // window_ns
+                if window < complete_windows:
+                    counts[window] += timestamp_counts[timestamp]
+            window_rates.extend(count * 1_000_000_000 / window_ns for count in counts.values())
+        elif duration_ns:
+            # A half-open interval excludes the entire last timestamp's batch,
+            # matching the count convention of the complete windows above.
+            short_count += sum(timestamp_counts[timestamp] for timestamp in segment[:-1])
+            short_duration_ns += duration_ns
+    if window_rates:
+        return median(window_rates)
+    return short_count * 1_000_000_000 / short_duration_ns
+
+
 def infer_topic_specs(records: Sequence[RecordedMessage]) -> tuple[TopicSpec, ...]:
-    """Infer a replay baseline from the recording without decoding message payloads."""
+    """Infer cadence candidates, not an authoritative sensor configuration.
+
+    Continuous sensor types retain monitoring despite gaps, jitter, or incomplete
+    coverage. Unknown types need sustained regular cadence across most of the
+    recording; static transforms and known event types remain exempt. The built-in
+    Warehouse fixture bypasses inference and retains its declared expectations.
+    """
 
     by_topic: dict[str, list[RecordedMessage]] = defaultdict(list)
     for record in records:
         by_topic[record.topic].append(record)
-    recording_duration_s = max(record.source_offset_ms for record in records) / 1_000
+    recording_duration_s = max((record.source_offset_ms for record in records), default=0) / 1_000
     specs: list[TopicSpec] = []
     for topic, topic_records in sorted(by_topic.items()):
-        timestamps = sorted(record.source_timestamp_ns for record in topic_records)
+        message_type = topic_records[0].message_type
+        timestamp_counts = Counter(record.source_timestamp_ns for record in topic_records)
+        timestamps = sorted(timestamp_counts)
         topic_duration_s = (timestamps[-1] - timestamps[0]) / 1_000_000_000
-        coverage_ratio = topic_duration_s / recording_duration_s if recording_duration_s else 0.0
-        rate_monitoring_enabled = len(timestamps) > 1 and coverage_ratio >= 0.8
+        intervals_ns = [end - start for start, end in zip(timestamps, timestamps[1:], strict=False)]
+        median_interval_ns = median(intervals_ns) if intervals_ns else 0
+        static_or_event = topic.rstrip("/").split("/")[-1] == "tf_static" or (
+            message_type in EVENT_MESSAGE_TYPES
+        )
+        continuous_type = message_type in CONTINUOUS_MESSAGE_TYPES
+        regular_cadence = (
+            len(intervals_ns) >= 10
+            and topic_duration_s >= max(1.0, recording_duration_s * 0.8)
+            and sum(
+                abs(interval - median_interval_ns) <= median_interval_ns * 0.2
+                for interval in intervals_ns
+            )
+            >= len(intervals_ns) * 0.8
+        )
+        rate_monitoring_enabled = (
+            not static_or_event and bool(intervals_ns) and (continuous_type or regular_cadence)
+        )
         if rate_monitoring_enabled:
-            expected_rate_hz = (len(timestamps) - 1) / topic_duration_s
+            expected_rate_hz = _active_message_rate(timestamp_counts, intervals_ns)
             dropout_threshold_ms = round(min(60_000, max(1_000, 3_000 / expected_rate_hz)))
         else:
-            expected_rate_hz = max(0.01, len(timestamps) / max(recording_duration_s, 1))
+            expected_rate_hz = max(0.01, len(topic_records) / max(recording_duration_s, 1))
             dropout_threshold_ms = max(1_000, round(recording_duration_s * 1_000) + 1)
         specs.append(
             TopicSpec(
                 topic=topic,
-                message_type=topic_records[0].message_type,
+                message_type=message_type,
                 expected_rate_hz=expected_rate_hz,
                 dropout_threshold_ms=dropout_threshold_ms,
                 rate_monitoring_enabled=rate_monitoring_enabled,

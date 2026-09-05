@@ -145,6 +145,77 @@ final class TopicHealthProcessorHarnessTest {
     }
 
     @Test
+    void interleavedCameraBatchesRemainHealthyWithInferredAggregateRate() throws Exception {
+        assertHealthyBatchedCamera(20.0, new long[] {0, 10});
+    }
+
+    @Test
+    void coincidentCameraMessagesRemainHealthyWithInferredAggregateRate() throws Exception {
+        assertHealthyBatchedCamera(30.0, new long[] {0, 0, 0});
+    }
+
+    private void assertHealthyBatchedCamera(double expectedRate, long[] offsets) throws Exception {
+        try (Harness harness = harness()) {
+            // Contracts checked by test_batched_camera_baseline_counts_all_messages_in_active_windows.
+            harness.process(registration(0, expectedRate, 2_000, 1_000));
+            long sequence = 0;
+            for (long batch = 0; batch < 30_000; batch += 100) {
+                for (long offset : offsets) {
+                    long timestamp = batch + offset;
+                    harness.process(telemetry("camera-" + sequence, timestamp,
+                            sequence++, timestamp * 1_000_000));
+                    // Use the production watermark delay, so the full rolling
+                    // window is available when its event-time timer fires.
+                    harness.watermark(timestamp - StreamingDefaults.MAXIMUM_OUT_OF_ORDERNESS_MS - 1);
+                }
+            }
+            List<JsonNode> windows = harness.mainValues("topic_window");
+            assertTrue(windows.size() >= 18);
+            for (JsonNode window : windows) {
+                assertEquals("healthy", window.path("payload").path("health_status").asText());
+                assertEquals(expectedRate, window.path("payload").path("mean_rate_hz").asDouble(),
+                        0.001);
+            }
+            assertTrue(harness.sideValues(TopicHealthProcessor.ANOMALIES).isEmpty());
+        }
+    }
+
+    @Test
+    void stoppedInferredCameraOpensGapAndRemainsDegradedUntilMissionEnd() throws Exception {
+        try (Harness harness = harness()) {
+            // Contract emitted by test_uploaded_stopped_camera_publishes_monitored_registration.
+            ObjectNode cameraRegistration = registration(0, 10.0, 2_000, 1_000);
+            ((ObjectNode) cameraRegistration.path("body")).put("rate_monitoring_enabled", true);
+            harness.process(cameraRegistration);
+            for (int index = 0; index <= 500; index++) {
+                long timestamp = index * 100L;
+                harness.process(telemetry("camera-" + index, timestamp, index, timestamp * 1_000_000));
+                harness.watermark(timestamp);
+            }
+            harness.watermark(50_999);
+            assertTrue(harness.sideValues(TopicHealthProcessor.ANOMALIES).isEmpty());
+            harness.watermark(51_000);
+
+            List<JsonNode> incidents = harness.sideValues(TopicHealthProcessor.ANOMALIES);
+            assertEquals(1, incidents.size());
+            assertEquals("GAP", incidents.get(0).path("condition_type").asText());
+            assertEquals("active", incidents.get(0).path("status").asText());
+            assertEquals(JsonSupport.sha256(RUN, ROBOT, TOPIC, "GAP", 51_000),
+                    incidents.get(0).path("anomaly_id").asText());
+
+            // Other topics keep the recording's watermark progressing after the camera stops.
+            harness.watermark(100_000);
+            JsonNode finalWindow = harness.mainValues("topic_window").stream()
+                    .filter(node -> node.path("window_end_ms").asLong() == 100_000)
+                    .findFirst().orElseThrow();
+            assertEquals("degraded", finalWindow.path("payload").path("health_status").asText());
+            assertTrue(finalWindow.path("payload").path("rate_monitoring_enabled").asBoolean());
+            assertEquals(1, harness.sideValues(TopicHealthProcessor.ANOMALIES).stream()
+                    .filter(node -> node.path("condition_type").asText().equals("GAP")).count());
+        }
+    }
+
+    @Test
     void nonPeriodicTopicsEmitMetricsWithoutCadenceIncidents() throws Exception {
         try (Harness harness = harness()) {
             ObjectNode registration = registration(0, 0.04, 2_000, 100_001);
