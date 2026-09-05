@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from dataclasses import replace
 from pathlib import Path
 
@@ -8,7 +9,7 @@ import polars as pl
 import pytest
 from rosbags.rosbag2 import StoragePlugin
 
-from ros_telemetry_analytics import pipeline
+from ros_telemetry_analytics import discovery, pipeline
 from ros_telemetry_analytics.config import PipelineConfig
 from ros_telemetry_analytics.pipeline import run_pipeline
 
@@ -93,6 +94,72 @@ def test_pipeline_isolates_bad_inputs(
     failure = next(result for result in manifest["results"] if result["status"] == "failed")
     assert failure["error_type"]
     assert failure["error_message"]
+
+
+@pytest.mark.parametrize("fail_fast", [False, True])
+@pytest.mark.parametrize("failure_kind", ["fingerprint", "traversal", "root"])
+def test_incomplete_discovery_preserves_published_outputs(
+    tmp_path: Path,
+    write_bag,
+    analytics_config,
+    monkeypatch,
+    fail_fast: bool,
+    failure_kind: str,
+) -> None:
+    config = _config(tmp_path, analytics_config)
+    affected_root = tmp_path / "input" / "inaccessible"
+    affected = write_bag(affected_root / "previous", MESSAGES)
+    if failure_kind == "root":
+        config = replace(config, input_roots=(affected_root, tmp_path / "healthy"))
+        (tmp_path / "healthy").mkdir()
+    first = run_pipeline(config)
+    published = config.output_root / "bags" / first["results"][0]["bag_id"]
+    original_content = {
+        path.relative_to(published): path.read_bytes()
+        for path in published.rglob("*")
+        if path.is_file()
+    }
+    healthy_root = tmp_path / "healthy" if failure_kind == "root" else tmp_path / "input"
+    healthy = write_bag(healthy_root / "healthy", MESSAGES)
+
+    with monkeypatch.context() as patch:
+        if failure_kind == "fingerprint":
+            real_fingerprint = discovery._fingerprint
+
+            def flaky_fingerprint(path):
+                if path == affected:
+                    raise PermissionError("temporarily inaccessible")
+                return real_fingerprint(path)
+
+            patch.setattr(discovery, "_fingerprint", flaky_fingerprint)
+        else:
+            real_scandir = discovery.os.scandir
+
+            def flaky_scandir(path):
+                if not isinstance(path, int) and Path(path) == affected_root:
+                    raise PermissionError(13, "temporarily inaccessible", str(path))
+                return real_scandir(path)
+
+            patch.setattr(discovery.os, "scandir", flaky_scandir)
+
+        manifest = run_pipeline(config, fail_fast=fail_fast)
+
+    assert manifest["failed_count"] == 1
+    assert manifest["processed_count"] == (0 if fail_fast else 1)
+    assert manifest["not_attempted_count"] == (1 if fail_fast else 0)
+    healthy_result = next(row for row in manifest["results"] if row["source_path"] == str(healthy))
+    assert healthy_result["status"] == ("not_attempted" if fail_fast else "processed")
+    assert {
+        path.relative_to(published): path.read_bytes()
+        for path in published.rglob("*")
+        if path.is_file()
+    } == original_content
+
+    # A subsequent complete scan can confirm a removal and reconcile it normally.
+    shutil.rmtree(affected)
+    recovered = run_pipeline(config)
+    assert recovered["failed_count"] == 0
+    assert not published.exists()
 
 
 @pytest.mark.parametrize("storage_plugin", [StoragePlugin.SQLITE3, StoragePlugin.MCAP])

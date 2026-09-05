@@ -240,8 +240,9 @@ synchronization. Supported domain records retain header stamps when available.
   continue unless `--fail-fast` is set.
 - **Atomicity:** results are staged and published only after analysis succeeds;
   interrupted staging and backups are reconciled on the next run.
-- **Reconciliation:** outputs for removed sources are deleted while the output
-  lock is held.
+- **Reconciliation:** outputs for removed sources are deleted only after complete
+  discovery, while the output lock is held. Discovery failures preserve prior
+  outputs until a complete scan can confirm removals.
 - **Concurrency:** one process may publish to an output root at a time on a
   local filesystem; the lock is not distributed.
 - **Memory:** raw payloads are processed one at a time and discarded, while
