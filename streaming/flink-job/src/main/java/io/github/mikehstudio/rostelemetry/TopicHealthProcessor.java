@@ -12,10 +12,10 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
@@ -33,7 +33,9 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
     static final double MAXIMUM_RATE_RATIO = StreamingDefaults.MAXIMUM_RATE_RATIO;
     static final double GAP_MULTIPLIER = StreamingDefaults.GAP_THRESHOLD_MULTIPLIER;
 
+    private final long idleTimeoutMs;
     private transient ValueState<Registration> registration;
+    private transient RunStateRetention retention;
     private transient ValueState<String> lifecycle;
     private transient ValueState<Long> maxStreamTimestamp;
     private transient ValueState<Long> maxSourceTimestamp;
@@ -59,41 +61,45 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
     private transient Counter duplicateEventsMetric;
     private transient Counter tooLateEventsMetric;
 
+    TopicHealthProcessor() {
+        this(RunStateRetention.configuredIdleTimeoutMs());
+    }
+
+    TopicHealthProcessor(long idleTimeoutMs) {
+        this.idleTimeoutMs = idleTimeoutMs;
+    }
+
     @Override
     public void open(OpenContext openContext) {
-        StateTtlConfig ttl = StreamingDefaults.stateTtl();
-        registration = state("registration-v2", Registration.class, ttl);
-        lifecycle = state("lifecycle-v2", String.class, ttl);
-        maxStreamTimestamp = state("max-stream-timestamp-v2", Long.class, ttl);
-        maxSourceTimestamp = state("max-source-timestamp-v2", Long.class, ttl);
-        gapTimer = state("gap-timer-v2", Long.class, ttl);
-        startupTimer = state("startup-timer-v2", Long.class, ttl);
-        nextWindowTimer = state("next-window-timer-v2", Long.class, ttl);
-        recoveryTimer = state("recovery-timer-v2", Long.class, ttl);
-        summaryTimer = state("summary-timer-v2", Long.class, ttl);
-        missionEndStream = state("mission-end-stream-v2", Long.class, ttl);
-        recoveryGate = state("recovery-gate-v2", RecoveryGate.class, ttl);
-        badRateWindows = state("bad-rate-windows-v2", Integer.class, ttl);
-        healthyRateWindows = state("healthy-rate-windows-v2", Integer.class, ttl);
-        structuralRecoveryStream = state("structural-recovery-stream-v2", Long.class, ttl);
-        acceptedLateCount = state("accepted-late-count-v2", Long.class, ttl);
-        duplicateCount = state("duplicate-count-v2", Long.class, ttl);
-        tooLateCount = state("too-late-count-v2", Long.class, ttl);
+        retention = new RunStateRetention(getRuntimeContext(), idleTimeoutMs);
+        registration = state("registration-v2", Registration.class);
+        lifecycle = state("lifecycle-v2", String.class);
+        maxStreamTimestamp = state("max-stream-timestamp-v2", Long.class);
+        maxSourceTimestamp = state("max-source-timestamp-v2", Long.class);
+        gapTimer = state("gap-timer-v2", Long.class);
+        startupTimer = state("startup-timer-v2", Long.class);
+        nextWindowTimer = state("next-window-timer-v2", Long.class);
+        recoveryTimer = state("recovery-timer-v2", Long.class);
+        summaryTimer = state("summary-timer-v2", Long.class);
+        missionEndStream = state("mission-end-stream-v2", Long.class);
+        recoveryGate = state("recovery-gate-v2", RecoveryGate.class);
+        badRateWindows = state("bad-rate-windows-v2", Integer.class);
+        healthyRateWindows = state("healthy-rate-windows-v2", Integer.class);
+        structuralRecoveryStream = state("structural-recovery-stream-v2", Long.class);
+        acceptedLateCount = state("accepted-late-count-v2", Long.class);
+        duplicateCount = state("duplicate-count-v2", Long.class);
+        tooLateCount = state("too-late-count-v2", Long.class);
         ListStateDescriptor<EventPoint> acceptedDescriptor =
                 new ListStateDescriptor<>("accepted-events-v2", EventPoint.class);
-        acceptedDescriptor.enableTimeToLive(ttl);
         acceptedEvents = getRuntimeContext().getListState(acceptedDescriptor);
         MapStateDescriptor<String, Boolean> dedupeDescriptor =
                 new MapStateDescriptor<>("seen-event-ids-v2", String.class, Boolean.class);
-        dedupeDescriptor.enableTimeToLive(ttl);
         seenEventIds = getRuntimeContext().getMapState(dedupeDescriptor);
         MapStateDescriptor<String, ConditionState> conditionDescriptor =
                 new MapStateDescriptor<>("conditions-v2", String.class, ConditionState.class);
-        conditionDescriptor.enableTimeToLive(ttl);
         conditions = getRuntimeContext().getMapState(conditionDescriptor);
         MapStateDescriptor<Long, Integer> revisionDescriptor =
                 new MapStateDescriptor<>("window-revisions-v2", Long.class, Integer.class);
-        revisionDescriptor.enableTimeToLive(ttl);
         windowRevisions = getRuntimeContext().getMapState(revisionDescriptor);
         var metrics = getRuntimeContext().getMetricGroup().addGroup("robot_telemetry");
         processedEventsMetric = metrics.counter("events_processed");
@@ -102,15 +108,15 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
         tooLateEventsMetric = metrics.counter("too_late_events");
     }
 
-    private <T> ValueState<T> state(String name, Class<T> type, StateTtlConfig ttl) {
+    private <T> ValueState<T> state(String name, Class<T> type) {
         ValueStateDescriptor<T> descriptor = new ValueStateDescriptor<>(name, type);
-        descriptor.enableTimeToLive(ttl);
         return getRuntimeContext().getState(descriptor);
     }
 
     @Override
     public void processElement(JsonNode envelope, Context context, Collector<String> output)
             throws Exception {
+        retention.touch(context.timerService());
         String type = envelope.path("envelope_type").asText();
         long streamTimestamp = envelope.path("stream_timestamp_ms").asLong();
         switch (type) {
@@ -306,6 +312,7 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
     private void abort(Context context) throws Exception {
         lifecycle.update("ABORTED");
         cancelTimerRegistrations(context.timerService(), true, true);
+        retention.clear(context.timerService());
         clearState();
     }
 
@@ -325,6 +332,14 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
     @Override
     public void onTimer(long timestamp, OnTimerContext context, Collector<String> output)
             throws Exception {
+        if (context.timeDomain() == TimeDomain.PROCESSING_TIME) {
+            if (retention.expires(timestamp)) {
+                cancelTimerRegistrations(context.timerService(), true, true);
+                retention.clear(context.timerService());
+                clearState();
+            }
+            return;
+        }
         Registration registered = registration.value();
         if (registered == null) return;
         Long startup = startupTimer.value();
@@ -368,6 +383,8 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
         if (summary != null && timestamp == summary && "ENDED".equals(lifecycle.value())) {
             emitTrailingPartialWindows(context.getCurrentKey(), output);
             emitMissionSummary(context.getCurrentKey(), output);
+            cancelTimerRegistrations(context.timerService(), true, true);
+            retention.clear(context.timerService());
             clearState();
         }
     }

@@ -53,7 +53,7 @@ public final class TelemetryStreamingJob {
                 .name("dead-letter-kafka-sink");
 
         DataStream<String> sequenceEvidence = parsed
-                .filter(TelemetryStreamingJob::isTelemetry)
+                .filter(TelemetryStreamingJob::isRobotLivenessInput)
                 .keyBy(TelemetryStreamingJob::robotEnvelopeKey)
                 .process(new SequenceEvidenceProcessor())
                 .name("robot-sequence-transport-evidence");

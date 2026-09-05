@@ -2,11 +2,9 @@ package io.github.mikehstudio.rostelemetry;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import java.time.Duration;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
@@ -14,29 +12,41 @@ import org.apache.flink.util.Collector;
 
 /** Records global bag-sequence gaps and regressions without changing analytical state. */
 final class SequenceEvidenceProcessor extends KeyedProcessFunction<String, JsonNode, String> {
+    private final long idleTimeoutMs;
+    private transient RunStateRetention retention;
     private transient ValueState<Long> maximumSequence;
     private transient MapState<String, Boolean> seenEventIds;
 
+    SequenceEvidenceProcessor() {
+        this(RunStateRetention.configuredIdleTimeoutMs());
+    }
+
+    SequenceEvidenceProcessor(long idleTimeoutMs) {
+        this.idleTimeoutMs = idleTimeoutMs;
+    }
+
     @Override
     public void open(OpenContext ignored) {
-        StateTtlConfig ttl = StateTtlConfig.newBuilder(
-                        Duration.ofMinutes(StreamingDefaults.STATE_TTL_MINUTES))
-                .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
-                .neverReturnExpired()
-                .build();
+        retention = new RunStateRetention(getRuntimeContext(), idleTimeoutMs);
         ValueStateDescriptor<Long> maximum =
                 new ValueStateDescriptor<>("global-maximum-sequence-v1", Long.class);
-        maximum.enableTimeToLive(ttl);
         maximumSequence = getRuntimeContext().getState(maximum);
         MapStateDescriptor<String, Boolean> seen =
                 new MapStateDescriptor<>("global-seen-sequence-events-v1", String.class, Boolean.class);
-        seen.enableTimeToLive(ttl);
         seenEventIds = getRuntimeContext().getMapState(seen);
     }
 
     @Override
     public void processElement(JsonNode envelope, Context context, Collector<String> output)
             throws Exception {
+        retention.touch(context.timerService());
+        String type = envelope.path("envelope_type").asText();
+        if (type.equals("run_ended") || type.equals("run_aborted") || type.equals("run_failed")) {
+            clearState();
+            retention.clear(context.timerService());
+            return;
+        }
+        if (!type.equals("telemetry")) return;
         JsonNode body = envelope.path("body");
         String eventId = body.path("event_id").asText();
         if (seenEventIds.contains(eventId)) return;
@@ -50,6 +60,20 @@ final class SequenceEvidenceProcessor extends KeyedProcessFunction<String, JsonN
             output.collect(evidence(envelope, "sequence_regression", maximum + 1, observed));
         }
         if (maximum == null || observed > maximum) maximumSequence.update(observed);
+    }
+
+    @Override
+    public void onTimer(long timestamp, OnTimerContext context, Collector<String> output)
+            throws Exception {
+        if (retention.expires(timestamp)) {
+            clearState();
+            retention.clear(context.timerService());
+        }
+    }
+
+    private void clearState() {
+        maximumSequence.clear();
+        seenEventIds.clear();
     }
 
     private static String evidence(

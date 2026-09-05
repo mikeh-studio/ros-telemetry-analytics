@@ -16,7 +16,9 @@ final class StreamingDefaults {
     static final double MAXIMUM_RATE_RATIO = 1.2;
     static final double GAP_THRESHOLD_MULTIPLIER = 1.5;
     static final int EXPECTED_TOPIC_COUNT = 4;
+    // TTL is only for short-lived coordination barriers, not active analytical state.
     static final long STATE_TTL_MINUTES = 12;
+    static final long RUN_STATE_IDLE_TIMEOUT_MS = 24 * 60 * 60_000L;
     static final long CHECKPOINT_INTERVAL_MS = 5_000;
     static final long CHECKPOINT_MIN_PAUSE_MS = 2_000;
     static final long CHECKPOINT_TIMEOUT_MS = 60_000;

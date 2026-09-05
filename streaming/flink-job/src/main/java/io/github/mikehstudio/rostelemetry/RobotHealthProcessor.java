@@ -3,14 +3,12 @@ package io.github.mikehstudio.rostelemetry;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.Serializable;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
@@ -18,36 +16,40 @@ import org.apache.flink.util.Collector;
 
 /** Derives robot health from independent active conditions and their recovery gates. */
 final class RobotHealthProcessor extends KeyedProcessFunction<String, String, String> {
+    private final long idleTimeoutMs;
+    private transient RunStateRetention retention;
     private transient MapState<String, ActiveCondition> conditions;
     private transient MapState<String, Boolean> topicRecovery;
     private transient ValueState<Boolean> robotRecovery;
 
+    RobotHealthProcessor() {
+        this(RunStateRetention.configuredIdleTimeoutMs());
+    }
+
+    RobotHealthProcessor(long idleTimeoutMs) {
+        this.idleTimeoutMs = idleTimeoutMs;
+    }
+
     @Override
     public void open(OpenContext ignored) {
-        StateTtlConfig ttl = StateTtlConfig.newBuilder(
-                        Duration.ofMinutes(StreamingDefaults.STATE_TTL_MINUTES))
-                .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
-                .neverReturnExpired()
-                .build();
+        retention = new RunStateRetention(getRuntimeContext(), idleTimeoutMs);
         MapStateDescriptor<String, ActiveCondition> conditionDescriptor =
                 new MapStateDescriptor<>(
                         "robot-active-conditions-v3", String.class, ActiveCondition.class);
-        conditionDescriptor.enableTimeToLive(ttl);
         conditions = getRuntimeContext().getMapState(conditionDescriptor);
         MapStateDescriptor<String, Boolean> recoveryDescriptor =
                 new MapStateDescriptor<>(
                         "robot-topic-recovery-v3", String.class, Boolean.class);
-        recoveryDescriptor.enableTimeToLive(ttl);
         topicRecovery = getRuntimeContext().getMapState(recoveryDescriptor);
         ValueStateDescriptor<Boolean> robotRecoveryDescriptor =
                 new ValueStateDescriptor<>("robot-offline-recovery-v3", Boolean.class);
-        robotRecoveryDescriptor.enableTimeToLive(ttl);
         robotRecovery = getRuntimeContext().getState(robotRecoveryDescriptor);
     }
 
     @Override
     public void processElement(String value, Context context, Collector<String> output)
             throws Exception {
+        retention.touch(context.timerService());
         JsonNode signal = JsonSupport.MAPPER.readTree(value);
         if (signal.has("anomaly_id")) updateCondition(signal);
         else if (signal.path("metric_type").asText().equals("topic_window")) {
@@ -59,6 +61,21 @@ final class RobotHealthProcessor extends KeyedProcessFunction<String, String, St
                     signal.path("payload").path("status").asText().equals("recovering"));
         }
         output.collect(metric(signal));
+    }
+
+    @Override
+    public void onTimer(long timestamp, OnTimerContext context, Collector<String> output)
+            throws Exception {
+        if (retention.expires(timestamp)) {
+            clearState();
+            retention.clear(context.timerService());
+        }
+    }
+
+    private void clearState() {
+        conditions.clear();
+        topicRecovery.clear();
+        robotRecovery.clear();
     }
 
     private void updateCondition(JsonNode anomaly) throws Exception {
