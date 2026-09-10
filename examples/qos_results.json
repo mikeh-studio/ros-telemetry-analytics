@@ -1,0 +1,142 @@
+{
+  "development": {
+    "checks": {
+      "matching_run": true,
+      "no_duplicate_envelopes": true,
+      "no_incompatible_scan_delivered": true,
+      "no_late_records": true,
+      "no_schema_rejections": true,
+      "no_unexpected_alerts": true,
+      "one_never_seen_detected": true,
+      "projection_recovered": true,
+      "publisher_active_during_incompatibility": true,
+      "qos_incompatibility_observed": true,
+      "scan_recovers_after_qos_fix": true,
+      "source_ledger_reconciled": true,
+      "summaries_verified": true,
+      "summary_counts_reconciled": true
+    },
+    "eligibility": "Subscriber discovered and publication within session, excluding final 100 ms",
+    "eligible_publisher_records": 1237,
+    "excluded_publisher_records": 203,
+    "fault": "qos",
+    "missing_eligible_records": 0,
+    "never_seen_detection_broker_delay_ms": [
+      7197
+    ],
+    "never_seen_detection_stream_delay_ms": [
+      5000
+    ],
+    "passed": true,
+    "publisher_records": 1440,
+    "qos_events": [
+      {
+        "affected_topic": "/scan",
+        "count": 1,
+        "event_kind": "qos_incompatible",
+        "gateway_received_timestamp_ns": 1789064379692556380,
+        "ros_timestamp_ns": null,
+        "source_clock": "gateway",
+        "timing_basis": "gateway_receive"
+      }
+    ],
+    "qos_recovery_broker_delay_ms": [
+      3344
+    ],
+    "received_by_topic": {
+      "/_telemetry/gateway_events": 1,
+      "/_telemetry/gateway_health": 45,
+      "/amcl_pose": 44,
+      "/diagnostics": 44,
+      "/odom": 894,
+      "/scan": 258
+    },
+    "run_id": "live-071ede3e6e084424a8e7ea7a1089bd97",
+    "scope": "Real DDS transport fixture; not Nav2 or physical robot evidence",
+    "summary_message_count": 1286,
+    "unexpected_alerts": []
+  },
+  "limitations": [
+    "Single robot and one middleware reliability mismatch",
+    "Publisher discovery and final 100 ms excluded from source reconciliation and counted explicitly",
+    "Health incident is NEVER_SEEN; direct gateway callback supplies QoS evidence"
+  ],
+  "scope": "Real DDS QoS incompatibility and repair; fixture, not physical robot evidence",
+  "validation": {
+    "checks": {
+      "matching_run": true,
+      "no_duplicate_envelopes": true,
+      "no_incompatible_scan_delivered": true,
+      "no_late_records": true,
+      "no_schema_rejections": true,
+      "no_unexpected_alerts": true,
+      "one_never_seen_detected": true,
+      "projection_recovered": true,
+      "publisher_active_during_incompatibility": true,
+      "qos_incompatibility_observed": true,
+      "scan_recovers_after_qos_fix": true,
+      "source_ledger_reconciled": true,
+      "summaries_verified": true,
+      "summary_counts_reconciled": true
+    },
+    "eligibility": "Subscriber discovered and publication within session, excluding final 100 ms",
+    "eligible_publisher_records": 1345,
+    "excluded_publisher_records": 255,
+    "fault": "qos",
+    "missing_eligible_records": 0,
+    "never_seen_detection_broker_delay_ms": [
+      7328
+    ],
+    "never_seen_detection_stream_delay_ms": [
+      5000
+    ],
+    "passed": true,
+    "publisher_records": 1600,
+    "qos_events": [
+      {
+        "affected_topic": "/scan",
+        "count": 1,
+        "event_kind": "qos_incompatible",
+        "gateway_received_timestamp_ns": 1789064595494382633,
+        "ros_timestamp_ns": null,
+        "source_clock": "gateway",
+        "timing_basis": "gateway_receive"
+      }
+    ],
+    "qos_recovery_broker_delay_ms": [
+      3088
+    ],
+    "received_by_topic": {
+      "/_telemetry/gateway_events": 1,
+      "/_telemetry/gateway_health": 50,
+      "/amcl_pose": 49,
+      "/diagnostics": 49,
+      "/odom": 993,
+      "/scan": 257
+    },
+    "run_id": "live-ea00abe924244757b350d2c750f99c1d",
+    "scope": "Real DDS transport fixture; not Nav2 or physical robot evidence",
+    "summary_message_count": 1399,
+    "unexpected_alerts": []
+  },
+  "validation_manifest": {
+    "domain": 48,
+    "duration_s": 50,
+    "fault": "qos",
+    "fault_end_s": 24,
+    "fault_start_s": 0,
+    "health": {
+      "services": {
+        "flink": "ready",
+        "flink_job": "ready",
+        "kafka": "ready",
+        "projection_api": "ready",
+        "replayer": "ready"
+      },
+      "source": "recorded_replay",
+      "status": "ready"
+    },
+    "image_id": "sha256:d4128e463b7114bc4b2f6a4a41ccc382f28af0b4acff2c2eec1745eed8213d16",
+    "scope": "DDS transport fixture"
+  }
+}

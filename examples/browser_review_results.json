@@ -1,0 +1,74 @@
+{
+  "rendered_review": {
+    "frontend_build_passed": true,
+    "frontend_tests_passed": 18,
+    "method": "Manual browser accessibility-state and screenshot inspection of localhost:3000 in the default Codex app panel viewport",
+    "observed": [
+      "Stack readiness reached ready and the live session completed with verified output.",
+      "The scan incident changed from active to recovered while preserving its opening and recovery timestamps.",
+      "Expanded gateway event evidence identified /scan and qos_incompatible.",
+      "Odometry and AMCL positions rendered in separate labeled frames with orange incident samples and blue surrounding samples.",
+      "The public localization evaluation remained explicitly described as a separate recording.",
+      "Browser console returned no warning or error entries during review."
+    ],
+    "repair": "Unsafe integer values, including nanosecond timestamps rounded by JavaScript JSON parsing, now render with an approximate label. Rebuilt container and screenshot inspection confirmed the label. Raw source evidence remains authoritative for exact integers.",
+    "scope": "Default app panel viewport and this synthetic live QoS incident; not a full accessibility or device-matrix audit."
+  },
+  "runtime_evaluation": {
+    "checks": {
+      "matching_run": true,
+      "no_duplicate_envelopes": true,
+      "no_incompatible_scan_delivered": true,
+      "no_late_records": true,
+      "no_schema_rejections": true,
+      "no_unexpected_alerts": true,
+      "one_never_seen_detected": true,
+      "projection_recovered": true,
+      "publisher_active_during_incompatibility": true,
+      "qos_incompatibility_observed": true,
+      "scan_recovers_after_qos_fix": true,
+      "source_ledger_reconciled": true,
+      "summaries_verified": true,
+      "summary_counts_reconciled": true
+    },
+    "eligibility": "Subscriber discovered and publication within session, excluding final 100 ms",
+    "eligible_publisher_records": 1342,
+    "excluded_publisher_records": 258,
+    "fault": "qos",
+    "missing_eligible_records": 0,
+    "never_seen_detection_broker_delay_ms": [
+      7330
+    ],
+    "never_seen_detection_stream_delay_ms": [
+      5000
+    ],
+    "passed": true,
+    "publisher_records": 1600,
+    "qos_events": [
+      {
+        "affected_topic": "/scan",
+        "count": 1,
+        "event_kind": "qos_incompatible",
+        "gateway_received_timestamp_ns": 1789070944781336293,
+        "ros_timestamp_ns": null,
+        "source_clock": "gateway",
+        "timing_basis": "gateway_receive"
+      }
+    ],
+    "qos_recovery_broker_delay_ms": [
+      3191
+    ],
+    "received_by_topic": {
+      "/_telemetry/gateway_events": 1,
+      "/_telemetry/gateway_health": 50,
+      "/amcl_pose": 50,
+      "/diagnostics": 50,
+      "/odom": 990,
+      "/scan": 255
+    },
+    "run_id": "live-7be1d44378404ee6a5ddb9f44c2330cd",
+    "scope": "Real DDS transport fixture; not Nav2 or physical robot evidence",
+    "summary_message_count": 1396,
+    "unexpected_alerts": []
+  }
+}

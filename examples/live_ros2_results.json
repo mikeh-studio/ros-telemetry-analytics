@@ -1,0 +1,122 @@
+{
+  "additional_evidence": {
+    "edge_recovery": "examples/edge_recovery_results.json",
+    "qos_repair": "examples/qos_results.json"
+  },
+  "development_findings": [
+    "Old Flink image rejected topic registration; rebuilt against current schema.",
+    "Live rate windows containing DDS discovery caused false alerts; require post-grace full windows.",
+    "Projection previously discarded every other run; now retains eight independent runs.",
+    "Initialize AMCL at the Gazebo spawn pose before navigation lifecycle activation."
+  ],
+  "gateway_ledger": {
+    "acknowledged": 1403,
+    "closed": true,
+    "database_bytes": 28672,
+    "last_receipt_ns": 1789062139390602565,
+    "next_sequence": 1403,
+    "pending_bytes": 0,
+    "pending_records": 0,
+    "received": 1403,
+    "rejected": 0,
+    "run_id": "live-00b9dc644bc74a53a4274a10fbbf39e8"
+  },
+  "nav2_validation": {
+    "action_status": 4,
+    "amcl_messages": 16,
+    "completion": {
+      "errors": [],
+      "expected_topic_count": 5,
+      "path": "/app/data/demo-output/live-632226355e144af68ed952652dda802c/topic_health",
+      "state": "completed",
+      "summary_file_count": 5,
+      "topics": [
+        "/_telemetry/gateway_events",
+        "/_telemetry/gateway_health",
+        "/amcl_pose",
+        "/odom",
+        "/scan"
+      ],
+      "verified": true,
+      "verified_at_ms": 1789061863300
+    },
+    "odometry_displacement_m": 0.9815251805252239,
+    "odometry_samples": 269,
+    "run_id": "live-632226355e144af68ed952652dda802c",
+    "source": "Gazebo sandbox with Nav2 and AMCL",
+    "status": "succeeded",
+    "stream_record_counts": {
+      "telemetry.anomalies.v1": 0,
+      "telemetry.dead-letter.v1": 0,
+      "telemetry.events.v1": 2368,
+      "telemetry.late.v1": 0,
+      "telemetry.metrics.v1": 710
+    },
+    "summary_message_count": 2350,
+    "wall_duration_s": 9.6842286709998
+  },
+  "remaining_validation": [
+    "Delay, duplicate and localization disturbance cases",
+    "Three simultaneous robots under asymmetric faults"
+  ],
+  "transport_manifest": {
+    "domain": 45,
+    "duration_s": 45,
+    "fault_end_s": 19,
+    "fault_start_s": 12,
+    "health": {
+      "services": {
+        "flink": "ready",
+        "flink_job": "ready",
+        "kafka": "ready",
+        "projection_api": "ready",
+        "replayer": "ready"
+      },
+      "source": "recorded_replay",
+      "status": "ready"
+    },
+    "image_id": "sha256:f7adde7cae6ebf27d950443489a1ce2f4939783db6fd166cb177757ddc165883",
+    "scope": "DDS transport fixture"
+  },
+  "transport_validation": {
+    "checks": {
+      "matching_run": true,
+      "no_duplicate_envelopes": true,
+      "no_late_records": true,
+      "no_schema_rejections": true,
+      "no_unexpected_alerts": true,
+      "one_scan_gap_detected": true,
+      "scan_gap_recovered": true,
+      "source_ledger_reconciled": true,
+      "summaries_verified": true,
+      "summary_counts_reconciled": true
+    },
+    "eligibility": "Subscriber discovered and publication within session, excluding final 100 ms",
+    "eligible_publisher_records": 1356,
+    "excluded_publisher_records": 14,
+    "gap_detection_broker_delay_ms": [
+      3766
+    ],
+    "gap_detection_stream_delay_ms": [
+      1401
+    ],
+    "gap_recovery_broker_delay_ms": [
+      3180
+    ],
+    "missing_eligible_records": 0,
+    "passed": true,
+    "publisher_records": 1370,
+    "received_by_topic": {
+      "/_telemetry/gateway_health": 45,
+      "/amcl_pose": 44,
+      "/diagnostics": 44,
+      "/odom": 893,
+      "/scan": 377
+    },
+    "run_id": "live-00b9dc644bc74a53a4274a10fbbf39e8",
+    "scope": "Real DDS transport fixture; not Nav2 or physical robot evidence",
+    "summary_message_count": 1403,
+    "unexpected_alerts": []
+  },
+  "validation_date": "2026-09-10"
+}

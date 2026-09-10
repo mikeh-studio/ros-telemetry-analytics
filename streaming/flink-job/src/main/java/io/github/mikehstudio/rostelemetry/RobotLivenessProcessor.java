@@ -3,6 +3,7 @@ package io.github.mikehstudio.rostelemetry;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.Serializable;
+import java.util.UUID;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -23,6 +24,9 @@ final class RobotLivenessProcessor extends KeyedProcessFunction<String, JsonNode
     private transient ValueState<String> lifecycle;
     private transient ValueState<Boolean> watchdogEnabled;
     private transient ValueState<Long> watchdogTimer;
+    private transient ValueState<String> watchdogGeneration;
+    private transient ValueState<Boolean> awaitingAfterRestore;
+    private transient String operatorGeneration;
     private transient ValueState<Long> latestStreamTimestamp;
     private transient ValueState<OfflineState> offline;
     private transient ValueState<Integer> recoveryEvents;
@@ -43,6 +47,9 @@ final class RobotLivenessProcessor extends KeyedProcessFunction<String, JsonNode
         lifecycle = state("robot-lifecycle-v2", String.class);
         watchdogEnabled = state("robot-watchdog-enabled-v2", Boolean.class);
         watchdogTimer = state("robot-watchdog-timer-v2", Long.class);
+        watchdogGeneration = state("robot-watchdog-generation-v1", String.class);
+        awaitingAfterRestore = state("robot-awaiting-after-restore-v1", Boolean.class);
+        operatorGeneration = UUID.randomUUID().toString();
         latestStreamTimestamp = state("robot-latest-stream-v2", Long.class);
         offline = state("robot-offline-v2", OfflineState.class);
         recoveryEvents = state("robot-recovery-events-v2", Integer.class);
@@ -114,6 +121,10 @@ final class RobotLivenessProcessor extends KeyedProcessFunction<String, JsonNode
         Long latest = latestStreamTimestamp.value();
         if (latest == null || streamTimestamp > latest) latestStreamTimestamp.update(streamTimestamp);
         if (Boolean.TRUE.equals(watchdogEnabled.value())) replaceTimer(context);
+        if (Boolean.TRUE.equals(awaitingAfterRestore.value())) {
+            awaitingAfterRestore.clear();
+            output.collect(metric(streamTimestamp, "healthy", "accepted_after_restore"));
+        }
         OfflineState active = offline.value();
         if (active == null) {
             recoveryEvents.update(0);
@@ -121,13 +132,16 @@ final class RobotLivenessProcessor extends KeyedProcessFunction<String, JsonNode
         }
         int consecutive = recoveryEvents.value() == null ? 1 : recoveryEvents.value() + 1;
         recoveryEvents.update(consecutive);
-        output.collect(metric(streamTimestamp, "recovering", "accepted_event"));
+        long decisionTimestamp = Math.max(streamTimestamp, active.startMs + Math.max(
+                0, context.timerService().currentProcessingTime() - active.openedProcessingMs));
+        active.recoveryObservationStreamMs = streamTimestamp;
+        output.collect(metric(decisionTimestamp, "recovering", "accepted_event"));
         if (consecutive >= 3) {
             active.revision += 1;
-            context.output(ANOMALIES, anomaly("recovered", streamTimestamp, active));
+            context.output(ANOMALIES, anomaly("recovered", decisionTimestamp, active));
             offline.clear();
             recoveryEvents.update(0);
-            output.collect(metric(streamTimestamp, "healthy", "three_accepted_events"));
+            output.collect(metric(decisionTimestamp, "healthy", "three_accepted_events"));
         }
     }
 
@@ -147,7 +161,27 @@ final class RobotLivenessProcessor extends KeyedProcessFunction<String, JsonNode
                 || watchdogTimer.value() == null
                 || watchdogTimer.value() != timestamp) return;
         if (offline.value() == null) {
+            if (!operatorGeneration.equals(watchdogGeneration.value())) {
+                // A checkpoint restores timers, not evidence of silence while this
+                // observer was stopped. Re-establish a full observation interval.
+                boolean sourceProgress = context.timerService().currentWatermark() != Long.MIN_VALUE;
+                long target = context.timerService().currentProcessingTime()
+                        + (sourceProgress ? OFFLINE_AFTER_MS : 1_000L);
+                watchdogTimer.update(target);
+                if (sourceProgress) watchdogGeneration.update(operatorGeneration);
+                boolean firstUnknown = !Boolean.TRUE.equals(awaitingAfterRestore.value());
+                awaitingAfterRestore.update(true);
+                context.timerService().registerProcessingTimeTimer(target);
+                Long latest = latestStreamTimestamp.value();
+                if (firstUnknown) {
+                    output.collect(metric(latest == null ? identity.value().startStreamMs : latest,
+                            "unknown", "watchdog_rearmed_after_restore"));
+                }
+                return;
+            }
+            awaitingAfterRestore.clear();
             OfflineState state = new OfflineState();
+            state.openedProcessingMs = timestamp;
             Long latest = latestStreamTimestamp.value();
             state.startMs = latest == null
                     ? identity.value().startStreamMs + OFFLINE_AFTER_MS
@@ -167,6 +201,7 @@ final class RobotLivenessProcessor extends KeyedProcessFunction<String, JsonNode
         cancelTimer(context);
         long target = context.timerService().currentProcessingTime() + OFFLINE_AFTER_MS;
         watchdogTimer.update(target);
+        watchdogGeneration.update(operatorGeneration);
         context.timerService().registerProcessingTimeTimer(target);
     }
 
@@ -174,6 +209,7 @@ final class RobotLivenessProcessor extends KeyedProcessFunction<String, JsonNode
         Long current = watchdogTimer.value();
         if (current != null) context.timerService().deleteProcessingTimeTimer(current);
         watchdogTimer.clear();
+        watchdogGeneration.clear();
     }
 
     private void rememberIdentity(JsonNode envelope) throws Exception {
@@ -189,11 +225,13 @@ final class RobotLivenessProcessor extends KeyedProcessFunction<String, JsonNode
         lifecycle.clear();
         watchdogEnabled.clear();
         watchdogTimer.clear();
+        watchdogGeneration.clear();
         latestStreamTimestamp.clear();
         offline.clear();
         recoveryEvents.clear();
         identity.clear();
         seenEventIds.clear();
+        awaitingAfterRestore.clear();
     }
 
     private String metric(long streamTimestamp, String status, String reason) throws Exception {
@@ -234,7 +272,12 @@ final class RobotLivenessProcessor extends KeyedProcessFunction<String, JsonNode
         node.put("detected_stream_ms", streamTimestamp);
         if ("recovered".equals(status)) node.put("recovered_stream_ms", streamTimestamp);
         else node.putNull("recovered_stream_ms");
-        node.putObject("evidence").put("processing_silence_ms", OFFLINE_AFTER_MS);
+        ObjectNode evidence = node.putObject("evidence");
+        evidence.put("processing_silence_ms", OFFLINE_AFTER_MS);
+        evidence.put("decision_clock", "processing_elapsed_projected_to_stream");
+        if ("recovered".equals(status)) {
+            evidence.put("recovery_observation_stream_ms", state.recoveryObservationStreamMs);
+        }
         return JsonSupport.write(node);
     }
 
@@ -248,6 +291,8 @@ final class RobotLivenessProcessor extends KeyedProcessFunction<String, JsonNode
     public static final class OfflineState implements Serializable {
         public String anomalyId;
         public long startMs;
+        public long openedProcessingMs;
+        public long recoveryObservationStreamMs;
         public int revision;
         public OfflineState() {}
     }

@@ -20,6 +20,8 @@ final class RobotHealthProcessorHarnessTest {
                 new KeyedOneInputStreamOperatorTestHarness<>(
                         operator, ignored -> "run-1|robot-17", Types.STRING)) {
             harness.open();
+            process(harness, healthSignal("unknown", 0));
+            assertHealth(harness, "unknown", null, 0);
             process(harness, healthSignal("healthy", 0));
             assertHealth(harness, "healthy", null, 0);
 

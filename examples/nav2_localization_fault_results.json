@@ -1,0 +1,137 @@
+{
+  "development": {
+    "actions": {
+      "baseline": {
+        "wall_ms": 1789067776240,
+        "x": -2.0,
+        "y": -0.5
+      },
+      "disturbance": {
+        "wall_ms": 1789067782243,
+        "x": -0.5,
+        "y": -0.5
+      },
+      "repair": {
+        "wall_ms": 1789067788245,
+        "x": -2.0,
+        "y": -0.5
+      }
+    },
+    "amcl_observations": [
+      {
+        "frame_id": "map",
+        "ros_timestamp_ns": 201000000,
+        "topic": "/amcl_pose",
+        "wall_ms": 1789067778308,
+        "x": -1.990091151826153,
+        "y": -0.5038605529897614
+      },
+      {
+        "frame_id": "map",
+        "ros_timestamp_ns": 4200000000,
+        "topic": "/amcl_pose",
+        "wall_ms": 1789067782335,
+        "x": -0.5106037998628576,
+        "y": -0.5071950697057096
+      },
+      {
+        "frame_id": "map",
+        "ros_timestamp_ns": 9801000000,
+        "topic": "/amcl_pose",
+        "wall_ms": 1789067788291,
+        "x": -2.0021259029657767,
+        "y": -0.4944621033069198
+      }
+    ],
+    "checks": {
+      "baseline_near_spawn": true,
+      "both_pose_frames_present": true,
+      "estimate_restored_after_reset": true,
+      "injected_estimate_displacement_observed": true,
+      "robot_remained_stationary": true
+    },
+    "fault_observation_delay_ms": 92,
+    "manifest": {
+      "domain": 73,
+      "image_id": "sha256:e7952847b6270bca304292e81c87df3f2b7cd6a81468cc7d221286bf4e55e746",
+      "offset_m": 1.5,
+      "scope": "Owned stationary Gazebo/Nav2 sandbox"
+    },
+    "max_fault_estimate_distance_m": 1.489413579235475,
+    "max_odometry_displacement_m": 1.7799837444831427e-14,
+    "odometry_sample_count": 432,
+    "offset_m": 1.5,
+    "passed": true,
+    "pose_samples": 3,
+    "repair_observation_delay_ms": 46,
+    "scope": "Controlled AMCL estimate reset and manual restoration in Gazebo; not autonomous relocalization or production detection"
+  },
+  "remaining": "This artifact validates fault generation and observed restoration only. Subsequent gateway integration and post-run detector evaluation are recorded in nav2_telemetry_results.json.",
+  "validation": {
+    "actions": {
+      "baseline": {
+        "wall_ms": 1789068258402,
+        "x": -2.0,
+        "y": -0.5
+      },
+      "disturbance": {
+        "wall_ms": 1789068264404,
+        "x": 0.0,
+        "y": -0.5
+      },
+      "repair": {
+        "wall_ms": 1789068270405,
+        "x": -2.0,
+        "y": -0.5
+      }
+    },
+    "amcl_observations": [
+      {
+        "frame_id": "map",
+        "ros_timestamp_ns": 201000000,
+        "topic": "/amcl_pose",
+        "wall_ms": 1789068258888,
+        "x": -1.9899910352998227,
+        "y": -0.4993215460888977
+      },
+      {
+        "frame_id": "map",
+        "ros_timestamp_ns": 5802000000,
+        "topic": "/amcl_pose",
+        "wall_ms": 1789068264506,
+        "x": 0.013022578970113245,
+        "y": -0.5006076081994689
+      },
+      {
+        "frame_id": "map",
+        "ros_timestamp_ns": 11802000000,
+        "topic": "/amcl_pose",
+        "wall_ms": 1789068270485,
+        "x": -2.0018709625279594,
+        "y": -0.49342361788240163
+      }
+    ],
+    "checks": {
+      "baseline_near_spawn": true,
+      "both_pose_frames_present": true,
+      "estimate_restored_after_reset": true,
+      "injected_estimate_displacement_observed": true,
+      "odometry_remained_stationary": true
+    },
+    "fault_observation_delay_ms": 102,
+    "manifest": {
+      "domain": 74,
+      "image_id": "sha256:e7952847b6270bca304292e81c87df3f2b7cd6a81468cc7d221286bf4e55e746",
+      "offset_m": 2.0,
+      "scope": "Owned stationary Gazebo/Nav2 sandbox"
+    },
+    "max_fault_estimate_distance_m": 2.0130226706699577,
+    "max_odometry_displacement_m": 1.7799837444831427e-14,
+    "odometry_sample_count": 492,
+    "offset_m": 2.0,
+    "passed": true,
+    "pose_samples": 3,
+    "repair_observation_delay_ms": 80,
+    "scope": "Controlled AMCL estimate reset and manual restoration in Gazebo; not autonomous relocalization or production detection"
+  }
+}

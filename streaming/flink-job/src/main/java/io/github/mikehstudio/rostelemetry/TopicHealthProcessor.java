@@ -52,6 +52,7 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
     private transient ValueState<Long> acceptedLateCount;
     private transient ValueState<Long> duplicateCount;
     private transient ValueState<Long> tooLateCount;
+    private transient ValueState<Long> lastSignalBucket;
     private transient ListState<EventPoint> acceptedEvents;
     private transient MapState<String, Boolean> seenEventIds;
     private transient MapState<String, ConditionState> conditions;
@@ -89,6 +90,7 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
         acceptedLateCount = state("accepted-late-count-v2", Long.class);
         duplicateCount = state("duplicate-count-v2", Long.class);
         tooLateCount = state("too-late-count-v2", Long.class);
+        lastSignalBucket = state("last-signal-bucket-v1", Long.class);
         ListStateDescriptor<EventPoint> acceptedDescriptor =
                 new ListStateDescriptor<>("accepted-events-v2", EventPoint.class);
         acceptedEvents = getRuntimeContext().getListState(acceptedDescriptor);
@@ -203,6 +205,20 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
         }
 
         seenEventIds.put(eventId, true);
+        JsonNode attributes = body.path("attributes");
+        long signalBucket = Math.floorDiv(streamTimestamp, 1_000) * 1_000;
+        if (registered.sourceFormat.equals("live_ros2") && attributes.isObject()
+                && !attributes.isEmpty()
+                && (lastSignalBucket.value() == null || signalBucket > lastSignalBucket.value())) {
+            ObjectNode signal = JsonSupport.object();
+            signal.set("attributes", attributes.deepCopy());
+            signal.put("sampling", "first_accepted_observation_per_second");
+            signal.put("event_id", eventId);
+            signal.put("source_timestamp_ns", body.path("event_timestamp_ns").asLong());
+            output.collect(metric("observed_signal", context.getCurrentKey(), signalBucket,
+                    signalBucket + 1_000, 0, streamTimestamp, signal));
+            lastSignalBucket.update(signalBucket);
+        }
         long sourceTimestamp = body.path("event_timestamp_ns").asLong();
         boolean acceptedLate = disposition == TelemetryDisposition.ACCEPTED_LATE;
         acceptedEvents.add(new EventPoint(streamTimestamp, sourceTimestamp, eventId, acceptedLate));
@@ -260,12 +276,12 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
             gate.eventCount = 1;
             gate.gapFree = true;
             recoveryGate.update(gate);
-            long target = timestamp + RECOVERY_GATE_MS;
+            long target = timestamp + recoveryGateMs(registered.expectedRateHz);
             recoveryTimer.update(target);
             context.timerService().registerEventTimeTimer(target);
             return;
         }
-        if (timestamp >= gate.startMs + RECOVERY_GATE_MS) return;
+        if (timestamp >= gate.startMs + recoveryGateMs(registered.expectedRateHz)) return;
         if (timestamp > gate.lastMs) {
             double gapThresholdMs = GAP_MULTIPLIER / registered.expectedRateHz * 1_000.0;
             gate.gapFree = gate.gapFree && timestamp - gate.lastMs <= gapThresholdMs;
@@ -395,16 +411,23 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
         recoveryGate.clear();
         recoveryTimer.clear();
         if (gate == null) return;
-        int required =
-                Math.max(3, (int) Math.ceil(registered.expectedRateHz * MINIMUM_RATE_RATIO));
+        long gateMs = recoveryGateMs(registered.expectedRateHz);
+        int required = Math.max(3, (int) Math.ceil(
+                registered.expectedRateHz * gateMs / 1_000.0 * MINIMUM_RATE_RATIO));
         if (gate.eventCount < required || !gate.gapFree) return;
         ObjectNode evidence = evidence("recovery_event_count", gate.eventCount);
-        evidence.put("recovery_gate_ms", RECOVERY_GATE_MS);
+        evidence.put("recovery_gate_ms", gateMs);
         recoverCondition("NEVER_SEEN", timestamp, evidence, context);
         recoverCondition("GAP", timestamp, evidence, context);
         structuralRecoveryStream.update(timestamp);
         badRateWindows.update(0);
         healthyRateWindows.update(0);
+    }
+
+    private static long recoveryGateMs(double expectedRateHz) {
+        // Require three observations without demanding an impossible burst from
+        // low-frequency health topics. Fast sensors keep their one-second gate.
+        return Math.max(RECOVERY_GATE_MS, (long) Math.ceil(3_000.0 / expectedRateHz));
     }
 
     private void emitWindow(
@@ -468,7 +491,11 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
                 || !"RUNNING".equals(lifecycle.value())) return;
         Long recoveredAt = structuralRecoveryStream.value();
         boolean eligibleAfterRecovery = recoveredAt == null || windowStart >= recoveredAt;
-        if (suppression != null || !eligibleAfterRecovery) {
+        // Live DDS discovery may consume the startup grace. Do not call its
+        // intentionally incomplete rate window a steady-state rate failure.
+        boolean liveStartupWindow = "live_ros2".equals(registered.sourceFormat)
+                && windowStart < registered.streamStartMs + registered.startupGraceMs;
+        if (suppression != null || !eligibleAfterRecovery || liveStartupWindow) {
             badRateWindows.update(0);
             healthyRateWindows.update(0);
             return;
@@ -793,6 +820,7 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
         acceptedLateCount.clear();
         duplicateCount.clear();
         tooLateCount.clear();
+        lastSignalBucket.clear();
         acceptedEvents.clear();
         seenEventIds.clear();
         conditions.clear();

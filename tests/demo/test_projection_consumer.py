@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+from types import SimpleNamespace
 from typing import Any
 
+import pytest
 from aiokafka import TopicPartition
 
 import demo.api.consumer as consumer_module
@@ -12,6 +14,56 @@ from demo.api.consumer import ProjectionConsumer
 class _Store:
     def offsets(self) -> dict[tuple[str, int], int]:
         return {("telemetry.metrics.v1", 0): 17}
+
+
+@pytest.mark.parametrize("fail_store", [False, True])
+def test_batch_offsets_commit_only_after_atomic_projection(fail_store):
+    async def scenario():
+        steps = []
+        partition = TopicPartition("telemetry.metrics.v1", 0)
+
+        class Store:
+            def project_batch(self, records):
+                steps.append("store")
+                assert [r["kafka_offset"] for r in records] == [17, 18]
+                if fail_store:
+                    raise RuntimeError("transaction rolled back")
+                return [True, False]
+
+        class Consumer:
+            calls = 0
+
+            async def getmany(self, **kwargs):
+                self.calls += 1
+                if self.calls > 1:
+                    raise asyncio.CancelledError
+                assert kwargs["max_records"] == 500
+                return {
+                    partition: [
+                        SimpleNamespace(
+                            topic=partition.topic, partition=0, offset=offset, value={"id": offset}
+                        )
+                        for offset in (17, 18)
+                    ]
+                }
+
+            async def commit(self, offsets):
+                assert offsets == {partition: 19}
+                steps.append("commit")
+
+        async def published(event):
+            assert event["payload"] == {"id": 17}
+            steps.append("publish")
+
+        projection = ProjectionConsumer(
+            bootstrap_servers="unused", store=Store(), on_projected=published
+        )
+        projection.consumer = Consumer()
+        with pytest.raises(RuntimeError if fail_store else asyncio.CancelledError):
+            await projection._consume()
+        assert steps == (["store"] if fail_store else ["store", "commit", "publish"])
+
+    asyncio.run(scenario())
 
 
 class _FakeKafkaConsumer:
