@@ -1,0 +1,253 @@
+{
+  "schema_version": 1,
+  "source_doi": "https://doi.org/10.15480/882.15836",
+  "split_policy": "Freeze before candidate evaluation. Hold out symmetric_exp_3 and unsymmetric_exp_3 with all obstacle configurations. The previously inspected warehouse run is development-only.",
+  "selection_policy": "Maximize development macro sample F1 subject to macro sample precision >= baseline minus 0.05 and macro event recall >= baseline. Ties prefer less hold then larger spread threshold. Evaluate only baseline and selected candidate on held-out environments.",
+  "candidate_spread_thresholds_m": [
+    0.2,
+    0.25,
+    0.3,
+    0.35,
+    0.4,
+    0.45,
+    0.5
+  ],
+  "candidate_recovery_holds_ms": [
+    0,
+    250,
+    500
+  ],
+  "runs": [
+    {
+      "run_id": "rec_20250821_104113",
+      "environment": "warehouse",
+      "role": "development",
+      "sample_count": 15708,
+      "failure_sample_count": 4537,
+      "members": [
+        "rec_20250821_104113_id_01.processed.parquet",
+        "rec_20250821_104113_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250828_102407",
+      "environment": "warehouse",
+      "role": "development",
+      "sample_count": 17188,
+      "failure_sample_count": 3289,
+      "members": [
+        "rec_20250828_102407_id_01.processed.parquet",
+        "rec_20250828_102407_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250827_161251",
+      "environment": "warehouse",
+      "role": "development",
+      "sample_count": 18693,
+      "failure_sample_count": 5123,
+      "members": [
+        "rec_20250827_161251_id_01.processed.parquet",
+        "rec_20250827_161251_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250821_151429",
+      "environment": "symmetric_exp_1",
+      "role": "development",
+      "sample_count": 14891,
+      "failure_sample_count": 2178,
+      "members": [
+        "rec_20250821_151429_id_01.processed.parquet",
+        "rec_20250821_151429_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250821_141846",
+      "environment": "symmetric_exp_1",
+      "role": "development",
+      "sample_count": 14729,
+      "failure_sample_count": 1959,
+      "members": [
+        "rec_20250821_141846_id_01.processed.parquet",
+        "rec_20250821_141846_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250821_132354",
+      "environment": "symmetric_exp_1",
+      "role": "development",
+      "sample_count": 18723,
+      "failure_sample_count": 2776,
+      "members": [
+        "rec_20250821_132354_id_01.processed.parquet",
+        "rec_20250821_132354_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250822_132819",
+      "environment": "symmetric_exp_2",
+      "role": "development",
+      "sample_count": 22909,
+      "failure_sample_count": 5567,
+      "members": [
+        "rec_20250822_132819_id_01.processed.parquet",
+        "rec_20250822_132819_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250822_135308",
+      "environment": "symmetric_exp_2",
+      "role": "development",
+      "sample_count": 22381,
+      "failure_sample_count": 8275,
+      "members": [
+        "rec_20250822_135308_id_01.processed.parquet",
+        "rec_20250822_135308_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250822_123916",
+      "environment": "symmetric_exp_2",
+      "role": "development",
+      "sample_count": 18364,
+      "failure_sample_count": 1674,
+      "members": [
+        "rec_20250822_123916_id_01.processed.parquet",
+        "rec_20250822_123916_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250828_105714",
+      "environment": "symmetric_exp_3",
+      "role": "evaluation",
+      "sample_count": 22893,
+      "failure_sample_count": 4860,
+      "members": [
+        "rec_20250828_105714_id_01.processed.parquet",
+        "rec_20250828_105714_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250828_161448",
+      "environment": "symmetric_exp_3",
+      "role": "evaluation",
+      "sample_count": 23754,
+      "failure_sample_count": 6182,
+      "members": [
+        "rec_20250828_161448_id_01.processed.parquet",
+        "rec_20250828_161448_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250825_100748",
+      "environment": "symmetric_exp_3",
+      "role": "evaluation",
+      "sample_count": 19394,
+      "failure_sample_count": 3769,
+      "members": [
+        "rec_20250825_100748_id_01.processed.parquet",
+        "rec_20250825_100748_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250825_133605",
+      "environment": "unsymmetric_exp_1",
+      "role": "development",
+      "sample_count": 22623,
+      "failure_sample_count": 5734,
+      "members": [
+        "rec_20250825_133605_id_01.processed.parquet",
+        "rec_20250825_133605_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250825_135829",
+      "environment": "unsymmetric_exp_1",
+      "role": "development",
+      "sample_count": 24621,
+      "failure_sample_count": 7306,
+      "members": [
+        "rec_20250825_135829_id_01.processed.parquet",
+        "rec_20250825_135829_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250829_104641",
+      "environment": "unsymmetric_exp_1",
+      "role": "development",
+      "sample_count": 23350,
+      "failure_sample_count": 3790,
+      "members": [
+        "rec_20250829_104641_id_01.processed.parquet",
+        "rec_20250829_104641_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250825_161940",
+      "environment": "unsymmetric_exp_2",
+      "role": "development",
+      "sample_count": 21165,
+      "failure_sample_count": 6513,
+      "members": [
+        "rec_20250825_161940_id_01.processed.parquet",
+        "rec_20250825_161940_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250825_145941",
+      "environment": "unsymmetric_exp_2",
+      "role": "development",
+      "sample_count": 14548,
+      "failure_sample_count": 1477,
+      "members": [
+        "rec_20250825_145941_id_01.processed.parquet",
+        "rec_20250825_145941_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250825_153216",
+      "environment": "unsymmetric_exp_2",
+      "role": "development",
+      "sample_count": 24468,
+      "failure_sample_count": 8505,
+      "members": [
+        "rec_20250825_153216_id_01.processed.parquet",
+        "rec_20250825_153216_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250826_104543",
+      "environment": "unsymmetric_exp_3",
+      "role": "evaluation",
+      "sample_count": 18788,
+      "failure_sample_count": 5353,
+      "members": [
+        "rec_20250826_104543_id_01.processed.parquet",
+        "rec_20250826_104543_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250826_095810",
+      "environment": "unsymmetric_exp_3",
+      "role": "evaluation",
+      "sample_count": 18767,
+      "failure_sample_count": 4105,
+      "members": [
+        "rec_20250826_095810_id_01.processed.parquet",
+        "rec_20250826_095810_id_02.processed.parquet"
+      ]
+    },
+    {
+      "run_id": "rec_20250826_102611",
+      "environment": "unsymmetric_exp_3",
+      "role": "evaluation",
+      "sample_count": 19228,
+      "failure_sample_count": 3343,
+      "members": [
+        "rec_20250826_102611_id_01.processed.parquet",
+        "rec_20250826_102611_id_02.processed.parquet"
+      ]
+    }
+  ]
+}

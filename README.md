@@ -75,6 +75,10 @@ See the [evaluation guide](docs/localization-evaluation.md) for the command,
 dataset setup, and baseline results, or read the
 [sample evaluation](examples/sample_localization_eval.md).
 
+A [21-run follow-up study](examples/localization_study.md) compares detector
+changes on separate development and evaluation environments, with explicit
+recall, precision, and false-alarm tradeoffs.
+
 ## Repository layout
 
 | Path | Contents |
