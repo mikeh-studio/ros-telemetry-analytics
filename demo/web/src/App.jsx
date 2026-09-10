@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowCounterClockwiseIcon, PauseIcon, PlayIcon } from "@phosphor-icons/react";
+import IncidentDetail from "./IncidentDetail";
+import TopicHistory from "./TopicHistory";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const TOPIC_LABELS = {
@@ -134,7 +136,7 @@ function RateBars({ topics }) {
   );
 }
 
-function MissionTimeline({ progressMs, durationMs }) {
+function MissionTimeline({ progressMs, durationMs, incidents = [], startMs }) {
   const safeDuration = Math.max(1, durationMs || 90_000);
   const progress = Math.min(100, Math.max(0, progressMs / safeDuration * 100));
   const ticks = 6;
@@ -142,6 +144,12 @@ function MissionTimeline({ progressMs, durationMs }) {
     <div className={`mission-timeline ${progress >= 100 ? "complete" : ""}`} aria-label={`Mission elapsed ${formatTime(progressMs)} of ${formatTime(safeDuration)}`}>
       <div className="timeline-rail">
         <span className="timeline-progress" style={{ width: `${progress}%` }} />
+        {incidents.map((incident) => {
+          if (!Number.isFinite(startMs) || !Number.isFinite(incident.effective_start_stream_ms)) return null;
+          const left = Math.max(0, Math.min(100, (incident.effective_start_stream_ms - startMs) / safeDuration * 100));
+          const right = Math.max(left, Math.min(100, ((incident.recovered_stream_ms ?? startMs + progressMs) - startMs) / safeDuration * 100));
+          return <span key={incident.anomaly_id} className="timeline-incident" style={{ left: `${left}%`, width: `${Math.max(.3, right - left)}%` }} title={`${incident.topic || "Robot"}: ${incident.condition_type}`} />;
+        })}
         <span className="timeline-cursor" style={{ left: `${progress}%` }} />
         {Array.from({ length: ticks }, (_, index) => (
           <span className="timeline-tick" style={{ left: `${(index / (ticks - 1)) * 100}%` }} key={index} />
@@ -168,35 +176,6 @@ function TransportAction({ label, disabled, onClick, children, primary = false }
         {children}
       </button>
       <span>{label}</span>
-    </div>
-  );
-}
-
-function TelemetryTable({ topicMap, unavailable }) {
-  const topics = Object.keys(topicMap).length ? Object.keys(topicMap) : Object.keys(TOPIC_LABELS);
-  return (
-    <div className="telemetry-table-wrap">
-      <table className="telemetry-table">
-        <thead>
-          <tr><th>Topic</th><th>Health</th><th>Observed</th><th>Expected</th><th>Max gap</th><th>Messages</th></tr>
-        </thead>
-        <tbody>
-          {topics.map((topic) => {
-            const payload = topicMap[topic]?.payload || {};
-            const status = unavailable ? "unavailable" : payload.health_status || payload.status || "waiting";
-            return (
-              <tr key={topic}>
-                <td data-label="Topic"><strong>{topicLabel(topic)}</strong><code>{topic}</code></td>
-                <td data-label="Health"><StatusPill status={status} /></td>
-                <td data-label="Observed">{formatRate(payload.mean_rate_hz)}</td>
-                <td data-label="Expected">{formatRate(payload.expected_rate_hz)}</td>
-                <td data-label="Max gap">{payload.max_inter_message_gap_s == null ? "—" : `${payload.max_inter_message_gap_s.toFixed(2)} s`}</td>
-                <td data-label="Messages">{payload.message_count?.toLocaleString() || "—"}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
     </div>
   );
 }
@@ -285,9 +264,14 @@ export default function App() {
   const [datasetCatalog, setDatasetCatalog] = useState(EMPTY_DATASETS);
   const [selectedDatasetId, setSelectedDatasetId] = useState(EMPTY_DATASETS.default_dataset_id);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const uploadDialog = useRef(null);
   const datasetSelectionTouched = useRef(false);
+  const currentRunId = useRef(null);
 
   const applySnapshot = useCallback((payload) => {
+    if (currentRunId.current !== payload.run_id) setError("");
+    currentRunId.current = payload.run_id;
     setSnapshot(payload);
     if (!datasetSelectionTouched.current && payload.run_id && payload.dataset_id) {
       setSelectedDatasetId(payload.dataset_id);
@@ -337,6 +321,7 @@ export default function App() {
       ["metric", "anomaly", "completed"].forEach((type) => events.addEventListener(type, () => refresh().catch(() => {})));
       events.addEventListener("completion_failed", (event) => {
         const payload = JSON.parse(event.data);
+        if (payload.run_id !== currentRunId.current) return;
         setError(`${payload.detail}. Inspect the Flink checkpoint and summary-file diagnostics.`);
         refresh().catch(() => {});
       });
@@ -379,7 +364,17 @@ export default function App() {
     if (scenario === "camera-dropout" && rate !== 1) setRate(1);
   }, [scenario, rate]);
 
-  const selectedDataset = datasetCatalog.datasets.find(
+  const liveDataset = snapshot.source_format === "live_ros2" && snapshot.run_id ? {
+    dataset_id: snapshot.dataset_id,
+    name: snapshot.dataset_name,
+    description: "Live ROS 2 observations received by the gateway. Session timing uses gateway reception time.",
+    file_format: "live_ros2",
+    source: "live_ros2",
+    status: "live session",
+    selectable: false,
+  } : null;
+  const availableDatasets = liveDataset ? [...datasetCatalog.datasets, liveDataset] : datasetCatalog.datasets;
+  const selectedDataset = availableDatasets.find(
     (dataset) => dataset.dataset_id === selectedDatasetId,
   ) || datasetCatalog.datasets.find(
     (dataset) => dataset.dataset_id === datasetCatalog.default_dataset_id,
@@ -392,6 +387,7 @@ export default function App() {
   }, [scenario, selectedDataset]);
 
   const selectedRunMatches = !snapshot.dataset_id || snapshot.dataset_id === selectedDatasetId;
+  const viewingLive = selectedRunMatches && Boolean(liveDataset);
   const streamingAuthoritiesReady = connected
     && ["kafka", "flink", "flink_job", "projection_api"]
       .every((name) => readiness.services?.[name] === "ready");
@@ -411,10 +407,6 @@ export default function App() {
     ? snapshot.robot_health?.payload?.status || "waiting"
     : "waiting";
   const visibleTopics = selectedRunMatches ? snapshot.topics : [];
-  const topicMap = useMemo(
-    () => Object.fromEntries(visibleTopics.map((item) => [item.topic, item])),
-    [visibleTopics],
-  );
   const activeIncidents = selectedRunMatches
     ? snapshot.anomalies.filter((item) => item.status === "active")
     : [];
@@ -459,6 +451,7 @@ export default function App() {
     event.target.value = "";
     if (!file) return;
     setUploading(true);
+    setUploadError("");
     setError("");
     try {
       const response = await fetch(
@@ -471,7 +464,9 @@ export default function App() {
       datasetSelectionTouched.current = true;
       setSelectedDatasetId(payload.dataset_id);
       setScenario("clean");
+      uploadDialog.current.close();
     } catch (reason) {
+      setUploadError(reason.message);
       setError(reason.message);
     } finally {
       setUploading(false);
@@ -482,84 +477,20 @@ export default function App() {
     <main>
       <header className="command-header">
         <div className="title-lockup">
-          <span className="eyebrow">Streaming operations console</span>
-          <h1><span>Robot Telemetry</span><br />Flight Deck</h1>
+          <h1>Robot Telemetry Flight Deck</h1>
         </div>
         <div className="header-operations">
-          <section className="readiness" aria-label="Stack readiness">
-            <span className="eyebrow">Stack readiness</span>
-            <div className="readiness-services">
-              {Object.entries(SERVICE_LABELS).map(([name, label]) => {
-                const status = readiness.services?.[name] || "unknown";
-                return <span className={`readiness-item ${healthTone(status)}`} key={name}><i /><span>{label}</span><strong>{status}</strong></span>;
-              })}
-            </div>
-          </section>
           <div className="header-state">
             <span className={`connection-dot ${connected ? "live" : ""}`} />
-            {connected ? "Live data" : "Reconnecting"}
-            <span>Recorded replay</span>
+            {connected ? "API connected" : "Reconnecting"}
+            <span>{viewingLive ? "Live ROS 2" : "Recorded replay"}</span>
           </div>
         </div>
       </header>
 
-      {readiness.status !== "ready" && (
-        <p className="recovery-message" role="status">
-          Stack services are still starting or unavailable. If this persists, run <code>docker compose ps</code> and <code>docker compose logs</code>.
-        </p>
-      )}
-
-      <section className="mission-summary" aria-label="Mission summary">
-        <div className="summary-cell mission-identity">
-          <span className="eyebrow">Mission</span>
-          <div className="summary-heading"><h2>{selectedDataset?.name || "Choose a dataset"}</h2><StatusPill status={runStatus} /></div>
-          <p>{selectedDataset?.description || "Select a built-in, public, or uploaded ROS recording."}</p>
-        </div>
-        <div className="summary-cell robot-summary">
-          <span className="eyebrow">Robot health</span>
-          <div className="summary-heading"><h2>robot-17</h2><StatusPill status={robotStatus} /></div>
-          <dl>
-            <div><dt>Topics online</dt><dd>{visibleTopics.length} / {expectedTopicCount ?? "—"}</dd></div>
-            <div><dt>Source</dt><dd>{selectedDataset?.file_format?.replaceAll("_", " ") || "ROS bag"}</dd></div>
-            <div><dt>Output</dt><dd>{selectedRunMatches && snapshot.completion?.verified ? "Verified" : "Pending"}</dd></div>
-          </dl>
-        </div>
-        <div className="summary-cell incident-summary">
-          <span className="eyebrow">Active incidents</span>
-          <strong className="incident-count">{activeIncidents.length}</strong>
-          <div className="primary-anomaly">
-            {primaryAnomaly
-              ? <><strong>{primaryAnomaly.condition_type.replaceAll("_", " ")}</strong><code>{primaryAnomaly.topic || "Robot-wide"}</code></>
-              : <><strong>None active</strong><span>All monitored systems nominal</span></>}
-          </div>
-        </div>
-      </section>
-
-      <section className="timeline-section">
-        <div className="section-title compact">
-          <div><span className="eyebrow">Mission timeline <b>({formatTime(missionDurationMs)})</b></span></div>
-          <strong className="elapsed">{formatTime(selectedRunMatches ? snapshot.mission_progress_ms : 0)} / {formatTime(missionDurationMs)}</strong>
-        </div>
-        <MissionTimeline progressMs={selectedRunMatches ? snapshot.mission_progress_ms : 0} durationMs={missionDurationMs} />
-        <div className="timeline-controls">
-          <div className="transport-controls">
-            <TransportAction
-              label="Start mission"
-              primary
-              disabled={busy || uploading || readiness.status !== "ready" || datasetLocked || !selectedDataset?.selectable}
-              onClick={() => control("/api/replay/start", { rate, dataset_id: selectedDatasetId, scenario: scenario === "clean" ? null : scenario })}
-            ><PlayIcon size={26} weight="fill" /></TransportAction>
-            <TransportAction label="Pause" disabled={busy || runStatus !== "running"} onClick={() => control("/api/replay/pause")}>
-              <PauseIcon size={26} weight="fill" />
-            </TransportAction>
-            <TransportAction label="Resume" disabled={busy || runStatus !== "paused"} onClick={() => control("/api/replay/resume")}>
-              <PlayIcon size={26} weight="fill" />
-            </TransportAction>
-            <TransportAction label="Restart" disabled={busy || !snapshot.run_id || !selectedRunMatches} onClick={() => control("/api/replay/restart")}>
-              <ArrowCounterClockwiseIcon size={26} weight="bold" />
-            </TransportAction>
-          </div>
-          <div className="selector-grid">
+      <div className="analysis-workspace">
+      <section className="mission-overview" aria-label="Mission selection">
+        <div className="mission-dataset">
             <label>Dataset
               <select
                 value={selectedDatasetId}
@@ -569,26 +500,26 @@ export default function App() {
                 }}
                 disabled={busy || uploading || datasetLocked}
               >
-                {datasetCatalog.datasets.map((dataset) => (
-                  <option value={dataset.dataset_id} disabled={!dataset.selectable} key={dataset.dataset_id}>
+                {availableDatasets.map((dataset) => (
+                  <option value={dataset.dataset_id} disabled={!dataset.selectable && dataset !== liveDataset} key={dataset.dataset_id}>
                     {dataset.name}{dataset.selectable ? "" : ` — ${dataset.status.replaceAll("_", " ")}`}
                   </option>
                 ))}
               </select>
             </label>
-            <label>Scenario
-              <select value={scenario} onChange={(event) => setScenario(event.target.value)} disabled={busy || datasetLocked}>
-                <option value="clean">Clean mission</option>
-                <option value="camera-dropout" disabled={!selectedDataset?.supports_camera_dropout}>Camera dropout</option>
-              </select>
-            </label>
-            <label>Replay speed
-              <select value={rate} onChange={(event) => setRate(Number(event.target.value))} disabled={busy || datasetLocked}>
-                <option value={1}>1× real time</option>
-                <option value={5} disabled={scenario !== "clean"}>5× accelerated</option>
-              </select>
-            </label>
-            <label className="upload-control">Upload your own
+            <button
+              className="add-data-button"
+              disabled={busy || uploading || datasetLocked}
+              onClick={() => { setUploadError(""); uploadDialog.current.showModal(); }}
+            >+ Add data</button>
+        </div>
+        <dialog className="add-data-dialog" ref={uploadDialog} aria-labelledby="add-data-title">
+          <div className="add-data-heading">
+            <h2 id="add-data-title">Add data</h2>
+            <button className="add-data-button" onClick={() => uploadDialog.current.close()} aria-label="Close Add data">Close</button>
+          </div>
+          <p>Upload a robot recording to add it to your available datasets.</p>
+          <label className="upload-control">Upload recording
               <input
                 type="file"
                 accept=".bag,.mcap,.db3"
@@ -597,12 +528,51 @@ export default function App() {
               />
               <span>{uploading ? "Validating upload…" : "Choose .bag, .mcap, or .db3"}</span>
             </label>
+          <p role="status">{uploading ? "Uploading and validating your recording…" : "After validation, your recording will be selected for replay."}</p>
+          {uploadError && <p className="upload-error" role="alert">{uploadError}</p>}
+        </dialog>
+        <div className="summary-cell mission-identity">
+          <span className="eyebrow">Mission</span>
+          <div className="summary-heading"><h2>{selectedDataset?.name || "Choose a dataset"}</h2><StatusPill status={runStatus} /></div>
+          <p>{selectedDataset?.description || "Select a built-in, public, or uploaded ROS recording."}</p>
+        </div>
+        <div className="mission-controls">
+          <div className="selector-grid">
+            <label>Scenario
+              <select value={scenario} onChange={(event) => setScenario(event.target.value)} disabled={viewingLive || busy || datasetLocked}>
+                <option value="clean">Clean mission</option>
+                <option value="camera-dropout" disabled={!selectedDataset?.supports_camera_dropout}>Camera dropout</option>
+              </select>
+            </label>
+            <label>Replay speed
+              <select value={rate} onChange={(event) => setRate(Number(event.target.value))} disabled={viewingLive || busy || datasetLocked}>
+                <option value={1}>1× real time</option>
+                <option value={5} disabled={scenario !== "clean"}>5× accelerated</option>
+              </select>
+            </label>
+          </div>
+          <div className="transport-controls">
+            <TransportAction
+              label={runStatus === "completed" ? "Replay again" : "Start mission"}
+              primary
+              disabled={busy || uploading || readiness.status !== "ready" || datasetLocked || !selectedDataset?.selectable}
+              onClick={() => control("/api/replay/start", { rate, dataset_id: selectedDatasetId, scenario: scenario === "clean" ? null : scenario })}
+            ><PlayIcon size={26} weight="fill" /></TransportAction>
+            {runStatus === "running" && <TransportAction label="Pause" disabled={viewingLive || busy || runStatus !== "running"} onClick={() => control("/api/replay/pause")}>
+              <PauseIcon size={26} weight="fill" />
+            </TransportAction>}
+            {runStatus === "paused" && <TransportAction label="Resume" disabled={viewingLive || busy || runStatus !== "paused"} onClick={() => control("/api/replay/resume")}>
+              <PlayIcon size={26} weight="fill" />
+            </TransportAction>}
+            {["running", "paused", "failed"].includes(runStatus) && <TransportAction label="Restart" disabled={viewingLive || busy || !snapshot.run_id || !selectedRunMatches} onClick={() => control("/api/replay/restart")}>
+              <ArrowCounterClockwiseIcon size={26} weight="bold" />
+            </TransportAction>}
           </div>
         </div>
         {selectedDataset && (
           <p className={`dataset-note ${selectedDataset.selectable ? "" : "unavailable"}`}>
             <strong>{selectedDataset.selectable ? "Ready to replay" : selectedDataset.status.replaceAll("_", " ")}</strong>
-            <span>{formatBytes(selectedDataset.size_bytes)} · {selectedDataset.source.replaceAll("_", " ")}</span>
+            <span>{viewingLive ? "Session lifecycle is managed by the ROS gateway" : `${formatBytes(selectedDataset.size_bytes)} · ${selectedDataset.source.replaceAll("_", " ")}`}</span>
           </p>
         )}
         {scenario === "camera-dropout" && (
@@ -611,16 +581,65 @@ export default function App() {
         {error && <p className="error-message" role="alert">{error}</p>}
       </section>
 
-      <section className="telemetry-section">
-        <div className="section-title compact"><div><span className="eyebrow">Live telemetry</span></div><span>10 s windows · 1 s slide</span></div>
-        <TelemetryTable topicMap={topicMap} unavailable={authorityUnavailable} />
+      <div className="analysis-main">
+      {readiness.status !== "ready" && (
+        <p className="recovery-message" role="status">
+          Stack services are still starting or unavailable. If this persists, run <code>docker compose ps</code> and <code>docker compose logs</code>.
+        </p>
+      )}
+
+        <details className="stack-disclosure" open={readiness.status !== "ready" ? true : undefined}>
+          <summary><span>Stack readiness</span><strong>{Object.values(readiness.services || {}).filter((status) => status === "ready").length}/5 services ready</strong><span>Details</span></summary>
+          <section className="readiness" aria-label="Stack readiness">
+            <span className="eyebrow">Stack readiness</span>
+            <div className="readiness-services">
+              {Object.entries(SERVICE_LABELS).map(([name, label]) => {
+                const status = readiness.services?.[name] || "unknown";
+                return <span className={`readiness-item ${healthTone(status)}`} key={name}><i /><span>{label}</span><strong>{status}</strong></span>;
+              })}
+            </div>
+          </section>
+        </details>
+      <section className="timeline-section">
+        <div className="section-title compact">
+          <div><span className="eyebrow">Mission timeline <b>({formatTime(missionDurationMs)})</b></span></div>
+          <strong className="elapsed">{formatTime(selectedRunMatches ? snapshot.mission_progress_ms : 0)} / {formatTime(missionDurationMs)}</strong>
+        </div>
+        <MissionTimeline incidents={selectedRunMatches ? snapshot.anomalies : []} startMs={snapshot.run_start_stream_ms} progressMs={selectedRunMatches ? snapshot.mission_progress_ms : 0} durationMs={missionDurationMs} />
       </section>
 
-      <section className="localization-section">
-        <div className="section-title">
-          <div><span className="eyebrow">Localization integrity · public labeled evaluation</span></div>
-          <StatusPill status={localization.status === "available" ? "ready" : "unavailable"} />
+      <section className="mission-summary" aria-label="Operations status">
+        <div className="summary-cell robot-summary">
+          <span className="eyebrow">Robot health{runStatus === "completed" ? " · end of run" : " · latest"}</span>
+          <div className="summary-heading"><h2>{selectedRunMatches ? snapshot.robot_id || snapshot.run?.robot_id || "robot-17" : "—"}</h2><StatusPill status={robotStatus} /></div>
+          <dl>
+            <div><dt>Topics</dt><dd>{visibleTopics.length} / {expectedTopicCount ?? "—"}</dd></div>
+            <div><dt>Source</dt><dd>{selectedDataset?.file_format?.replaceAll("_", " ") || "ROS bag"}</dd></div>
+            <div><dt>Output</dt><dd>{selectedRunMatches && snapshot.completion?.verified ? "Verified" : "Pending"}</dd></div>
+          </dl>
         </div>
+        <div className="summary-cell incident-summary">
+          <span className="eyebrow">Active incidents</span>
+          <strong className="incident-count">{activeIncidents.length} <small>active · {selectedRunMatches ? snapshot.anomalies.filter((item) => item.status === "recovered").length : 0} resolved</small></strong>
+          <div className="primary-anomaly">
+            {primaryAnomaly
+              ? <><strong>{primaryAnomaly.condition_type.replaceAll("_", " ")}</strong><code>{primaryAnomaly.topic || "Robot-wide"}</code></>
+              : <><strong>None active</strong><span>{robotStatus === "healthy" ? "No open incidents" : "See robot and topic status"}</span></>}
+          </div>
+        </div>
+      </section>
+
+      <TopicHistory completed={runStatus === "completed"} live={viewingLive} key={`${snapshot.run_id}-${selectedDatasetId}`} topics={visibleTopics} history={selectedRunMatches ? snapshot.topic_history || [] : []}
+        startMs={snapshot.run_start_stream_ms} durationMs={viewingLive ? Math.max(missionDurationMs, snapshot.mission_progress_ms || 0) : missionDurationMs}
+        incidents={selectedRunMatches ? snapshot.anomalies : []} unavailable={authorityUnavailable} />
+
+      <IncidentDetail key={snapshot.run_id} runId={selectedRunMatches ? snapshot.run_id : null} history={snapshot.incident_history} anomalies={snapshot.anomalies} signals={snapshot.observed_signals} />
+
+      <details className="localization-section benchmark-detail">
+        <summary className="section-title">
+          <span className="eyebrow">Localization benchmark — separate dataset</span>
+          <span className="benchmark-summary-status"><StatusPill status={localization.status === "available" ? "ready" : "unavailable"} /><span className="disclosure-label">View benchmark</span></span>
+        </summary>
         {localization.status === "available" ? (
           <div className="localization-grid">
             <article className="trajectory-panel">
@@ -636,7 +655,7 @@ export default function App() {
                 <div><span>Event precision</span><strong>{formatScore(localizationEventMetrics.precision)}</strong></div>
                 <div><span>Event recall</span><strong>{formatScore(localizationEventMetrics.recall)}</strong></div>
               </div>
-              <p className="evaluation-contract">Detector: particle spread + AMCL jumps. Ground truth and published labels are scoring-only.</p>
+              <p className="evaluation-contract">Detector: particle spread + AMCL jumps{localizationSummary.detector_inputs?.includes("particle_heading_spread_rad") ? " + heading spread" : ""}{localizationSummary.thresholds?.recovery_hold_ms > 0 ? ` · ${localizationSummary.thresholds.recovery_hold_ms} ms recovery hold` : ""}. Ground truth and published labels are scoring-only.</p>
             </article>
             <article className="event-summary">
               <span className="eyebrow">Event summary</span>
@@ -655,7 +674,7 @@ export default function App() {
         ) : (
           <article className="localization-empty"><strong>No localization evaluation loaded</strong><p>Run <code>ros-telemetry evaluate-localization</code> and publish the results to <code>data/evaluations/latest</code>.</p></article>
         )}
-      </section>
+      </details>
 
       <details className="operations-detail">
         <summary><span><span className="eyebrow">Operational detail</span><strong>Throughput and incident log</strong></span><span>Expand</span></summary>
@@ -692,6 +711,8 @@ export default function App() {
         </div>
         <div className="offsets"><code>{snapshot.consumer_offsets.map((item) => `${item.topic}[${item.partition}]=${item.next_offset}`).join("  ·  ") || "Waiting for Kafka offsets"}</code></div>
       </details>
+      </div>
+      </div>
       <footer><span>Robot Telemetry Flight Deck</span><span>Kafka → Flink DataStream → FastAPI → React</span></footer>
     </main>
   );

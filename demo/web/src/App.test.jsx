@@ -54,6 +54,29 @@ describe("Flight Deck", () => {
     expect(screen.getByRole("option", { name: "5× accelerated" })).toBeDisabled();
   });
 
+  it("shows a live robot and prevents replay actions on its session", async () => {
+    render(<App />);
+    await waitFor(() => expect(FakeEventSource.instances.length).toBeGreaterThan(0));
+    act(() => FakeEventSource.instances.at(-1).emit("snapshot", {
+      run_id: "live-example", robot_id: "robot-live-1", dataset_id: "live-ros2",
+      dataset_name: "Live ROS session", source_format: "live_ros2", source: "live_ros2",
+      run: { payload: { status: "running" } }, topic_count: 6,
+      topics: [{ topic: "/scan", payload: { status: "ok", mean_rate_hz: 10 } }],
+      anomalies: [], incident_history: [], completion: {}, consumer_offsets: [], mission_progress_ms: 1000,
+    }));
+    expect(screen.getByText("Live ROS 2")).toBeInTheDocument();
+    expect(screen.getByText("robot-live-1")).toBeInTheDocument();
+    expect(screen.getByText("/scan")).toBeInTheDocument();
+    for (const name of ["Start mission", "Pause", "Resume", "Restart"]) {
+      const action = screen.queryByRole("button", { name });
+      if (action) expect(action).toBeDisabled();
+    }
+    act(() => FakeEventSource.instances.at(-1).emit("completion_failed", {
+      run_id: "older-run", detail: "Old run failed",
+    }));
+    expect(screen.queryByText(/Old run failed/)).not.toBeInTheDocument();
+  });
+
   it("switches to an installed public dataset and sends it to replay", async () => {
     fetch.mockImplementation((url, options = {}) => Promise.resolve({
       ok: true,
@@ -163,7 +186,7 @@ describe("Flight Deck", () => {
     expect(screen.getByText(/Processed 1000 · accepted late 2 · duplicate 1 · too late 0/i)).toBeInTheDocument();
   });
 
-  it("renders localization trajectories and honest public-label evaluation metrics", async () => {
+  it.each([false, true])("renders localization metrics with optional heading signal: %s", async (useHeading) => {
     fetch.mockImplementation((url) => Promise.resolve({
       ok: true,
       json: async () => url.includes("/api/health")
@@ -172,6 +195,8 @@ describe("Flight Deck", () => {
         ? {
             status: "available",
             summary: {
+              detector_inputs: useHeading ? ["particle_position_spread_m", "estimated_pose_jump_m", "particle_heading_spread_rad"] : undefined,
+              thresholds: useHeading ? { recovery_hold_ms: 250 } : undefined,
               sample_metrics: { precision: 0.856, recall: 0.468, f1: 0.605 },
               event_metrics: { precision: 0.842, recall: 0.667, false_alarm_event_count: 3 },
             },
@@ -209,6 +234,7 @@ describe("Flight Deck", () => {
     const { container } = render(<App />);
 
     await waitFor(() => expect(screen.getByText("0.856")).toBeInTheDocument());
+    expect(screen.getByText(useHeading ? /AMCL jumps \+ heading spread · 250 ms recovery hold/ : /AMCL jumps\. Ground truth/)).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /ground-truth and amcl estimated trajectories/i })).toBeInTheDocument();
     expect(container.querySelectorAll(".trajectory-ground-truth")).toHaveLength(2);
     expect(container.querySelectorAll(".trajectory-estimated")).toHaveLength(2);

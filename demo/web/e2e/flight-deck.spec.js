@@ -11,8 +11,9 @@ test("completed recorded mission is operationally trustworthy", async ({ page })
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /Robot Telemetry/ })).toBeVisible();
-  await expect(page.getByText("RECORDED REPLAY")).toBeVisible();
+  await expect(page.getByText("Recorded replay", { exact: true })).toBeVisible();
 
+  await page.locator(".stack-disclosure summary").click();
   const readiness = page.getByRole("region", { name: "Stack readiness" });
   for (const service of ["Kafka", "Flink cluster", "Streaming job", "Projection API", "MCAP replayer"]) {
     await expect(readiness.getByText(service, { exact: true })).toBeVisible();
@@ -28,8 +29,8 @@ test("completed recorded mission is operationally trustworthy", async ({ page })
   const elapsed = formatTime(snapshot.mission_duration_ms);
   await expect(page.locator(".elapsed")).toHaveText(`${elapsed} / ${elapsed}`);
 
-  await expect(page.locator(".telemetry-table tbody tr")).toHaveCount(snapshot.topic_count);
-  await expect(page.locator(".telemetry-table tbody .status-pill")).toHaveCount(snapshot.topic_count);
+  await expect(page.locator(".topic-history-table tbody tr")).toHaveCount(snapshot.topic_count);
+  await expect(page.locator(".topic-history-table tbody .status-pill")).toHaveCount(snapshot.topic_count);
   await page.locator(".technical summary").click();
   await expect(page.getByText(`${snapshot.topic_count} / ${snapshot.topic_count} topic summaries independently verified`)).toBeVisible();
   await expect(page.getByText("Flink job available")).toBeVisible();
@@ -112,7 +113,7 @@ test("state flow never leaves stale health behind", async ({ page }) => {
   await page.evaluate((snapshot) => window.__emitFlightDeckSnapshot(snapshot), {
     ...base, anomalies: [recovered], incident_history: [active, recovered],
   });
-  await expect(page.getByText("recovered", { exact: true })).toBeVisible();
+  await expect(page.locator(".incidents").getByText("recovered", { exact: true })).toBeVisible();
 
   await page.evaluate((snapshot) => window.__emitFlightDeckSnapshot(snapshot), {
     ...base, run: { payload: { status: "summary_ready" } }, completion: { verified: true, summary_file_count: 4 }, mission_progress_ms: 90_000,
@@ -131,9 +132,9 @@ test("mobile controls and readiness remain usable", async ({ page }) => {
   const snapshotResponse = await page.request.get("http://localhost:8000/api/runs/current/snapshot");
   const snapshot = await snapshotResponse.json();
 
-  await expect(page.getByRole("region", { name: "Stack readiness" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Start mission" })).toBeVisible();
+  await expect(page.locator(".stack-disclosure summary")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Replay again" })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Scenario" })).toBeVisible();
-  await expect(page.locator(".telemetry-table tbody tr")).toHaveCount(snapshot.topic_count);
+  await expect(page.locator(".topic-history-table tbody tr")).toHaveCount(snapshot.topic_count);
   await expect(page.locator("main")).toHaveCSS("width", "390px");
 });
