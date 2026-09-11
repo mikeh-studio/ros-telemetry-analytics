@@ -1,10 +1,8 @@
 # ROS Telemetry Analytics
 
-Troubleshoot robot missions from recorded ROS telemetry. Detect sensor dropouts
-and timing anomalies, evaluate localization failures, and investigate incidents
-in an interactive Flight Deck.
-
-*Completed TUM RGB-D replay, with a separate public localization evaluation below.*
+Investigate robot telemetry from recorded missions and live ROS 2 topics.
+Trace sensor dropouts and recovery in Flight Deck, evaluate localization
+failures, and inspect the evidence behind each result.
 
 - **Analyze recordings:** turn ROS 1 and ROS 2 bags into sensor-health reports,
   anomaly events, and inspectable Parquet and JSON evidence.
@@ -27,7 +25,36 @@ failed assumptions, implementation changes, and remaining limitations.
 > **Status:** Alpha. Supports engineering triage and dataset QA, not
 > safety-critical control or certification.
 
-![Flight Deck showing a completed TUM RGB-D replay, topic health, and localization evaluation results](artifacts/screenshots/flight-deck.png)
+![Flight Deck showing the completed warehouse camera-dropout replay and recorded topic-rate history](artifacts/screenshots/flight-deck.png)
+
+*Built-in warehouse recording after camera-dropout replay. Rate history uses
+recorded windows; this screenshot is replay evidence, not a live robot feed.*
+
+## Recent updates
+
+- **Mission review:** dataset selection and Add data lead into replay controls,
+  compact stack readiness, a mission timeline, and health and incident outcomes.
+  Topic descriptions explain each stream. Sparklines show actual message-rate
+  windows, expected rates, gaps, and partial windows; a shared cursor inspects
+  a timestamp without seeking playback.
+- **Incident evidence:** inspect opening and recovery revisions, detector
+  evidence, and available sampled signals. Live position observations are
+  grouped by topic and coordinate frame rather than presented as ground truth.
+- **Live integration and recovery:** an optional ROS 2 gateway persists pending
+  observations with stable retry IDs and explicit overflow counts. Local tests
+  cover Nav2/AMCL, QoS mismatch, duplicate and delayed delivery, edge recovery,
+  three concurrent robot streams, and API and Flink worker restarts.
+- **Localization study:** 21 simulation runs use 15 development runs and six
+  held-out runs. The 0.36 m candidate raises held-out macro sample recall from
+  **36.2% to 45.5%**, while precision falls from **92.4% to 85.7%** and false
+  alarms increase. The default stays at 0.40 m. Read the
+  [study](examples/localization_study.md) and
+  [reliability case study](docs/reliability-case-study.md) for results and limits.
+
+![Incident explanation for the recovered camera gap, including timing and detector revisions](artifacts/screenshots/flight-deck-incident.png)
+
+*The same recorded camera-dropout run: observed failure, recovery, and supporting
+revisions. Missing telemetry alone does not establish a physical root cause.*
 
 ## Try the Flight Deck
 
@@ -91,7 +118,7 @@ recall, precision, and false-alarm tradeoffs.
 | Path | Contents |
 | --- | --- |
 | `src/ros_telemetry_analytics/` | Python ingestion, analysis, and CLI |
-| `demo/` | Flight Deck API, replayer, shared contracts, and React UI |
+| `demo/` | Flight Deck API/UI, replayer, ROS 2 gateway, and simulation |
 | `streaming/flink-job/` | Java event-time processing and tests |
 | `configs/` | Analysis rules, replay settings, and dataset manifests |
 | `schemas/` | Versioned streaming JSON contracts |
