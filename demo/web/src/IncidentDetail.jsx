@@ -21,6 +21,17 @@ function timestamp(value) {
   return value == null ? "Unavailable" : `${value} ms`;
 }
 
+function compareIncidents(a, b) {
+  const activeFirst = Number(b.latest.status === "active") - Number(a.latest.status === "active");
+  if (activeFirst) return activeFirst;
+  const aTime = a.latest.effective_start_stream_ms;
+  const bTime = b.latest.effective_start_stream_ms;
+  const aKnown = Number.isFinite(aTime), bKnown = Number.isFinite(bTime);
+  if (aKnown !== bKnown) return aKnown ? -1 : 1;
+  if (aKnown && aTime !== bTime) return bTime - aTime;
+  return String(a.latest.anomaly_id).localeCompare(String(b.latest.anomaly_id));
+}
+
 export default function IncidentDetail({ runId, history = [], anomalies = [], signals = [] }) {
   const [selectedId, setSelectedId] = useState(null);
   const groups = new Map();
@@ -32,12 +43,11 @@ export default function IncidentDetail({ runId, history = [], anomalies = [], si
   const incidents = [...groups.values()].map((revisions) => {
     const transitions = [...revisions.values()].sort((a, b) => a.revision - b.revision);
     return { latest: transitions.at(-1), transitions };
-  }).sort((a, b) => Number(b.latest.status === "active") - Number(a.latest.status === "active")
-    || b.latest.effective_start_stream_ms - a.latest.effective_start_stream_ms);
+  }).sort(compareIncidents);
   const selected = incidents.find(({ latest }) => latest.anomaly_id === selectedId) || incidents[0];
   const latest = selected?.latest;
   const firstActive = selected?.transitions.find((item) => item.status === "active");
-  const relatedSignals = signals.filter((item) => item.run_id === runId
+  const relatedSignals = !latest ? [] : signals.filter((item) => item.run_id === runId
     && item.robot_id === latest?.robot_id
     && item.stream_timestamp_ms >= latest.effective_start_stream_ms - 5000
     && (latest.recovered_stream_ms == null || item.stream_timestamp_ms <= latest.recovered_stream_ms + 5000));

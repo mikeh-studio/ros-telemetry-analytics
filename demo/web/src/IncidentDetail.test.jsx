@@ -15,6 +15,22 @@ const recovered = {
 };
 
 describe("Incident explanation", () => {
+  it("handles signal data without any incident or robot identity", () => {
+    render(<IncidentDetail runId="run-a" signals={[{ run_id: "run-a", stream_timestamp_ms: 500 }]} />);
+    expect(screen.getByText("No incidents recorded for this run.")).toBeInTheDocument();
+  });
+  it("sorts missing timestamps after known timestamps with stable identity ties", () => {
+    const incidents = [
+      { ...opened, anomaly_id: "z", effective_start_stream_ms: undefined },
+      { ...opened, anomaly_id: "a", effective_start_stream_ms: null },
+      { ...opened, anomaly_id: "known", effective_start_stream_ms: 2000 },
+    ];
+    const { rerender } = render(<IncidentDetail runId="run-a" anomalies={incidents} />);
+    const values = () => screen.getAllByRole("option").map(option => option.value);
+    expect(values()).toEqual(["known", "a", "z"]);
+    rerender(<IncidentDetail runId="run-a" anomalies={[...incidents].reverse()} />);
+    expect(values()).toEqual(["known", "a", "z"]);
+  });
   it("labels rounded nanosecond timestamps instead of implying exact browser precision", () => {
     const attributes = JSON.parse('{"gateway_received_timestamp_ns":1789070944781336293,"count":1}');
     render(<IncidentDetail runId="run-a" anomalies={[recovered]} signals={[{

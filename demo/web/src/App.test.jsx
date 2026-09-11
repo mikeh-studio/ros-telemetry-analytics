@@ -38,6 +38,27 @@ describe("Flight Deck", () => {
     vi.unstubAllGlobals();
   });
 
+  it("opens Add data idempotently when clicked twice", () => {
+    const { container } = render(<App />);
+    const dialog = container.querySelector("dialog");
+    dialog.showModal = vi.fn(() => { dialog.open = true; });
+    const addData = screen.getByRole("button", { name: /add data/i });
+    fireEvent.click(addData);
+    fireEvent.click(addData);
+    expect(dialog.showModal).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders an unavailable catalog entry when status and source are missing", async () => {
+    const originalFetch = fetch.getMockImplementation();
+    fetch.mockImplementation((url) => url.includes("/api/datasets")
+      ? Promise.resolve({ ok: true, json: async () => ({ default_dataset_id: "missing", datasets: [
+        { dataset_id: "missing", name: "Incomplete recording", selectable: false },
+      ] }) }) : originalFetch(url));
+    render(<App />);
+    await waitFor(() => expect(screen.getByRole("option", { name: "Incomplete recording — unavailable" })).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Start mission" })).toBeDisabled();
+  });
+
   it("labels the source as recorded replay and exposes mission controls", async () => {
     render(<App />);
     expect(screen.getByText("Recorded replay")).toBeInTheDocument();

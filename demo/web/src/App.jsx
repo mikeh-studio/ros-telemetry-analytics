@@ -502,7 +502,7 @@ export default function App() {
               >
                 {availableDatasets.map((dataset) => (
                   <option value={dataset.dataset_id} disabled={!dataset.selectable && dataset !== liveDataset} key={dataset.dataset_id}>
-                    {dataset.name}{dataset.selectable ? "" : ` — ${dataset.status.replaceAll("_", " ")}`}
+                    {dataset.name}{dataset.selectable ? "" : ` — ${(dataset.status || "unavailable").replaceAll("_", " ")}`}
                   </option>
                 ))}
               </select>
@@ -510,7 +510,7 @@ export default function App() {
             <button
               className="add-data-button"
               disabled={busy || uploading || datasetLocked}
-              onClick={() => { setUploadError(""); uploadDialog.current.showModal(); }}
+              onClick={() => { setUploadError(""); if (uploadDialog.current && !uploadDialog.current.open) uploadDialog.current.showModal(); }}
             >+ Add data</button>
         </div>
         <dialog className="add-data-dialog" ref={uploadDialog} aria-labelledby="add-data-title">
@@ -571,8 +571,8 @@ export default function App() {
         </div>
         {selectedDataset && (
           <p className={`dataset-note ${selectedDataset.selectable ? "" : "unavailable"}`}>
-            <strong>{selectedDataset.selectable ? "Ready to replay" : selectedDataset.status.replaceAll("_", " ")}</strong>
-            <span>{viewingLive ? "Session lifecycle is managed by the ROS gateway" : `${formatBytes(selectedDataset.size_bytes)} · ${selectedDataset.source.replaceAll("_", " ")}`}</span>
+            <strong>{selectedDataset.selectable ? "Ready to replay" : (selectedDataset.status || "unavailable").replaceAll("_", " ")}</strong>
+            <span>{viewingLive ? "Session lifecycle is managed by the ROS gateway" : `${formatBytes(selectedDataset.size_bytes)} · ${(selectedDataset.source || "unknown source").replaceAll("_", " ")}`}</span>
           </p>
         )}
         {scenario === "camera-dropout" && (
