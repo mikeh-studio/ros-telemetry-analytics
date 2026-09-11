@@ -52,6 +52,11 @@ final class TopicHealthProcessorHarnessTest {
                 harness.watermark(timestamp - 2_000);
             }
             assertTrue(harness.sideValues(TopicHealthProcessor.ANOMALIES).isEmpty());
+            assertTrue(harness.mainValues("topic_window").stream().anyMatch(node ->
+                    node.path("payload").path("rate_evaluation_status").asText().equals("startup_grace")
+                            && node.path("payload").path("health_status").asText().equals("starting")));
+            assertTrue(harness.mainValues("topic_window").stream().anyMatch(node ->
+                    node.path("payload").path("rate_evaluation_status").asText().equals("normal_window")));
             for (int timestamp = 22_000; timestamp < 40_000; timestamp += 200) {
                 harness.process(telemetry("slow-" + timestamp, timestamp, timestamp / 100,
                         timestamp * 1_000_000L));

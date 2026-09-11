@@ -457,6 +457,11 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
         payload.put("mean_rate_hz", rollingRate);
         payload.put("rate_ratio", ratio);
         payload.put("window_status", partial ? "partial" : "complete");
+        boolean liveStartupWindow = "live_ros2".equals(registered.sourceFormat)
+                && windowStart < registered.streamStartMs + registered.startupGraceMs;
+        payload.put("rate_evaluation_status", !registered.rateMonitoringEnabled ? "event_driven"
+                : partial ? "partial_window" : liveStartupWindow ? "startup_grace"
+                : suppression != null ? "structural_suppression" : "normal_window");
         payload.put("accepted_late_count", countLate(points));
         payload.put("duplicate_count", longValue(duplicateCount));
         payload.put("too_late_count", longValue(tooLateCount));
@@ -469,7 +474,7 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
         boolean recoveryInProgress = recoveryInProgress();
         payload.put("recovery_in_progress", recoveryInProgress);
         payload.put("health_status", conditions.isEmpty()
-                ? "healthy"
+                ? liveStartupWindow && registered.rateMonitoringEnabled ? "starting" : "healthy"
                 : recoveryInProgress ? "recovering" : "degraded");
         var activeConditions = payload.putArray("active_conditions");
         for (String condition : conditions.keys()) activeConditions.add(condition);
@@ -493,8 +498,6 @@ final class TopicHealthProcessor extends KeyedProcessFunction<String, JsonNode, 
         boolean eligibleAfterRecovery = recoveredAt == null || windowStart >= recoveredAt;
         // Live DDS discovery may consume the startup grace. Do not call its
         // intentionally incomplete rate window a steady-state rate failure.
-        boolean liveStartupWindow = "live_ros2".equals(registered.sourceFormat)
-                && windowStart < registered.streamStartMs + registered.startupGraceMs;
         if (suppression != null || !eligibleAfterRecovery || liveStartupWindow) {
             badRateWindows.update(0);
             healthyRateWindows.update(0);

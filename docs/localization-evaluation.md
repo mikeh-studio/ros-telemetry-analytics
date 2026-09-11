@@ -163,3 +163,15 @@ unmatched alert events by all observed segment time, including failure time.
 These brief, failure-rich simulations cannot establish a real-world alarm rate.
 Upstream segment boundaries encode localization resets; continuous operation
 without those boundaries requires its own evaluation.
+
+### Retained study evidence
+
+`examples/localization_study_results.json` is the compact, inspectable result of
+this published study, including source hashes, candidate scores, and per-run evidence. It is
+versioned intentionally so the published aggregate results remain inspectable
+without downloading the source corpus or relying on expiring CI artifacts.
+The notebook and full per-event diagnostics still require the locally generated
+study outputs.
+Raw samples and routine generated experiment directories remain outside Git.
+Candidate F1 ties prefer shorter hold, higher spread threshold, then heading
+disabled, followed by manifest order; the held-out data never breaks ties.

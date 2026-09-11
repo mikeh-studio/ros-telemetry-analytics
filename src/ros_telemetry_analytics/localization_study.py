@@ -157,7 +157,11 @@ def aggregate_runs(results: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def select_candidate(candidates: list[dict[str, Any]], baseline: dict[str, Any]) -> dict[str, Any]:
-    """Select on development data only under the predeclared precision/recall guardrails."""
+    """Select by development F1, then shorter hold, higher spread, and no heading signal.
+
+    Exact remaining ties keep manifest order. The simplicity tie-breaks never use
+    evaluation scores and preserve the frozen study selection.
+    """
     precision_floor = (baseline["macro_sample_precision"] or 0.0) - 0.05
     recall_floor = baseline["macro_event_recall"] or 0.0
     eligible = [
@@ -333,21 +337,24 @@ def render_study_report(study: dict[str, Any]) -> str:
     lines.extend(
         [
             "",
-            "## Original warehouse baseline: unmatched events",
+            "## Unmatched events across all runs",
             "",
             "One-to-one event matching is unchanged. An unmatched event can still have alert "
-            "coverage when a long alert has already been assigned to another event.",
+            "coverage when a long alert has already been assigned to another event. "
+            "Both baseline and selected detectors are shown for every run with misses.",
             "",
-            "| Event | Classification | Failure samples alerted | Max spread (m) | Max jump (m) |",
-            "| --- | --- | ---: | ---: | ---: |",
+            "| Run | Split | Detector | Event | Classification | Failure samples alerted | "
+            "Max spread (m) | Max jump (m) |",
+            "| --- | --- | --- | --- | --- | ---: | ---: | ---: |",
         ]
     )
     for run in study["runs"]:
-        if run["run_id"] == "rec_20250821_104113":
-            for row in run["baseline"]["failure_details"]:
+        for name in ("baseline", "selected"):
+            for row in run[name]["failure_details"]:
                 if not row["detected"]:
                     lines.append(
-                        f"| {row['expected_event_id']} | {row['classification']} | "
+                        f"| {run['run_id']} | {run['role']} | {name} | "
+                        f"{row['expected_event_id']} | {row['classification']} | "
                         f"{row['alerted_failure_records']}/{row['failure_records']} | "
                         f"{fmt(row['max_particle_spread_m'])} | {fmt(row['max_pose_jump_m'])} |"
                     )
@@ -359,6 +366,9 @@ def render_study_report(study: dict[str, Any]) -> str:
             "- Selection maximizes development macro sample F1 with precision at least "
             "baseline minus 0.05 and event recall at least baseline. Only the baseline and "
             "selected configuration are evaluated on the held-out environments.",
+            "- F1 ties prefer a shorter recovery hold, then a higher spread threshold, "
+            "then heading disabled; remaining ties keep manifest order. These simplicity "
+            "preferences use development results only.",
             "- Original record-level scores retain repeated timestamps. Duration metrics use "
             "the final alert at each unique timestamp until the next timestamp within that "
             "source segment. Intervals with conflicting labels are excluded from labeled "
