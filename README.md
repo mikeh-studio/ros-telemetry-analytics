@@ -12,10 +12,17 @@ in an interactive Flight Deck.
   Kafka and Flink, and inspect topic health in a React operations console.
 - **Evaluate localization:** score an AMCL failure detector against published
   ground-truth trajectories and failure labels.
+- **Observe live ROS 2:** send selected topics through a durable gateway into
+  the same pipeline, with a headless Nav2/AMCL simulation and repeatable scan-silence evaluation.
 
 The Python analysis runs locally on macOS and Linux without ROS, CUDA, or a
-simulator. The Flight Deck runs with Docker Compose and uses recorded replay;
-a live ROS 2 bridge is a future extension.
+simulator. Flight Deck runs with Docker Compose. Recorded replay is the default;
+the optional [live ROS 2 gateway and simulation](docs/live-ros2.md) have separate
+runtime requirements. Local validation includes Nav2 integration, three concurrent
+robot streams, and process recovery. The [reliability roadmap](docs/reliability-roadmap.md)
+records the remaining validation gates and limits.
+The [reliability case study](docs/reliability-case-study.md) connects the experiments,
+failed assumptions, implementation changes, and remaining limitations.
 
 > **Status:** Alpha. Supports engineering triage and dataset QA, not
 > safety-critical control or certification.
@@ -74,6 +81,10 @@ It produces sample and event metrics plus inspectable result files.
 See the [evaluation guide](docs/localization-evaluation.md) for the command,
 dataset setup, and baseline results, or read the
 [sample evaluation](examples/sample_localization_eval.md).
+
+A [21-run follow-up study](examples/localization_study.md) compares detector
+changes on separate development and evaluation environments, with explicit
+recall, precision, and false-alarm tradeoffs.
 
 ## Repository layout
 

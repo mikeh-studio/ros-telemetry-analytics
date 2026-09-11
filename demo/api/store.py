@@ -94,8 +94,20 @@ class ProjectionStore:
                     "ADD COLUMN arrival_order INTEGER NOT NULL DEFAULT 0"
                 )
 
-    def project(
+    def project(self, **record: Any) -> bool:
+        return self.project_batch([record])[0]
+
+    def project_batch(self, records: list[dict[str, Any]]) -> list[bool]:
+        """Commit a bounded Kafka batch and its offsets in one SQLite transaction."""
+        with self._lock, self._connect() as connection:
+            inserted = [self._project_in_transaction(connection, **record) for record in records]
+            if records:
+                self._prune(connection)
+            return inserted
+
+    def _project_in_transaction(
         self,
+        connection: sqlite3.Connection,
         *,
         stream_kind: str,
         payload: dict[str, Any],
@@ -113,67 +125,68 @@ class ProjectionStore:
         logical_key = self._logical_key(stream_kind, payload)
         is_run_status = stream_kind == "metric" and payload.get("metric_type") == "run_status"
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-        with self._lock, self._connect() as connection:
-            cursor = connection.execute(
-                """
-                INSERT OR IGNORE INTO messages
-                    (stream_kind, message_id, revision, run_id, stream_timestamp_ms, payload_json)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (stream_kind, message_id, revision, run_id, timestamp, encoded),
-            )
-            message_row = connection.execute(
-                """
-                SELECT rowid FROM messages
-                WHERE stream_kind = ? AND message_id = ? AND revision = ?
-                """,
-                (stream_kind, message_id, revision),
-            ).fetchone()
-            arrival_order = int(message_row["rowid"])
-            connection.execute(
-                """
-                INSERT INTO current_entities
-                    (stream_kind, logical_key, message_id, revision, run_id,
-                     stream_timestamp_ms, arrival_order, payload_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(stream_kind, logical_key) DO UPDATE SET
-                    message_id = excluded.message_id,
-                    revision = excluded.revision,
-                    run_id = excluded.run_id,
-                    stream_timestamp_ms = excluded.stream_timestamp_ms,
-                    arrival_order = excluded.arrival_order,
-                    payload_json = excluded.payload_json
-                WHERE excluded.stream_timestamp_ms > current_entities.stream_timestamp_ms
-                   OR (excluded.stream_timestamp_ms = current_entities.stream_timestamp_ms
-                       AND ((? = 1 AND excluded.arrival_order >= current_entities.arrival_order)
-                            OR (? = 0 AND excluded.revision >= current_entities.revision)))
-                """,
-                (
-                    stream_kind,
-                    logical_key,
-                    message_id,
-                    revision,
-                    run_id,
-                    timestamp,
-                    arrival_order,
-                    encoded,
-                    int(is_run_status),
-                    int(is_run_status),
-                ),
-            )
-            connection.execute(
-                """
-                INSERT INTO consumer_offsets
-                    (kafka_topic, kafka_partition, next_offset, updated_at_ms)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(kafka_topic, kafka_partition) DO UPDATE SET
-                    next_offset = MAX(consumer_offsets.next_offset, excluded.next_offset),
-                    updated_at_ms = excluded.updated_at_ms
-                """,
-                (kafka_topic, kafka_partition, kafka_offset + 1, int(time.time() * 1_000)),
-            )
-            self._prune(connection)
-            return cursor.rowcount > 0
+        cursor = connection.execute(
+            """
+            INSERT OR IGNORE INTO messages
+                (stream_kind, message_id, revision, run_id, stream_timestamp_ms, payload_json)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (stream_kind, message_id, revision, run_id, timestamp, encoded),
+        )
+        message_row = connection.execute(
+            """
+            SELECT rowid FROM messages
+            WHERE stream_kind = ? AND message_id = ? AND revision = ?
+            """,
+            (stream_kind, message_id, revision),
+        ).fetchone()
+        arrival_order = int(message_row["rowid"])
+        connection.execute(
+            """
+            INSERT INTO current_entities
+                (stream_kind, logical_key, message_id, revision, run_id,
+                 stream_timestamp_ms, arrival_order, payload_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(stream_kind, logical_key) DO UPDATE SET
+                message_id = excluded.message_id,
+                revision = excluded.revision,
+                run_id = excluded.run_id,
+                stream_timestamp_ms = excluded.stream_timestamp_ms,
+                arrival_order = excluded.arrival_order,
+                payload_json = excluded.payload_json
+            WHERE (excluded.stream_kind = 'anomaly'
+                   AND excluded.revision > current_entities.revision)
+               OR (excluded.stream_kind <> 'anomaly' AND (
+                   excluded.stream_timestamp_ms > current_entities.stream_timestamp_ms
+               OR (excluded.stream_timestamp_ms = current_entities.stream_timestamp_ms
+                   AND ((? = 1 AND excluded.arrival_order >= current_entities.arrival_order)
+                        OR (? = 0 AND excluded.revision >= current_entities.revision)))))
+            """,
+            (
+                stream_kind,
+                logical_key,
+                message_id,
+                revision,
+                run_id,
+                timestamp,
+                arrival_order,
+                encoded,
+                int(is_run_status),
+                int(is_run_status),
+            ),
+        )
+        connection.execute(
+            """
+            INSERT INTO consumer_offsets
+                (kafka_topic, kafka_partition, next_offset, updated_at_ms)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(kafka_topic, kafka_partition) DO UPDATE SET
+                next_offset = MAX(consumer_offsets.next_offset, excluded.next_offset),
+                updated_at_ms = excluded.updated_at_ms
+            """,
+            (kafka_topic, kafka_partition, kafka_offset + 1, int(time.time() * 1_000)),
+        )
+        return cursor.rowcount > 0
 
     @staticmethod
     def _logical_key(stream_kind: str, payload: dict[str, Any]) -> str:
@@ -199,17 +212,33 @@ class ProjectionStore:
 
     @staticmethod
     def _prune(connection: sqlite3.Connection) -> None:
-        newest = connection.execute(
-            "SELECT run_id FROM current_entities ORDER BY stream_timestamp_ms DESC LIMIT 1"
-        ).fetchone()
-        if newest is not None:
-            connection.execute(
-                "DELETE FROM current_entities WHERE run_id <> ?", (str(newest["run_id"]),)
+        retained = connection.execute(
+            "SELECT run_id FROM current_entities GROUP BY run_id "
+            "ORDER BY MAX(stream_timestamp_ms) DESC, run_id LIMIT 8"
+        ).fetchall()
+        if retained:
+            run_ids = tuple(str(row["run_id"]) for row in retained)
+            placeholders = ",".join("?" for _ in run_ids)
+            for table in ("current_entities", "messages", "completed_runs"):
+                connection.execute(
+                    f"DELETE FROM {table} WHERE run_id NOT IN ({placeholders})", run_ids
+                )
+        connection.execute(
+            """
+            DELETE FROM current_entities WHERE rowid IN (
+                SELECT entity_rowid FROM (
+                    SELECT rowid AS entity_rowid,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY run_id, json_extract(payload_json, '$.robot_id'),
+                                            json_extract(payload_json, '$.topic')
+                               ORDER BY stream_timestamp_ms DESC
+                           ) AS signal_rank
+                    FROM current_entities
+                    WHERE json_extract(payload_json, '$.metric_type') = 'observed_signal'
+                ) WHERE signal_rank > 180
             )
-            connection.execute("DELETE FROM messages WHERE run_id <> ?", (str(newest["run_id"]),))
-            connection.execute(
-                "DELETE FROM completed_runs WHERE run_id <> ?", (str(newest["run_id"]),)
-            )
+            """
+        )
         connection.execute(
             """
             DELETE FROM messages
@@ -223,9 +252,14 @@ class ProjectionStore:
             """
             DELETE FROM messages
             WHERE stream_kind = 'anomaly' AND rowid NOT IN (
-                SELECT rowid FROM messages
-                WHERE stream_kind = 'anomaly'
-                ORDER BY stream_timestamp_ms DESC, revision DESC LIMIT 100
+                SELECT message_rowid FROM (
+                    SELECT rowid AS message_rowid,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY run_id
+                               ORDER BY stream_timestamp_ms DESC, revision DESC
+                           ) AS history_rank
+                    FROM messages WHERE stream_kind = 'anomaly'
+                ) WHERE history_rank <= 100
             )
             """
         )
@@ -313,7 +347,12 @@ class ProjectionStore:
         )
         return {
             "run_id": selected_run,
-            "source": "recorded_replay",
+            "source": (
+                "live_ros2"
+                if run_metadata.get("source_format") == "live_ros2"
+                else "recorded_replay"
+            ),
+            "robot_id": run_status.get("robot_id") if run_status else None,
             "run": run_status,
             "run_start_stream_ms": run_start_ms,
             "latest_stream_ms": latest_stream_ms,
@@ -329,6 +368,12 @@ class ProjectionStore:
             "topic_count": int(run_metadata.get("expected_topic_count", 4)),
             "robot_health": robot_health,
             "topics": topic_metrics,
+            "topic_history": [
+                item for item in metrics if item.get("metric_type") == "topic_window"
+            ],
+            "observed_signals": [
+                payload for payload in metrics if payload.get("metric_type") == "observed_signal"
+            ],
             "anomalies": anomalies,
             "incident_history": [json.loads(row["payload_json"]) for row in history],
             "mission_summaries": mission_summaries,
@@ -536,6 +581,8 @@ class ProjectionStore:
             "topic_count": 4,
             "robot_health": None,
             "topics": [],
+            "topic_history": [],
+            "observed_signals": [],
             "anomalies": [],
             "incident_history": [],
             "mission_summaries": {},

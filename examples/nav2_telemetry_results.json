@@ -1,0 +1,245 @@
+{
+  "development": {
+    "fixture": {
+      "actions": {
+        "baseline": {
+          "wall_ms": 1789068559854,
+          "x": -2.0,
+          "y": -0.5
+        },
+        "disturbance": {
+          "wall_ms": 1789068565855,
+          "x": -0.5,
+          "y": -0.5
+        },
+        "initialization": {
+          "wall_ms": 1789068548227,
+          "x": -2.0,
+          "y": -0.5
+        },
+        "repair": {
+          "wall_ms": 1789068571859,
+          "x": -2.0,
+          "y": -0.5
+        }
+      },
+      "checks": {
+        "baseline_near_spawn": true,
+        "both_pose_frames_present": true,
+        "estimate_restored_after_reset": true,
+        "injected_estimate_displacement_observed": true,
+        "odometry_remained_stationary": true
+      },
+      "fault_observation_delay_ms": 126,
+      "max_fault_estimate_distance_m": 1.4851395758548485,
+      "max_odometry_displacement_m": 1.7799837444831427e-14,
+      "offset_m": 1.5,
+      "passed": true,
+      "pose_samples": 4,
+      "repair_observation_delay_ms": 123,
+      "scope": "Controlled AMCL estimate reset and manual restoration in Gazebo; not autonomous relocalization or production detection"
+    },
+    "manifest": {
+      "domain": 75,
+      "image_id": "sha256:e7952847b6270bca304292e81c87df3f2b7cd6a81468cc7d221286bf4e55e746",
+      "offset_m": 1.5,
+      "scope": "Owned stationary Gazebo/Nav2 sandbox",
+      "with_telemetry": true
+    },
+    "telemetry": {
+      "checks": {
+        "all_labeled_pose_samples_received": true,
+        "fixture_passed": true,
+        "no_duplicates": true,
+        "no_rejected_records": true,
+        "no_transport_incidents": true,
+        "one_inconsistency_detected_during_fault": true,
+        "one_recovery_after_repair": true,
+        "projected_signals_preserve_source": true,
+        "same_run": true,
+        "summaries_verified": true,
+        "summary_count_reconciled": true
+      },
+      "detection_delay_ms": 127,
+      "detector": {
+        "active": false,
+        "scope": "Relative-motion disagreement since first paired sample; assumes initial consistency and bounded odometry drift",
+        "states": [
+          {
+            "paired_odometry_age_ms": 918.0,
+            "residual_m": 0.0,
+            "state": "consistent",
+            "stream_timestamp_ms": 1789068559964,
+            "threshold_m": 0.5
+          },
+          {
+            "paired_odometry_age_ms": 942.0,
+            "residual_m": 1.4876945257730718,
+            "state": "inconsistent",
+            "stream_timestamp_ms": 1789068565982,
+            "threshold_m": 0.5
+          },
+          {
+            "paired_odometry_age_ms": 930.0,
+            "residual_m": 0.003925416990762356,
+            "state": "consistent",
+            "stream_timestamp_ms": 1789068571985,
+            "threshold_m": 0.5
+          }
+        ],
+        "transitions": [
+          {
+            "paired_odometry_age_ms": 942.0,
+            "residual_m": 1.4876945257730718,
+            "state": "inconsistent",
+            "status": "active",
+            "stream_timestamp_ms": 1789068565982,
+            "threshold_m": 0.5
+          },
+          {
+            "paired_odometry_age_ms": 930.0,
+            "residual_m": 0.003925416990762356,
+            "state": "consistent",
+            "status": "recovered",
+            "stream_timestamp_ms": 1789068571985,
+            "threshold_m": 0.5
+          }
+        ]
+      },
+      "detector_parameters": {
+        "max_pair_age_ms": 1500,
+        "threshold_m": 0.5
+      },
+      "passed": true,
+      "recovery_delay_ms": 126,
+      "run_id": "live-b87a26bdf4974bc487d82a6672eaa12f",
+      "scope": "Post-run diagnostic on API signals from live Nav2; injection actions used only for scoring, not detector inputs",
+      "summary_messages": 1501
+    }
+  },
+  "limitations": [
+    "Initial paired poses are assumed consistent; odometry drift must remain bounded.",
+    "Only stationary manual estimate resets are runtime-validated; restoration is explicit.",
+    "This is not a production stream alert or an improvement measurement on the TUHH benchmark.",
+    "Delays use gateway reception timestamps, not time when the post-run diagnostic finishes."
+  ],
+  "scope": "Controlled stationary Nav2 estimate disturbance with live telemetry and a post-run relative-motion diagnostic",
+  "validation": {
+    "fixture": {
+      "actions": {
+        "baseline": {
+          "wall_ms": 1789068671943,
+          "x": -2.0,
+          "y": -0.5
+        },
+        "disturbance": {
+          "wall_ms": 1789068677945,
+          "x": 0.0,
+          "y": -0.5
+        },
+        "initialization": {
+          "wall_ms": 1789068660528,
+          "x": -2.0,
+          "y": -0.5
+        },
+        "repair": {
+          "wall_ms": 1789068683947,
+          "x": -2.0,
+          "y": -0.5
+        }
+      },
+      "checks": {
+        "baseline_near_spawn": true,
+        "both_pose_frames_present": true,
+        "estimate_restored_after_reset": true,
+        "injected_estimate_displacement_observed": true,
+        "odometry_remained_stationary": true
+      },
+      "fault_observation_delay_ms": 105,
+      "max_fault_estimate_distance_m": 2.0102818483226033,
+      "max_odometry_displacement_m": 1.7799837444831427e-14,
+      "offset_m": 2.0,
+      "passed": true,
+      "pose_samples": 4,
+      "repair_observation_delay_ms": 133,
+      "scope": "Controlled AMCL estimate reset and manual restoration in Gazebo; not autonomous relocalization or production detection"
+    },
+    "manifest": {
+      "domain": 76,
+      "image_id": "sha256:e7952847b6270bca304292e81c87df3f2b7cd6a81468cc7d221286bf4e55e746",
+      "offset_m": 2.0,
+      "scope": "Owned stationary Gazebo/Nav2 sandbox",
+      "with_telemetry": true
+    },
+    "telemetry": {
+      "checks": {
+        "all_labeled_pose_samples_received": true,
+        "fixture_passed": true,
+        "no_duplicates": true,
+        "no_rejected_records": true,
+        "no_transport_incidents": true,
+        "one_inconsistency_detected_during_fault": true,
+        "one_recovery_after_repair": true,
+        "projected_signals_preserve_source": true,
+        "same_run": true,
+        "summaries_verified": true,
+        "summary_count_reconciled": true
+      },
+      "detection_delay_ms": 110,
+      "detector": {
+        "active": false,
+        "scope": "Relative-motion disagreement since first paired sample; assumes initial consistency and bounded odometry drift",
+        "states": [
+          {
+            "paired_odometry_age_ms": 993.0,
+            "residual_m": 0.0,
+            "state": "consistent",
+            "stream_timestamp_ms": 1789068672018,
+            "threshold_m": 0.5
+          },
+          {
+            "paired_odometry_age_ms": 9.0,
+            "residual_m": 2.0002418379267723,
+            "state": "inconsistent",
+            "stream_timestamp_ms": 1789068678055,
+            "threshold_m": 0.5
+          },
+          {
+            "paired_odometry_age_ms": 33.0,
+            "residual_m": 0.014855179945027634,
+            "state": "consistent",
+            "stream_timestamp_ms": 1789068684081,
+            "threshold_m": 0.5
+          }
+        ],
+        "transitions": [
+          {
+            "paired_odometry_age_ms": 9.0,
+            "residual_m": 2.0002418379267723,
+            "state": "inconsistent",
+            "status": "active",
+            "stream_timestamp_ms": 1789068678055,
+            "threshold_m": 0.5
+          },
+          {
+            "paired_odometry_age_ms": 33.0,
+            "residual_m": 0.014855179945027634,
+            "state": "consistent",
+            "status": "recovered",
+            "stream_timestamp_ms": 1789068684081,
+            "threshold_m": 0.5
+          }
+        ]
+      },
+      "detector_parameters": {
+        "max_pair_age_ms": 1500,
+        "threshold_m": 0.5
+      },
+      "passed": true,
+      "recovery_delay_ms": 134,
+      "run_id": "live-9b689a744bb84763a5eb13eb7776e4ac",
+      "scope": "Post-run diagnostic on API signals from live Nav2; injection actions used only for scoring, not detector inputs",
+      "summary_messages": 1504
+    }
+  }
+}

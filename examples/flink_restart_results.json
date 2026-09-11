@@ -1,0 +1,214 @@
+{
+  "development": {
+    "checks": {
+      "checkpoint_from_active_run": true,
+      "final_checkpoint_progress": true,
+      "same_job_restored_and_checkpointed_within_sixty_seconds": true,
+      "source_evaluation_passed": false,
+      "worker_hard_stopped": true
+    },
+    "job_id": "a5c516f04050527038c77356c3818097",
+    "outage_s": 12,
+    "passed": false,
+    "recovery_ms": 46590,
+    "restored_checkpoint": {
+      "external_path": "file:/checkpoints/a5c516f04050527038c77356c3818097/chk-317",
+      "id": 317,
+      "is_savepoint": false,
+      "restore_timestamp": 1789066743770
+    },
+    "scope": "Local Flink TaskManager hard stop with JobManager, Kafka and API running; not JobManager disaster recovery",
+    "source_evaluation": {
+      "checks": {
+        "matching_run": true,
+        "no_duplicate_envelopes": true,
+        "no_late_records": true,
+        "no_schema_rejections": true,
+        "no_unexpected_alerts": false,
+        "projection_recovered": true,
+        "source_ledger_reconciled": true,
+        "summaries_verified": true,
+        "summary_counts_reconciled": true
+      },
+      "eligibility": "Subscriber discovered and publication within session, excluding final 100 ms",
+      "eligible_publisher_records": 3184,
+      "excluded_publisher_records": 16,
+      "fault": "clean",
+      "gap_detection_broker_delay_ms": [],
+      "gap_detection_stream_delay_ms": [],
+      "gap_recovery_broker_delay_ms": [],
+      "missing_eligible_records": 0,
+      "passed": false,
+      "publisher_records": 3200,
+      "qos_events": [],
+      "received_by_topic": {
+        "/_telemetry/gateway_health": 100,
+        "/amcl_pose": 99,
+        "/diagnostics": 99,
+        "/odom": 1993,
+        "/scan": 996
+      },
+      "run_id": "live-419b61b37ac24873ab90de5a533121f4",
+      "scope": "Real DDS transport fixture; not Nav2 or physical robot evidence",
+      "summary_message_count": 3287,
+      "unexpected_alerts": [
+        {
+          "anomaly_id": "995d2d162d3d95a0f1ec285b392f1c68df6778cbc5dfaa551c350a01954ee3f6",
+          "condition_type": "ROBOT_OFFLINE",
+          "detected_stream_ms": 1789066725914,
+          "effective_start_stream_ms": 1789066725914,
+          "evidence": {
+            "decision_clock": "processing_elapsed_projected_to_stream",
+            "processing_silence_ms": 10000
+          },
+          "recovered_stream_ms": null,
+          "revision": 0,
+          "robot_id": "gateway-eval-16c41bb45a",
+          "run_id": "live-419b61b37ac24873ab90de5a533121f4",
+          "schema_version": 1,
+          "severity": "error",
+          "status": "active",
+          "topic": null
+        }
+      ]
+    },
+    "warmup_s": 18,
+    "worker_image_id": "sha256:6407230d51bd84e66aeff8e644627b780d2ae86a8a3a3f8e09cbf61fb16678f4"
+  },
+  "final_validation": {
+    "checks": {
+      "active_run_output_precedes_checkpoint": true,
+      "checkpoint_from_active_run": true,
+      "final_checkpoint_progress": true,
+      "same_job_restored_and_checkpointed_within_sixty_seconds": true,
+      "source_evaluation_passed": true,
+      "worker_hard_stopped": true
+    },
+    "job_id": "1157f40df014036bd34a6bfc49a53317",
+    "outage_s": 14,
+    "passed": true,
+    "recovery_ms": 46898,
+    "restored_checkpoint": {
+      "external_path": "file:/checkpoints/1157f40df014036bd34a6bfc49a53317/chk-5",
+      "id": 5,
+      "is_savepoint": false,
+      "restore_timestamp": 1789067461579
+    },
+    "scope": "Local Flink TaskManager hard stop with JobManager, Kafka and API running; not JobManager disaster recovery",
+    "source_evaluation": {
+      "checks": {
+        "matching_run": true,
+        "no_duplicate_envelopes": true,
+        "no_late_records": true,
+        "no_schema_rejections": true,
+        "no_unexpected_alerts": true,
+        "projection_recovered": true,
+        "source_ledger_reconciled": true,
+        "summaries_verified": true,
+        "summary_counts_reconciled": true
+      },
+      "eligibility": "Subscriber discovered and publication within session, excluding final 100 ms",
+      "eligible_publisher_records": 3504,
+      "excluded_publisher_records": 16,
+      "fault": "clean",
+      "gap_detection_broker_delay_ms": [],
+      "gap_detection_stream_delay_ms": [],
+      "gap_recovery_broker_delay_ms": [],
+      "missing_eligible_records": 0,
+      "passed": true,
+      "publisher_records": 3520,
+      "qos_events": [],
+      "received_by_topic": {
+        "/_telemetry/gateway_health": 110,
+        "/amcl_pose": 109,
+        "/diagnostics": 109,
+        "/odom": 2193,
+        "/scan": 1096
+      },
+      "run_id": "live-3b11adcdea12475ca5f61f5df7bf5b7a",
+      "scope": "Real DDS transport fixture; not Nav2 or physical robot evidence",
+      "summary_message_count": 3617,
+      "unexpected_alerts": []
+    },
+    "warmup_s": 22,
+    "worker_image_id": "sha256:be0e5e9bbf8f57e5ba83293e2c51c5b321165fbe86a6403c72e4f4dc546820b4"
+  },
+  "fix": "Restored watchdogs remain unknown until accepted input or source watermark progress re-establishes observation. Aggregate health preserves unknown state.",
+  "status": "Final validation passed: checkpoint restore, new checkpoint, exact summary reconciliation and no unexpected incidents.",
+  "validation": {
+    "checks": {
+      "checkpoint_from_active_run": true,
+      "final_checkpoint_progress": true,
+      "same_job_restored_and_checkpointed_within_sixty_seconds": true,
+      "source_evaluation_passed": false,
+      "worker_hard_stopped": true
+    },
+    "job_id": "3a554c8bbaed331b2dc291028fb29e4c",
+    "outage_s": 14,
+    "passed": false,
+    "recovery_ms": 46659,
+    "restored_checkpoint": {
+      "external_path": "file:/checkpoints/3a554c8bbaed331b2dc291028fb29e4c/chk-3",
+      "id": 3,
+      "is_savepoint": false,
+      "restore_timestamp": 1789067115515
+    },
+    "scope": "Local Flink TaskManager hard stop with JobManager, Kafka and API running; not JobManager disaster recovery",
+    "source_evaluation": {
+      "checks": {
+        "matching_run": true,
+        "no_duplicate_envelopes": true,
+        "no_late_records": true,
+        "no_schema_rejections": true,
+        "no_unexpected_alerts": false,
+        "projection_recovered": true,
+        "source_ledger_reconciled": true,
+        "summaries_verified": true,
+        "summary_counts_reconciled": true
+      },
+      "eligibility": "Subscriber discovered and publication within session, excluding final 100 ms",
+      "eligible_publisher_records": 3396,
+      "excluded_publisher_records": 124,
+      "fault": "clean",
+      "gap_detection_broker_delay_ms": [],
+      "gap_detection_stream_delay_ms": [],
+      "gap_recovery_broker_delay_ms": [],
+      "missing_eligible_records": 0,
+      "passed": false,
+      "publisher_records": 3520,
+      "qos_events": [],
+      "received_by_topic": {
+        "/_telemetry/gateway_health": 109,
+        "/amcl_pose": 106,
+        "/diagnostics": 106,
+        "/odom": 2125,
+        "/scan": 1062
+      },
+      "run_id": "live-836d4ea81703408a90e7a8ae901fab24",
+      "scope": "Real DDS transport fixture; not Nav2 or physical robot evidence",
+      "summary_message_count": 3508,
+      "unexpected_alerts": [
+        {
+          "anomaly_id": "26b603a0cb656b22ae103f34ee9c51909463c126277c65f30d137f1ce59ca40a",
+          "condition_type": "ROBOT_OFFLINE",
+          "detected_stream_ms": 1789067098108,
+          "effective_start_stream_ms": 1789067098108,
+          "evidence": {
+            "decision_clock": "processing_elapsed_projected_to_stream",
+            "processing_silence_ms": 10000
+          },
+          "recovered_stream_ms": null,
+          "revision": 0,
+          "robot_id": "gateway-eval-7132a61ac2",
+          "run_id": "live-836d4ea81703408a90e7a8ae901fab24",
+          "schema_version": 1,
+          "severity": "error",
+          "status": "active",
+          "topic": null
+        }
+      ]
+    },
+    "warmup_s": 22,
+    "worker_image_id": "sha256:17df29a98ee97fe16e88a21f598492af2fa8a7d8a07b2e048e5e7e9147fd0482"
+  }
+}

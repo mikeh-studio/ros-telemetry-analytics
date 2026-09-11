@@ -12,6 +12,7 @@ from ros_telemetry_analytics.localization_eval import (
     LocalizationEvalConfig,
     evaluate_localization_files,
 )
+from ros_telemetry_analytics.localization_study import run_localization_study
 from ros_telemetry_analytics.pipeline import run_pipeline
 from ros_telemetry_analytics.public_suite import run_public_robotics_suite
 
@@ -65,6 +66,15 @@ def build_parser() -> argparse.ArgumentParser:
     localization.add_argument("--pose-jump-threshold-m", type=float, default=0.5)
     localization.add_argument("--event-merge-gap-ms", type=float, default=500.0)
     localization.add_argument("--event-tolerance-ms", type=float, default=100.0)
+    localization.add_argument("--recovery-hold-ms", type=float, default=0.0)
+    localization.add_argument("--heading-spread-threshold-rad", type=float)
+
+    study = subparsers.add_parser(
+        "study-localization", help="Compare detectors with a frozen environment-held-out split."
+    )
+    study.add_argument("--input-dir", type=_path, required=True)
+    study.add_argument("--output", type=_path, required=True)
+    study.add_argument("--manifest", type=_path, default=Path("configs/localization_study.json"))
 
     public_suite = subparsers.add_parser(
         "validate-public-robotics",
@@ -102,9 +112,16 @@ def main(argv: list[str] | None = None) -> int:
                 pose_jump_warn_m=args.pose_jump_threshold_m,
                 event_merge_gap_ms=args.event_merge_gap_ms,
                 event_tolerance_ms=args.event_tolerance_ms,
+                recovery_hold_ms=args.recovery_hold_ms,
+                heading_spread_warn_rad=args.heading_spread_threshold_rad,
             ),
         )
         print(json.dumps(summary, indent=2))
+        return 0
+
+    if args.command == "study-localization":
+        summary = run_localization_study(args.input_dir, args.output, args.manifest)
+        print(json.dumps(summary["aggregates"], indent=2))
         return 0
 
     if args.command == "validate-public-robotics":

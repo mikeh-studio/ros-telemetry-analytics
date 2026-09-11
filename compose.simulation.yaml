@@ -1,0 +1,30 @@
+services:
+  simulation:
+    build:
+      context: .
+      dockerfile: demo/simulation/Dockerfile
+    init: true
+    environment:
+      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-42}
+    restart: "no"
+  gateway:
+    command: ["python3", "-m", "demo.gateway.ros_node", "--config", "configs/gateway_nav2.yaml"]
+    depends_on:
+      simulation:
+        condition: service_started
+  simulation-mission:
+    build:
+      context: .
+      dockerfile: demo/simulation/Dockerfile
+    profiles: ["mission"]
+    init: true
+    environment:
+      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-42}
+    command: ["python3", "/tools/nav2_mission.py", "--output", "/results/mission.json"]
+    volumes:
+      - ./scripts:/tools:ro
+      - ./data/evaluations/nav2:/results
+    depends_on:
+      simulation:
+        condition: service_started
+    restart: "no"

@@ -85,10 +85,43 @@ def test_cli_evaluates_localization_data(tmp_path: Path, monkeypatch, capsys) ->
                 str(tmp_path),
                 "--particle-spread-threshold-m",
                 "0.35",
+                "--recovery-hold-ms",
+                "250",
             ]
         )
         == 0
     )
     assert captured["inputs"] == [Path("run.parquet")]
     assert captured["config"].particle_spread_warn_m == 0.35
+    assert captured["config"].recovery_hold_ms == 250
     assert json.loads(capsys.readouterr().out)["sample_count"] == 10
+
+
+def test_cli_study_localization_uses_explicit_split(tmp_path, monkeypatch, capsys):
+    captured = {}
+
+    def study(inputs, output, manifest):
+        captured.update(inputs=inputs, output=output, manifest=manifest)
+        return {"aggregates": {"evaluation": {"run_count": 6}}}
+
+    monkeypatch.setattr(cli, "run_localization_study", study)
+    assert (
+        cli.main(
+            [
+                "study-localization",
+                "--input-dir",
+                "processed",
+                "--output",
+                str(tmp_path),
+                "--manifest",
+                "split.json",
+            ]
+        )
+        == 0
+    )
+    assert captured == {
+        "inputs": Path("processed"),
+        "output": tmp_path,
+        "manifest": Path("split.json"),
+    }
+    assert json.loads(capsys.readouterr().out)["evaluation"]["run_count"] == 6

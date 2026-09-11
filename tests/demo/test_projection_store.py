@@ -4,6 +4,8 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
+
 from demo.api.store import ProjectionStore
 
 
@@ -23,6 +25,136 @@ def _metric(
         "stream_timestamp_ms": timestamp,
         "payload": {"status": "ok", "message_count": 200},
     }
+
+
+def test_observed_signal_retention_is_bounded_per_robot_and_topic(tmp_path: Path) -> None:
+    store = ProjectionStore(tmp_path / "projection.db", tmp_path / "output")
+    records = []
+    for index in range(190):
+        metric = _metric(f"signal-{index}", 0, index * 1000, "observed_signal")
+        records.append(
+            dict(
+                stream_kind="metric",
+                payload=metric,
+                kafka_topic="telemetry.metrics.v1",
+                kafka_partition=0,
+                kafka_offset=index,
+            )
+        )
+    other = _metric("other-robot", 0, 0, "observed_signal")
+    other["robot_id"] = "robot-other"
+    records.append(
+        dict(
+            stream_kind="metric",
+            payload=other,
+            kafka_topic="telemetry.metrics.v1",
+            kafka_partition=0,
+            kafka_offset=190,
+        )
+    )
+    store.project_batch(records)
+    signals = store.snapshot("run-1")["observed_signals"]
+    assert len(signals) == 181
+    assert (
+        min(row["stream_timestamp_ms"] for row in signals if row["robot_id"] == "robot-17") == 10000
+    )
+    assert any(row["robot_id"] == "robot-other" for row in signals)
+    assert store.snapshot("different-run")["observed_signals"] == []
+
+
+def test_live_run_preserves_source_and_robot_identity(tmp_path: Path) -> None:
+    store = ProjectionStore(tmp_path / "projection.db", tmp_path / "output")
+    metric = _metric("live-status", 0, 10_000, "run_status")
+    metric["robot_id"] = "robot-live-1"
+    metric["payload"] = {
+        "status": "running",
+        "source_format": "live_ros2",
+        "dataset_id": "live-ros2",
+        "expected_topic_count": 6,
+    }
+    store.project(
+        stream_kind="metric",
+        payload=metric,
+        kafka_topic="telemetry.metrics.v1",
+        kafka_partition=0,
+        kafka_offset=0,
+    )
+    snapshot = store.snapshot()
+    assert snapshot["source"] == "live_ros2"
+    assert snapshot["robot_id"] == "robot-live-1"
+    assert snapshot["topic_count"] == 6
+
+
+def test_interleaved_runs_retain_separate_projection_with_bounded_history(tmp_path: Path) -> None:
+    store = ProjectionStore(tmp_path / "projection.db", tmp_path / "output")
+    for index in range(9):
+        metric = _metric(f"status-{index}", 0, (index + 1) * 10_000, "run_status")
+        metric["run_id"] = f"run-{index}"
+        metric["payload"]["status"] = "running"
+        store.project(
+            stream_kind="metric",
+            payload=metric,
+            kafka_topic="telemetry.metrics.v1",
+            kafka_partition=0,
+            kafka_offset=index,
+        )
+    assert store.snapshot("run-0")["run"] is None
+    assert store.snapshot("run-1")["run"]["run_id"] == "run-1"
+    assert store.snapshot("run-8")["run"]["run_id"] == "run-8"
+
+    older_summary = _metric("older-summary", 0, 95_000, "mission_summary")
+    older_summary["run_id"] = "run-1"
+    store.project(
+        stream_kind="metric",
+        payload=older_summary,
+        kafka_topic="telemetry.metrics.v1",
+        kafka_partition=0,
+        kafka_offset=9,
+    )
+    assert store.snapshot("run-1")["mission_summaries"]["/odom"]["payload"]["message_count"] == 200
+    assert store.snapshot("run-8")["run"]["run_id"] == "run-8"
+
+
+def test_anomaly_revision_wins_over_timestamp_and_stale_redelivery(tmp_path: Path) -> None:
+    store = ProjectionStore(tmp_path / "projection.db", tmp_path / "output")
+    original = {
+        "anomaly_id": "incident",
+        "run_id": "run-1",
+        "robot_id": "robot-1",
+        "topic": None,
+        "condition_type": "ROBOT_OFFLINE",
+        "status": "active",
+        "revision": 0,
+        "detected_stream_ms": 20000,
+    }
+    recovered = {**original, "status": "recovered", "revision": 1, "detected_stream_ms": 15000}
+    for offset, payload in enumerate((original, recovered, original)):
+        store.project(
+            stream_kind="anomaly",
+            payload=payload,
+            kafka_topic="telemetry.anomalies.v1",
+            kafka_partition=0,
+            kafka_offset=offset,
+        )
+    assert store.snapshot("run-1")["anomalies"][0]["status"] == "recovered"
+    assert store.offsets()[("telemetry.anomalies.v1", 0)] == 3
+
+
+def test_projection_batch_rolls_back_messages_and_offsets_together(tmp_path: Path) -> None:
+    store = ProjectionStore(tmp_path / "projection.db", tmp_path / "output")
+    record = {
+        "stream_kind": "metric",
+        "payload": _metric("one", 0, 1000),
+        "kafka_topic": "telemetry.metrics.v1",
+        "kafka_partition": 0,
+        "kafka_offset": 0,
+    }
+    with pytest.raises(KeyError):
+        store.project_batch([record, {**record, "payload": {}}])
+    assert store.offsets() == {}
+    assert store.snapshot()["run_id"] is None
+    assert store.project_batch([record, {**record, "kafka_offset": 1}]) == [True, False]
+    assert store.offsets()[("telemetry.metrics.v1", 0)] == 2
 
 
 def test_projection_is_idempotent_and_keeps_highest_revision(tmp_path: Path) -> None:
@@ -274,3 +406,26 @@ def test_latest_topic_prefers_the_latest_partial_window_when_stream_times_tie() 
     later = {**earlier, "window_end_ms": 99_000}
 
     assert ProjectionStore._latest_topics([later, earlier]) == [later]
+
+
+def test_topic_history_survives_reopen_and_uses_corrected_windows(tmp_path: Path) -> None:
+    db = tmp_path / "history.db"
+    output = tmp_path / "output"
+    store = ProjectionStore(db, output)
+    first = _metric("first", 0, 10000)
+    later = _metric("later", 0, 11000)
+    correction = {**first, "revision": 1, "payload": {"mean_rate_hz": 19.5}}
+    other = {**_metric("other", 0, 12000), "run_id": "another-run"}
+    for offset, metric in enumerate([first, later, correction, other]):
+        store.project(
+            stream_kind="metric",
+            payload=metric,
+            kafka_topic="telemetry.metrics.v1",
+            kafka_partition=0,
+            kafka_offset=offset,
+        )
+    snapshot = ProjectionStore(db, output).snapshot("run-1")
+    assert len(snapshot["topic_history"]) == 2
+    assert {item["run_id"] for item in snapshot["topic_history"]} == {"run-1"}
+    assert snapshot["topic_history"][0]["payload"]["mean_rate_hz"] == 19.5
+    assert snapshot["topics"][0]["window_end_ms"] == 11000
