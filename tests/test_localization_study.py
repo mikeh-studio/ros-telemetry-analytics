@@ -14,6 +14,7 @@ from ros_telemetry_analytics.localization_eval import (
 from ros_telemetry_analytics.localization_study import (
     aggregate_runs,
     localization_diagnostics,
+    render_study_report,
     run_localization_study,
     select_candidate,
     validate_study_manifest,
@@ -237,3 +238,59 @@ def test_study_freezes_selection_before_loading_evaluation_data(tmp_path, monkey
     assert (output / "study.md").is_file()
     assert json.loads((output / "study.json").read_text())["source_sha256"]
     assert aggregate_runs([result["runs"][0]["baseline"]])["macro_sample_recall"] == 1
+
+
+def test_report_includes_every_unmatched_event_for_both_detectors():
+    from pathlib import Path
+
+    study = json.loads(
+        (Path(__file__).parents[1] / "examples/localization_study_results.json").read_text()
+    )["localization-refined-study"]
+    for index, run in enumerate(study["runs"]):
+        for name in ("baseline", "selected"):
+            run[name]["failure_details"] = [
+                {
+                    "detected": False,
+                    "expected_event_id": f"missing-{index}",
+                    "classification": "no_alert_coverage",
+                    "alerted_failure_records": 0,
+                    "failure_records": 3,
+                    "max_particle_spread_m": 0.1,
+                    "max_pose_jump_m": 0.0,
+                }
+            ]
+    report = render_study_report(study)
+    expected = 0
+    for run in study["runs"]:
+        for name in ("baseline", "selected"):
+            for event in run[name]["failure_details"]:
+                if not event["detected"]:
+                    expected += 1
+                    prefix = (
+                        f"| {run['run_id']} | {run['role']} | {name} | "
+                        f"{event['expected_event_id']} |"
+                    )
+                    assert report.count(prefix) == 1
+    assert expected > 0
+    assert "then heading disabled" in report
+
+
+def test_candidate_ties_prefer_heading_disabled_regardless_of_manifest_order():
+    metrics = {"macro_sample_f1": 0.7, "macro_sample_precision": 0.8, "macro_event_recall": 0.6}
+    disabled = {"config": asdict(LocalizationEvalConfig()), "development": metrics}
+    enabled = {
+        "config": asdict(LocalizationEvalConfig(heading_spread_warn_rad=0.5)),
+        "development": metrics,
+    }
+    for choices in ([enabled, disabled], [disabled, enabled]):
+        assert select_candidate(choices, metrics) == disabled
+
+
+def test_threshold_validation_distinguishes_disabled_heading_and_zero_hold():
+    assert LocalizationEvalConfig(recovery_hold_ms=0).recovery_hold_ms == 0
+    with pytest.raises(
+        ValueError, match="heading_spread_warn_rad must be finite and greater than zero"
+    ):
+        LocalizationEvalConfig(heading_spread_warn_rad=0)
+    with pytest.raises(ValueError, match="greater than or equal to zero"):
+        LocalizationEvalConfig(recovery_hold_ms=-1)

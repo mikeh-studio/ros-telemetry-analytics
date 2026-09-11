@@ -28,7 +28,11 @@ class LocalizationEvalConfig:
         for name, value in asdict(self).items():
             if name == "heading_spread_warn_rad" and value is None:
                 continue
-            if name == "recovery_hold_ms" and math.isfinite(value) and value >= 0:
+            if name == "recovery_hold_ms":
+                if not math.isfinite(value) or value < 0:
+                    raise ValueError(
+                        "recovery_hold_ms must be finite and greater than or equal to zero"
+                    )
                 continue
             if not math.isfinite(value) or value <= 0:
                 raise ValueError(f"{name} must be finite and greater than zero")
@@ -677,7 +681,11 @@ def evaluate_localization_files(
                 "particle_position_spread_m",
                 "estimated_pose_jump_m",
             ]
-            + (["particle_heading_spread_rad"] if config.heading_spread_warn_rad else []),
+            + (
+                ["particle_heading_spread_rad"]
+                if config.heading_spread_warn_rad is not None
+                else []
+            ),
             "evaluation_only_fields": [
                 "ground_truth_pose",
                 "position_error_m",
