@@ -7,6 +7,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.List;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -15,6 +18,28 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.junit.jupiter.api.Test;
 
 final class RobotLivenessProcessorHarnessTest {
+    @Test
+    void restoredOrphanTimerWaitsForIdentityWithoutEmittingHealth() throws Exception {
+        OperatorSubtaskState snapshot;
+        try (Harness original = harness()) {
+            original.process(lifecycle("run_started", 100_000, 1));
+            original.delegate.getOperator().getKeyedStateBackend().getPartitionedState(
+                    VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE,
+                    new ValueStateDescriptor<>("robot-identity-v2", RobotLivenessProcessor.Identity.class))
+                    .clear();
+            snapshot = original.delegate.snapshot(1, 1000);
+        }
+        try (Harness restored = harness(snapshot)) {
+            restored.processingTime(50_000);
+            restored.process(telemetry("orphan", 151_000));
+            assertTrue(restored.metrics().isEmpty());
+            assertTrue(restored.anomalies().isEmpty());
+            restored.process(lifecycle("run_started", 152_000, 1));
+            restored.processingTime(60_000);
+            assertEquals(1, restored.anomalies().size());
+        }
+    }
+
     @Test
     void restoredExpiredTimerReestablishesObservationBeforeDeclaringOffline() throws Exception {
         OperatorSubtaskState snapshot;

@@ -367,3 +367,30 @@ rolls back both data and offsets. Recovery seeks the stored SQLite offsets, so
 a crash between SQLite and Kafka offset acknowledgment does not lose projected
 records. This also reduces the per-record transaction overhead exposed by
 post-rebuild catch-up evaluation.
+
+## Watchdog clock and startup-window interpretation
+
+Topic-window timestamps use stream time. Robot-wide watchdog decisions use a
+processing-time observation interval projected onto the stream clock. During
+buffered recovery, the decision timestamp is the later of the accepted event's
+stream time and the offline start plus elapsed processing time. The original
+accepted timestamp remains in `evidence.recovery_observation_stream_ms`; the
+`decision_clock` field identifies this policy.
+
+This is not a globally monotonic event-time sequence across topic metrics,
+watchdog metrics, checkpoints, and runs. A restored active watchdog retains its
+processing-time anchor; process downtime may therefore contribute to its elapsed
+decision time. Consumers must group by run and robot, order anomaly revisions by
+revision, and must not interpret projected recovery time as a ROS acquisition
+time or measured transport latency. The API uses revision precedence for anomaly
+state. Replacing these decision timestamps with buffered event timestamps would
+reintroduce recoveries preceding their offline decision.
+
+Live windows overlapping discovery grace expose
+`payload.rate_evaluation_status: startup_grace` and report `health_status: starting`
+when rate monitoring is enabled and no active condition takes precedence. Other values distinguish
+`event_driven`, `partial_window`, `structural_suppression`, and `normal_window`.
+Normal windows still pass the existing lifecycle and recovery gates before rate
+alerts can change. The marker does not assert that a publisher is configured
+correctly: missing topics can raise NEVER_SEEN after their deadline, and a
+persistently incorrect rate is evaluated after the full post-grace window.

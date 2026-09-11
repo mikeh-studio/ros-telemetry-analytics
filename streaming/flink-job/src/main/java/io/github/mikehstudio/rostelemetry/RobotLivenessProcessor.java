@@ -106,7 +106,7 @@ final class RobotLivenessProcessor extends KeyedProcessFunction<String, JsonNode
     }
 
     private boolean isAcceptedOnTime(JsonNode envelope, Context context) throws Exception {
-        if (!"RUNNING".equals(lifecycle.value())) return false;
+        if (!"RUNNING".equals(lifecycle.value()) || identity.value() == null) return false;
         String eventId = envelope.path("body").path("event_id").asText();
         if (seenEventIds.contains(eventId)) return false;
         seenEventIds.put(eventId, true);
@@ -160,6 +160,14 @@ final class RobotLivenessProcessor extends KeyedProcessFunction<String, JsonNode
                 || !Boolean.TRUE.equals(watchdogEnabled.value())
                 || watchdogTimer.value() == null
                 || watchdogTimer.value() != timestamp) return;
+        if (identity.value() == null) {
+            // An orphaned/restored timer is not evidence about an identifiable robot.
+            // A subsequent run_started event establishes identity and arms a fresh timer.
+            watchdogTimer.clear();
+            watchdogGeneration.clear();
+            awaitingAfterRestore.clear();
+            return;
+        }
         if (offline.value() == null) {
             if (!operatorGeneration.equals(watchdogGeneration.value())) {
                 // A checkpoint restores timers, not evidence of silence while this
