@@ -1,0 +1,17 @@
+schema_version: 1
+robot_id: robot-nav2-1
+duration_ms: 120000
+topics:
+  - topic: /scan
+    message_type: sensor_msgs/msg/LaserScan
+    expected_rate_hz: 5
+    dropout_threshold_ms: 1500
+  - topic: /odom
+    message_type: nav_msgs/msg/Odometry
+    expected_rate_hz: 30
+    dropout_threshold_ms: 1500
+  - topic: /amcl_pose
+    message_type: geometry_msgs/msg/PoseWithCovarianceStamped
+    expected_rate_hz: 1
+    dropout_threshold_ms: 3000
+    rate_monitoring_enabled: false

@@ -1,0 +1,408 @@
+{
+  "development_findings": [
+    "Internal-only Docker bridge prevented DDS sensor delivery; the failed test was retained and the network corrected.",
+    "Connected producer status remained stale while awaiting acknowledgments; now reports awaiting_ack and wait duration.",
+    "Sequence-gap evidence is a diagnostic, not an additional rejected telemetry record.",
+    "Three messages in a one-second recovery gate was impossible for 1 Hz health; recovery duration now follows expected rate."
+  ],
+  "overflow_candidate_before_projection_audit": {
+    "acknowledged": 1379,
+    "boundary": "Restart downtime and pre-discovery publications are not durably received; broker delivery may become late evidence. Unobserved publications also include overflow and the session boundary; aggregate counters do not assign per-message causes.",
+    "checks": {
+      "all_accepted_observations_delivered": true,
+      "all_crash_backlog_delivered": true,
+      "all_incidents_recovered": true,
+      "analytical_reconciliation": true,
+      "crash_preserved_all_queued_ids": true,
+      "healthy_delivery_before_disconnection": true,
+      "ledger_balanced": true,
+      "observations_buffered_without_broker": true,
+      "outage_detection_and_recovery": true,
+      "outbox_drained": true,
+      "overflow_matches_expectation": true,
+      "persisted_envelopes_unchanged": true,
+      "queue_within_record_limit": true,
+      "received_source_records_have_provenance": true,
+      "registration_and_lifecycle_valid": true,
+      "same_run_identity": true,
+      "schema_valid": true,
+      "sequence_gaps_match_rejections": true,
+      "summaries_verified": true
+    },
+    "crash_wall_ms": 1789063441730,
+    "duplicate_deliveries": 0,
+    "image_id": "sha256:d4128e463b7114bc4b2f6a4a41ccc382f28af0b4acff2c2eec1745eed8213d16",
+    "incident_transitions": [
+      {
+        "anomaly_id": "5381397cf6a3acc989ea680fcb194610250079a3fa46faf8ad407afe805db488",
+        "condition_type": "ROBOT_OFFLINE",
+        "detected_stream_ms": 1789063436595,
+        "status": "active",
+        "topic": null
+      },
+      {
+        "anomaly_id": "5381397cf6a3acc989ea680fcb194610250079a3fa46faf8ad407afe805db488",
+        "condition_type": "ROBOT_OFFLINE",
+        "detected_stream_ms": 1789063426695,
+        "status": "recovered",
+        "topic": null
+      },
+      {
+        "anomaly_id": "bf7ae92bca2a55b1d033b922966117df23b60b4361fcadf6cb0616bdf0eb5bfe",
+        "condition_type": "RATE",
+        "detected_stream_ms": 1789063432892,
+        "status": "active",
+        "topic": "/odom"
+      },
+      {
+        "anomaly_id": "434cfffe9e494086a3626f99bb01e7ec0dbcde7f44819e1dc0ee89b8daf94023",
+        "condition_type": "RATE",
+        "detected_stream_ms": 1789063432892,
+        "status": "active",
+        "topic": "/scan"
+      },
+      {
+        "anomaly_id": "69f2e7ea476c42a43a875e3e63be388c7fdd78d7736a0db6c03cc8bc58450f4f",
+        "condition_type": "GAP",
+        "detected_stream_ms": 1789063432190,
+        "status": "active",
+        "topic": "/_telemetry/gateway_health"
+      },
+      {
+        "anomaly_id": "69f2e7ea476c42a43a875e3e63be388c7fdd78d7736a0db6c03cc8bc58450f4f",
+        "condition_type": "GAP",
+        "detected_stream_ms": 1789063446294,
+        "status": "recovered",
+        "topic": "/_telemetry/gateway_health"
+      },
+      {
+        "anomaly_id": "bf7ae92bca2a55b1d033b922966117df23b60b4361fcadf6cb0616bdf0eb5bfe",
+        "condition_type": "RATE",
+        "detected_stream_ms": 1789063451892,
+        "status": "recovered",
+        "topic": "/odom"
+      },
+      {
+        "anomaly_id": "434cfffe9e494086a3626f99bb01e7ec0dbcde7f44819e1dc0ee89b8daf94023",
+        "condition_type": "RATE",
+        "detected_stream_ms": 1789063451892,
+        "status": "recovered",
+        "topic": "/scan"
+      }
+    ],
+    "late_records": 0,
+    "matched_source_publications": 1337,
+    "max_pending_records": 96,
+    "outage_s": 15,
+    "passed": true,
+    "pre_crash_pending": 96,
+    "received": 1784,
+    "rejected": 405,
+    "restart_wall_ms": 1789063442007,
+    "run_id": "live-81318e6dfe5b4abbb3bfa665c9d6ff7c",
+    "side_output_counts": {
+      "sequence_gap": 1
+    },
+    "source_publications": 1760,
+    "summary_messages": 1379,
+    "unobserved_source_publications": 423,
+    "warmup_s": 10
+  },
+  "overflow_projection_audit": {
+    "active_incidents": [
+      [
+        "ROBOT_OFFLINE",
+        "active"
+      ]
+    ],
+    "finding": "Raw recovery transitions existed, but timestamp ordering left an older active anomaly in the projection. New validator requires no projected active incidents.",
+    "passed": false
+  },
+  "overflow_validation": {
+    "acknowledged": 1378,
+    "boundary": "Restart downtime and pre-discovery publications are not durably received; broker delivery may become late evidence. Unobserved publications also include overflow and the session boundary; aggregate counters do not assign per-message causes.",
+    "checks": {
+      "all_accepted_observations_delivered": true,
+      "all_crash_backlog_delivered": true,
+      "all_incidents_recovered": true,
+      "analytical_reconciliation": true,
+      "crash_preserved_all_queued_ids": true,
+      "healthy_delivery_before_disconnection": true,
+      "ledger_balanced": true,
+      "observations_buffered_without_broker": true,
+      "outage_detection_and_recovery": true,
+      "outbox_drained": true,
+      "overflow_matches_expectation": true,
+      "persisted_envelopes_unchanged": true,
+      "projection_has_no_active_incidents": true,
+      "queue_within_record_limit": true,
+      "received_source_records_have_provenance": true,
+      "recovery_timestamps_do_not_precede_detection": true,
+      "registration_and_lifecycle_valid": true,
+      "same_run_identity": true,
+      "schema_valid": true,
+      "sequence_gaps_match_rejections": true,
+      "summaries_verified": true
+    },
+    "crash_wall_ms": 1789064167520,
+    "duplicate_deliveries": 0,
+    "image_id": "sha256:d4128e463b7114bc4b2f6a4a41ccc382f28af0b4acff2c2eec1745eed8213d16",
+    "incident_transitions": [
+      {
+        "anomaly_id": "4f627b00d4d3793273ccb2faea4be2cf0df998c07b5a3db685ec62272c688dae",
+        "condition_type": "ROBOT_OFFLINE",
+        "detected_stream_ms": 1789064162342,
+        "status": "active",
+        "topic": null
+      },
+      {
+        "anomaly_id": "4f627b00d4d3793273ccb2faea4be2cf0df998c07b5a3db685ec62272c688dae",
+        "condition_type": "ROBOT_OFFLINE",
+        "detected_stream_ms": 1789064168086,
+        "status": "recovered",
+        "topic": null
+      },
+      {
+        "anomaly_id": "81e70f9eb9e5e9f0a86901865bd516795860f0bcc0d8daa8eb4a9d114350dad7",
+        "condition_type": "GAP",
+        "detected_stream_ms": 1789064157933,
+        "status": "active",
+        "topic": "/_telemetry/gateway_health"
+      },
+      {
+        "anomaly_id": "e008b43c5aeac7e2042410d1d14ed5edf553494925a8b37f183d499da5160bd4",
+        "condition_type": "RATE",
+        "detected_stream_ms": 1789064158646,
+        "status": "active",
+        "topic": "/odom"
+      },
+      {
+        "anomaly_id": "8642946f3ed10d73459b067f9d5959543f4554c74647aa0bd374bcfa2ea3d398",
+        "condition_type": "RATE",
+        "detected_stream_ms": 1789064158646,
+        "status": "active",
+        "topic": "/scan"
+      },
+      {
+        "anomaly_id": "81e70f9eb9e5e9f0a86901865bd516795860f0bcc0d8daa8eb4a9d114350dad7",
+        "condition_type": "GAP",
+        "detected_stream_ms": 1789064172097,
+        "status": "recovered",
+        "topic": "/_telemetry/gateway_health"
+      },
+      {
+        "anomaly_id": "8642946f3ed10d73459b067f9d5959543f4554c74647aa0bd374bcfa2ea3d398",
+        "condition_type": "RATE",
+        "detected_stream_ms": 1789064177646,
+        "status": "recovered",
+        "topic": "/scan"
+      },
+      {
+        "anomaly_id": "e008b43c5aeac7e2042410d1d14ed5edf553494925a8b37f183d499da5160bd4",
+        "condition_type": "RATE",
+        "detected_stream_ms": 1789064177646,
+        "status": "recovered",
+        "topic": "/odom"
+      }
+    ],
+    "late_records": 0,
+    "matched_source_publications": 1336,
+    "max_pending_records": 96,
+    "outage_s": 15,
+    "passed": true,
+    "pre_crash_pending": 96,
+    "received": 1783,
+    "rejected": 405,
+    "restart_wall_ms": 1789064167806,
+    "run_id": "live-89ca06606f1a495680b7b442994534ae",
+    "session_end_to_verified_ms": 8044,
+    "side_output_counts": {
+      "sequence_gap": 1
+    },
+    "source_publications": 1760,
+    "summary_messages": 1378,
+    "unobserved_source_publications": 424,
+    "warmup_s": 10
+  },
+  "post_rebuild_eventual_verification": {
+    "scope": "Observation only; original 60-second deadline failure remains failed.",
+    "session_end_to_verification_ms": 101035,
+    "summary_count": 6,
+    "verified": true
+  },
+  "post_rebuild_timing_failure": {
+    "acknowledged": 1366,
+    "boundary": "Restart downtime and pre-discovery publications are not durably received; broker delivery may become late evidence. Unobserved publications also include overflow and the session boundary; aggregate counters do not assign per-message causes.",
+    "checks": {
+      "all_accepted_observations_delivered": true,
+      "all_crash_backlog_delivered": true,
+      "all_incidents_recovered": true,
+      "analytical_reconciliation": false,
+      "crash_preserved_all_queued_ids": true,
+      "healthy_delivery_before_disconnection": true,
+      "ledger_balanced": true,
+      "observations_buffered_without_broker": true,
+      "outage_detection_and_recovery": true,
+      "outbox_drained": true,
+      "overflow_matches_expectation": true,
+      "persisted_envelopes_unchanged": true,
+      "queue_within_record_limit": true,
+      "received_source_records_have_provenance": true,
+      "registration_and_lifecycle_valid": true,
+      "same_run_identity": true,
+      "schema_valid": true,
+      "sequence_gaps_match_rejections": true,
+      "summaries_verified": false
+    },
+    "crash_wall_ms": 1789063179072,
+    "duplicate_deliveries": 0,
+    "image_id": "sha256:d4128e463b7114bc4b2f6a4a41ccc382f28af0b4acff2c2eec1745eed8213d16",
+    "incident_transitions": [
+      {
+        "anomaly_id": "7cae061f9572752017a337944b92fa7338d25e033d15bee9843b5c00ab0cc5c3",
+        "condition_type": "ROBOT_OFFLINE",
+        "detected_stream_ms": 1789063173923,
+        "status": "active",
+        "topic": null
+      },
+      {
+        "anomaly_id": "7cae061f9572752017a337944b92fa7338d25e033d15bee9843b5c00ab0cc5c3",
+        "condition_type": "ROBOT_OFFLINE",
+        "detected_stream_ms": 1789063164015,
+        "status": "recovered",
+        "topic": null
+      },
+      {
+        "anomaly_id": "5dc89c6ce5e59745abe440a565f74d9c9bb2053b5622f4ca56d7cc40ba27fee1",
+        "condition_type": "GAP",
+        "detected_stream_ms": 1789063169072,
+        "status": "active",
+        "topic": "/_telemetry/gateway_health"
+      },
+      {
+        "anomaly_id": "a4d2252fb9dd20a3947624da1a36023f7da153212b187b7d0be3d45654e4a22b",
+        "condition_type": "RATE",
+        "detected_stream_ms": 1789063170463,
+        "status": "active",
+        "topic": "/scan"
+      },
+      {
+        "anomaly_id": "9472a735066fd70f2848648e5d771d5a53938fabce24eeab2a54871ea414d9cc",
+        "condition_type": "RATE",
+        "detected_stream_ms": 1789063170463,
+        "status": "active",
+        "topic": "/odom"
+      },
+      {
+        "anomaly_id": "5dc89c6ce5e59745abe440a565f74d9c9bb2053b5622f4ca56d7cc40ba27fee1",
+        "condition_type": "GAP",
+        "detected_stream_ms": 1789063183963,
+        "status": "recovered",
+        "topic": "/_telemetry/gateway_health"
+      },
+      {
+        "anomaly_id": "a4d2252fb9dd20a3947624da1a36023f7da153212b187b7d0be3d45654e4a22b",
+        "condition_type": "RATE",
+        "detected_stream_ms": 1789063189463,
+        "status": "recovered",
+        "topic": "/scan"
+      },
+      {
+        "anomaly_id": "9472a735066fd70f2848648e5d771d5a53938fabce24eeab2a54871ea414d9cc",
+        "condition_type": "RATE",
+        "detected_stream_ms": 1789063189463,
+        "status": "recovered",
+        "topic": "/odom"
+      }
+    ],
+    "late_records": 0,
+    "matched_source_publications": 1325,
+    "max_pending_records": 96,
+    "outage_s": 15,
+    "passed": false,
+    "pre_crash_pending": 96,
+    "received": 1770,
+    "rejected": 404,
+    "restart_wall_ms": 1789063179539,
+    "run_id": "live-93be589eae444163b1dd79b6a07c8f61",
+    "side_output_counts": {
+      "sequence_gap": 1
+    },
+    "source_publications": 1760,
+    "summary_messages": 0,
+    "unobserved_source_publications": 435,
+    "warmup_s": 10
+  },
+  "projection_batch_benchmark": {
+    "batches_up_to_500_seconds": 0.014,
+    "duplicate_batch_seconds": 0.012,
+    "duplicate_single_record_seconds": 0.861,
+    "records": 684,
+    "scope": "Local SQLite fixture; not a production throughput claim",
+    "single_record_transactions_seconds": 0.821
+  },
+  "recovery_validation": {
+    "acknowledged": 1781,
+    "boundary": "Restart downtime and pre-discovery publications are not durably received; broker delivery may become late evidence. Unobserved publications also include overflow and the session boundary; aggregate counters do not assign per-message causes.",
+    "checks": {
+      "all_accepted_observations_delivered": true,
+      "all_crash_backlog_delivered": true,
+      "analytical_reconciliation": true,
+      "crash_preserved_all_queued_ids": true,
+      "healthy_delivery_before_disconnection": true,
+      "ledger_balanced": true,
+      "observations_buffered_without_broker": true,
+      "outbox_drained": true,
+      "overflow_matches_expectation": true,
+      "persisted_envelopes_unchanged": true,
+      "queue_within_record_limit": true,
+      "received_source_records_have_provenance": true,
+      "registration_and_lifecycle_valid": true,
+      "same_run_identity": true,
+      "schema_valid": true,
+      "sequence_gaps_match_rejections": true,
+      "summaries_verified": true
+    },
+    "crash_wall_ms": 1789062943411,
+    "duplicate_deliveries": 0,
+    "image_id": "sha256:d4128e463b7114bc4b2f6a4a41ccc382f28af0b4acff2c2eec1745eed8213d16",
+    "incident_transitions": [
+      {
+        "anomaly_id": "6f55c9ba3107831b2b3d25ed9f49d40bc112fa904d51d4097135992660857071",
+        "condition_type": "ROBOT_OFFLINE",
+        "status": "active",
+        "topic": null
+      },
+      {
+        "anomaly_id": "6f55c9ba3107831b2b3d25ed9f49d40bc112fa904d51d4097135992660857071",
+        "condition_type": "ROBOT_OFFLINE",
+        "status": "recovered",
+        "topic": null
+      }
+    ],
+    "late_records": 0,
+    "matched_source_publications": 1726,
+    "outage_s": 15,
+    "passed": true,
+    "pre_crash_pending": 500,
+    "received": 1781,
+    "rejected": 0,
+    "restart_wall_ms": 1789062943730,
+    "run_id": "live-dd9694cc1dfb44018bc7f3652a1734ca",
+    "side_output_counts": {},
+    "source_publications": 1760,
+    "summary_messages": 1781,
+    "unobserved_source_publications": 34,
+    "warmup_s": 10
+  },
+  "remaining_limits": [
+    "Independent three-robot fault isolation not yet exercised",
+    "Processing-service restart catch-up needs a repeatable bounded recovery test",
+    "Delay, duplicate, QoS and localization-disturbance fault cases remain"
+  ],
+  "validation_scope": "Single gateway Kafka-path disconnection and SIGKILL. Does not prove three-robot isolation or physical-robot operation.",
+  "validation_tests": {
+    "java": 45,
+    "python": 215
+  }
+}
