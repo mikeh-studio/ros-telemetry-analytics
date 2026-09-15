@@ -1,7 +1,7 @@
 # ROS Telemetry Analytics
 
 Investigate robot telemetry from recorded missions and live ROS 2 topics.
-Trace sensor dropouts and recovery in Flight Deck, evaluate localization
+Trace sensor dropouts and recovery in ROS Workbench, evaluate localization
 failures, and inspect the evidence behind each result.
 
 - **Analyze recordings:** turn ROS 1 and ROS 2 bags into sensor-health reports,
@@ -14,7 +14,7 @@ failures, and inspect the evidence behind each result.
   the same pipeline, with a headless Nav2/AMCL simulation and repeatable scan-silence evaluation.
 
 The Python analysis runs locally on macOS and Linux without ROS, CUDA, or a
-simulator. Flight Deck runs with Docker Compose. Recorded replay is the default;
+simulator. ROS Workbench runs with Docker Compose. Recorded replay is the default;
 the optional [live ROS 2 gateway and simulation](docs/live-ros2.md) have separate
 runtime requirements. Local validation includes Nav2 integration, three concurrent
 robot streams, and process recovery. The [reliability roadmap](docs/reliability-roadmap.md)
@@ -25,7 +25,7 @@ failed assumptions, implementation changes, and remaining limitations.
 > **Status:** Alpha. Supports engineering triage and dataset QA, not
 > safety-critical control or certification.
 
-![Flight Deck showing the completed warehouse camera-dropout replay and recorded topic-rate history](artifacts/screenshots/flight-deck.png)
+![ROS Workbench showing the completed warehouse camera-dropout replay and recorded topic-rate history](artifacts/screenshots/flight-deck.png)
 
 *Built-in warehouse recording after camera-dropout replay. Rate history uses
 recorded windows; this screenshot is replay evidence, not a live robot feed.*
@@ -56,7 +56,7 @@ recorded windows; this screenshot is replay evidence, not a live robot feed.*
 *The same recorded camera-dropout run: observed failure, recovery, and supporting
 revisions. Missing telemetry alone does not establish a physical root cause.*
 
-## Try the Flight Deck
+## Try the ROS Workbench
 
 Clone the repository and start the stack with Docker Compose:
 
@@ -72,7 +72,7 @@ at 1x speed for inspecting gaps, late arrivals, and recovery.
 
 You can also upload a `.bag`, `.mcap`, or `.db3` recording. Public datasets
 can be replayed once installed; unavailable archives remain visible but
-disabled. See the [Flight Deck guide](docs/flight-deck.md) for dataset
+disabled. See the [ROS Workbench guide](docs/flight-deck.md) for dataset
 behavior, service endpoints, and checkpoint-recovery checks.
 
 ## Analyze recordings
@@ -118,7 +118,7 @@ recall, precision, and false-alarm tradeoffs.
 | Path | Contents |
 | --- | --- |
 | `src/ros_telemetry_analytics/` | Python ingestion, analysis, and CLI |
-| `demo/` | Flight Deck API/UI, replayer, ROS 2 gateway, and simulation |
+| `demo/` | ROS Workbench API/UI, replayer, ROS 2 gateway, and simulation |
 | `streaming/flink-job/` | Java event-time processing and tests |
 | `configs/` | Analysis rules, replay settings, and dataset manifests |
 | `schemas/` | Versioned streaming JSON contracts |

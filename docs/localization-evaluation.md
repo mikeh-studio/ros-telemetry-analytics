@@ -137,7 +137,7 @@ Outputs include `study.md`, `study.json`, `selection.json`, and one normalized
 sample file per run. JSON contains source SHA-256 hashes, the split, the full
 development candidate table, per-run scores, and per-event diagnostic evidence.
 Downloads and generated outputs remain local and ignored by Git. The study
-does not overwrite `data/evaluations/latest` or the Flight Deck's baseline.
+does not overwrite `data/evaluations/latest` or ROS Workbench's baseline.
 
 ## Interpret missed events and data quality
 

@@ -1,7 +1,7 @@
 # Live ROS 2 gateway
 
 Live single-robot integration has been exercised with headless Gazebo, Nav2 and
-AMCL through Kafka, Flink, the API and rendered Flight Deck. Reliability
+AMCL through Kafka, Flink, the API and rendered ROS Workbench. Reliability
 experiments and their limits are tracked in [the roadmap](reliability-roadmap.md). This is simulation
 integration evidence, not physical-robot or production-fleet validation.
 
@@ -135,7 +135,7 @@ no duplicate envelopes or late/schema rejections, and verified summary counts.
 
 Live rate alerts require a complete window after startup grace. Windows containing
 DDS discovery remain visible but cannot open a rate incident. Later low rates
-still trigger the detector. Flight Deck disables replay controls for live runs,
+still trigger the detector. ROS Workbench disables replay controls for live runs,
 shows actual robot identity, and isolates completion warnings by run. The API
 retains eight recent runs and 100 incident transitions per run; this is a bounded
 demo retention policy, not an archival fleet service.
