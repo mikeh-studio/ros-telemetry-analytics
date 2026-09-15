@@ -7,7 +7,7 @@ against the requested end state, including runtime validation.
 | Requirement | Evidence required | Current state |
 | --- | --- | --- |
 | Localization evaluation | Separate development/evaluation environments, reproducible diagnostics and tradeoffs | Implemented; 21-run study, opt-in 0.36 m candidate; missed failures remain |
-| Live ROS 2 integration | Running Nav2/AMCL simulation sends selected topics through gateway, Kafka, Flink, API and Flight Deck; source and receive clocks distinguished; QoS failures observable | Navigation path runtime-validated; separate DDS QoS mismatch/repair validation passes |
+| Live ROS 2 integration | Running Nav2/AMCL simulation sends selected topics through gateway, Kafka, Flink, API and ROS Workbench; source and receive clocks distinguished; QoS failures observable | Navigation path runtime-validated; separate DDS QoS mismatch/repair validation passes |
 | Repeatable fault suite | One command injects sensor silence, delay, duplicates, gateway disconnection, and localization disturbance; validates detection/recovery against independent expectations | Unified command implemented; complete ten-case runtime validation passes; initial failed attempt retained |
 | Edge recovery | Durable bounded spool; stable retry IDs; broker outage and gateway restart; explicit overflow; source-to-sink reconciliation | Single-gateway disconnection, hard restart and bounded overflow validated; broader isolation remains separate |
 | Incident explanation | One-screen evidence for affected topics, timeline, available localization/trajectory signals and recovery; observations distinct from suspected causes | Grouped view, sampled signals and frame-separated trajectories validated in the browser during a live QoS incident and recovery |

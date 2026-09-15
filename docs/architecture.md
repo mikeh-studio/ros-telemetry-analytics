@@ -37,7 +37,7 @@ all bag outcomes -----> latest_run.json + latest_report.md
 
 ## Recorded streaming demo
 
-The Flight Deck is a second execution path over selectable recordings: the
+ROS Workbench is a second execution path over selectable recordings: the
 built-in deterministic MCAP fixture, installed public datasets, and uploads.
 It does not replace the batch pipeline:
 
@@ -62,7 +62,7 @@ Python replayer -- versioned envelopes --> Kafka telemetry.events.v1
                                    |                   summaries
                                    `---------+---------'
                                              v
-                                  React Flight Deck + SSE
+                                  React ROS Workbench + SSE
 ```
 
 The replayer preserves source nanoseconds while allocating non-overlapping
