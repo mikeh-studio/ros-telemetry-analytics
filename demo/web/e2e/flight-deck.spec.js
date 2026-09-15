@@ -13,7 +13,7 @@ test("completed recorded mission is operationally trustworthy", async ({
 
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: /Robot Telemetry/ }),
+    page.getByRole("heading", { name: "ROS Workbench", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText("Recorded replay", { exact: true }),
@@ -42,7 +42,7 @@ test("completed recorded mission is operationally trustworthy", async ({
     (item) => !item.topic.startsWith("/_telemetry/"),
   ).length;
 
-  const mission = page.locator(".mission-identity");
+  const mission = page.locator(".monitor-heading");
   await expect(mission.locator(".status-pill")).toHaveText("completed", {
     timeout: 30_000,
   });
@@ -75,7 +75,7 @@ test("camera dropout remains legible after recovery", async ({ page }) => {
   );
   await page.goto("/");
 
-  await expect(page.locator(".mission-identity .status-pill")).toHaveText(
+  await expect(page.locator(".monitor-heading .status-pill")).toHaveText(
     "completed",
     { timeout: 30_000 },
   );
@@ -196,7 +196,7 @@ test("state flow never leaves stale health behind", async ({ page }) => {
     ...base,
     run: { payload: { status: "paused" } },
   });
-  await expect(page.locator(".mission-identity .status-pill")).toHaveText(
+  await expect(page.locator(".monitor-heading .status-pill")).toHaveText(
     "paused",
   );
 
@@ -216,7 +216,7 @@ test("state flow never leaves stale health behind", async ({ page }) => {
   await expect(page.locator(".robot-summary .status-pill")).toHaveText(
     "degraded",
   );
-  await expect(page.getByText("GAP", { exact: true })).toBeVisible();
+  await expect(page.locator(".incidents").getByText("GAP", { exact: true })).toBeVisible();
 
   const recovered = { ...active, revision: 1, status: "recovered" };
   await page.evaluate((snapshot) => window.__emitFlightDeckSnapshot(snapshot), {
@@ -234,7 +234,7 @@ test("state flow never leaves stale health behind", async ({ page }) => {
     completion: { verified: true, summary_file_count: 4 },
     mission_progress_ms: 90_000,
   });
-  await expect(page.locator(".mission-identity .status-pill")).toHaveText(
+  await expect(page.locator(".monitor-heading .status-pill")).toHaveText(
     "completed",
   );
 
