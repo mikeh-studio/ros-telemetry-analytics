@@ -128,3 +128,33 @@ def test_malformed_evidence_is_not_reported_as_a_missing_event(recording, monkey
     with pytest.raises(HTTPException) as invalid:
         asyncio.run(api.localization_interval("0", meta["evaluation_id"]))
     assert invalid.value.status_code == 422
+
+
+def test_independent_runs_use_their_own_clocks(recording):
+    offset = 1_000_000_000_000
+    for name in (
+        "localization_samples.parquet",
+        "localization_event_matches.parquet",
+        "localization_events.parquet",
+    ):
+        path = recording / name
+        frame = pl.read_parquet(path)
+        second = frame.filter(pl.col("run_id") == "run-a").with_columns(
+            pl.lit("run-b").alias("run_id"),
+            *[
+                (pl.col(column) + offset).alias(column)
+                for column in frame.columns
+                if column == "timestamp_ns" or column.endswith("_timestamp_ns")
+            ],
+        )
+        pl.concat([frame, second]).write_parquet(path)
+    meta = investigation.metadata(recording)
+    # Two eight-second runs, not the unrelated 1000-second gap between clocks.
+    assert meta["duration_ms"] == 16_000
+    first = next(case for case in meta["cases"] if case["run_id"] == "run-a")
+    second = next(case for case in meta["cases"] if case["run_id"] == "run-b")
+    assert first["start_ms"] == second["start_ms"] == 10
+    result = investigation.interval(recording, second["case_id"], meta["evaluation_id"])
+    assert result["start_ms"] == 0
+    assert result["route"][-1]["elapsed_ms"] == 8000
+    assert {row["run_id"] for row in result["samples"]} == {"run-b"}

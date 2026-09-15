@@ -71,8 +71,20 @@ def _load(directory: str, version: tuple):
         raise ValueError("Recording identity or samples are missing from this evaluation")
     matches = pl.read_parquet(root / FILES[2]).to_dicts()
     events = pl.read_parquet(root / FILES[3]).to_dicts()
-    origin = samples["timestamp_ns"].min()
-    end = samples["timestamp_ns"].max()
+    # Separate experiment runs have independent clocks; files within a run share one.
+    clocks = {
+        row["run_id"]: {
+            "run_id": row["run_id"],
+            "origin_timestamp_ns": row["origin"],
+            "duration_ms": (row["end"] - row["origin"]) / 1e6,
+        }
+        for row in samples.group_by("run_id")
+        .agg(
+            pl.col("timestamp_ns").min().alias("origin"),
+            pl.col("timestamp_ns").max().alias("end"),
+        )
+        .to_dicts()
+    }
     event_by_id = {
         (item["run_id"], item["source_file"], item["segment_id"], item["event_id"]): item
         for item in events
@@ -109,9 +121,12 @@ def _load(directory: str, version: tuple):
                     "recovery_lag_ms": None,
                 }
             )
-    cases.sort(key=lambda item: (item["start_timestamp_ns"], item["event_id"]))
+    cases.sort(key=lambda item: (item["run_id"], item["start_timestamp_ns"], item["event_id"]))
     for index, case in enumerate(cases):
         case["case_id"] = str(index)
+        clock = clocks[case["run_id"]]
+        origin = clock["origin_timestamp_ns"]
+        case["run_duration_ms"] = clock["duration_ms"]
         case["start_ms"] = (case["start_timestamp_ns"] - origin) / 1e6
         case["end_ms"] = (case["end_timestamp_ns"] - origin) / 1e6
         case["duration_ms"] = case["end_ms"] - case["start_ms"]
@@ -130,11 +145,13 @@ def _load(directory: str, version: tuple):
         "recordings": sorted(
             {Path(name).name for name in samples["source_file"].unique().to_list()}
         ),
-        "duration_ms": (end - origin) / 1e6,
+        "duration_ms": sum(clock["duration_ms"] for clock in clocks.values()),
+        "clock_basis": "run",
+        "runs": [clocks[key] for key in sorted(clocks)],
         "sample_count": samples.height,
         "cases": clean([{**case, "source_file": Path(case["source_file"]).name} for case in cases]),
     }
-    return metadata, samples, cases, origin
+    return metadata, samples, cases, clocks
 
 
 def load(directory: Path):
@@ -153,12 +170,14 @@ def metadata(directory: Path) -> dict:
 
 
 def interval(directory: Path, case_id: str, evaluation_id: str) -> dict:
-    meta, samples, cases, origin = load(directory)
+    meta, samples, cases, clocks = load(directory)
     if evaluation_id != meta["evaluation_id"]:
         raise RuntimeError("Evaluation changed. Refresh and select the event again.")
     case = next((item for item in cases if item["case_id"] == case_id), None)
     if case is None:
         raise LookupError("Event not found in this evaluation")
+    clock = clocks[case["run_id"]]
+    origin = clock["origin_timestamp_ns"]
     # Include detection and recovery plus context, but never another source/segment.
     start = (
         min(
@@ -237,6 +256,9 @@ def interval(directory: Path, case_id: str, evaluation_id: str) -> dict:
     return {
         "evaluation_id": evaluation_id,
         "case_id": case_id,
+        "run_id": case["run_id"],
+        "clock_origin_timestamp_ns": origin,
+        "run_duration_ms": clock["duration_ms"],
         "samples": clean(rows),
         "route": route,
         "sample_count": len(rows),
