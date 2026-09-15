@@ -216,7 +216,9 @@ test("state flow never leaves stale health behind", async ({ page }) => {
   await expect(page.locator(".robot-summary .status-pill")).toHaveText(
     "degraded",
   );
-  await expect(page.locator(".incidents").getByText("GAP", { exact: true })).toBeVisible();
+  await expect(
+    page.locator(".incidents").getByText("GAP", { exact: true }),
+  ).toBeVisible();
 
   const recovered = { ...active, revision: 1, status: "recovered" };
   await page.evaluate((snapshot) => window.__emitFlightDeckSnapshot(snapshot), {

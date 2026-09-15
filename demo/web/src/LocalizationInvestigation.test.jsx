@@ -278,3 +278,35 @@ it("preserves the selected event and cursor while pausing playback when its tab 
   expect(screen.getByRole("slider").value).toBe(paused);
   expect(fetch.mock.calls).toHaveLength(requests);
 });
+
+it("labels independent run clocks and their aggregate duration", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => response({ ...interval("0"), run_id: "run-b" })),
+  );
+  render(
+    <LocalizationInvestigation
+      standalone
+      apiUrl=""
+      evaluation={{
+        ...evaluation,
+        investigation: {
+          ...evaluation.investigation,
+          duration_ms: 2000,
+          runs: [
+            { run_id: "run-a", duration_ms: 1000 },
+            { run_id: "run-b", duration_ms: 1000 },
+          ],
+          cases: [{ ...cases[0], run_id: "run-b" }],
+        },
+      }}
+    />,
+  );
+  expect(
+    screen.getByText("Total recorded duration 00:02.00"),
+  ).toBeInTheDocument();
+  expect(screen.getByText("Independent run clocks")).toBeInTheDocument();
+  expect(
+    await screen.findByText(/Run run-b · elapsed within run/),
+  ).toBeInTheDocument();
+});

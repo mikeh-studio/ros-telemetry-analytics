@@ -136,7 +136,41 @@ describe("ROS Workbench", () => {
     ).toBeInTheDocument();
     await waitFor(() => expect(FakeEventSource.instances.length).toBe(2));
     act(() => FakeEventSource.instances.at(-1).onopen());
+    act(() => source.emit("snapshot", { run_id: "obsolete-connection" }));
+    expect(
+      within(
+        screen.getByRole("region", { name: "Monitored Topics" }),
+      ).getByText("unavailable"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Telemetry API unavailable",
+    );
+    act(() =>
+      FakeEventSource.instances.at(-1).emit("snapshot", {
+        run_id: "retained-run",
+        dataset_id: "warehouse_run_17",
+        robot_id: "r1",
+        run: { payload: { status: "running" } },
+        topics: [
+          {
+            topic: "/scan",
+            robot_id: "r1",
+            payload: { status: "degraded", mean_rate_hz: 0 },
+          },
+        ],
+        anomalies: [],
+        incident_history: [],
+        completion: {},
+        consumer_offsets: [],
+        mission_progress_ms: 2000,
+      }),
+    );
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(
+      within(
+        screen.getByRole("region", { name: "Monitored Topics" }),
+      ).getByText("degraded"),
+    ).toBeInTheDocument();
   });
 
   it("opens Import recording idempotently when clicked twice", () => {

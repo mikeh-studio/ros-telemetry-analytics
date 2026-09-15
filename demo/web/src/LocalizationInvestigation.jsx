@@ -522,6 +522,7 @@ function Session({ investigation, summary, apiUrl, active = true }) {
                       : ""}
                   </span>
                   <small>
+                    {(investigation.runs?.length || 0) > 1 && `${c.run_id} · `}
                     {c.source_file} · segment {c.segment_id}
                   </small>
                 </button>
@@ -617,8 +618,11 @@ function Session({ investigation, summary, apiUrl, active = true }) {
                 />
               </label>
               <p className="investigation-note">
-                Independent recording clock · up to 5 seconds of context on each
-                side · no interpolation across gaps.{" "}
+                {interval.run_id
+                  ? `Run ${interval.run_id} · elapsed within run`
+                  : "Independent recording clock"}{" "}
+                · up to 5 seconds of context on each side · no interpolation
+                across gaps.{" "}
                 {current
                   ? `Showing sample ${current.sample_index ?? ""} at ${clock(current.elapsed_ms)}.`
                   : "No sample at this time; position markers are hidden."}
@@ -738,8 +742,17 @@ export default function LocalizationInvestigation({
               aria-label="Investigation recording"
             >
               <span>{dataset}</span>
-              <span>Duration {clock(investigation.duration_ms)}</span>
-              <span>Independent replay clock</span>
+              <span>
+                {(investigation.runs?.length || 0) > 1
+                  ? "Total recorded duration"
+                  : "Duration"}{" "}
+                {clock(investigation.duration_ms)}
+              </span>
+              <span>
+                {(investigation.runs?.length || 0) > 1
+                  ? "Independent run clocks"
+                  : "Independent replay clock"}
+              </span>
             </div>
           )}
         </header>
@@ -763,7 +776,10 @@ export default function LocalizationInvestigation({
             <div className="investigation-context">
               <span>Dataset: {dataset}</span>
               <span>
-                Recording duration: {clock(investigation.duration_ms)}
+                {(investigation.runs?.length || 0) > 1
+                  ? "Total recorded duration"
+                  : "Recording duration"}
+                : {clock(investigation.duration_ms)}
               </span>
             </div>
           )}

@@ -388,6 +388,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [connected, setConnected] = useState(false);
+  const [awaitingSnapshot, setAwaitingSnapshot] = useState(false);
   const [flink, setFlink] = useState({ status: "unknown" });
   const [readiness, setReadiness] = useState(EMPTY_READINESS);
   const [localization, setLocalization] = useState(EMPTY_LOCALIZATION);
@@ -442,24 +443,30 @@ export default function App() {
     let stopped = false;
     let retryMs = 500;
     const connect = () => {
-      events = new EventSource(`${API_URL}/api/runs/current/events`);
-      events.onopen = () => {
+      const source = new EventSource(`${API_URL}/api/runs/current/events`);
+      events = source;
+      source.onopen = () => {
+        if (stopped || events !== source) return;
         setConnected(true);
-        setError((current) => (current === CONNECTION_ERROR ? "" : current));
         retryMs = 500;
       };
-      events.onerror = () => {
+      source.onerror = () => {
+        if (stopped || events !== source) return;
         setConnected(false);
+        setAwaitingSnapshot(true);
         setError(CONNECTION_ERROR);
-        events.close();
+        source.close();
         if (!stopped) {
           reconnectTimer = window.setTimeout(connect, retryMs);
           retryMs = Math.min(retryMs * 2, 10_000);
         }
       };
-      events.addEventListener("snapshot", (event) =>
-        applySnapshot(JSON.parse(event.data)),
-      );
+      source.addEventListener("snapshot", (event) => {
+        if (stopped || events !== source) return;
+        applySnapshot(JSON.parse(event.data));
+        setAwaitingSnapshot(false);
+        setError((current) => (current === CONNECTION_ERROR ? "" : current));
+      });
       ["metric", "anomaly", "completed"].forEach((type) =>
         events.addEventListener(type, () => refresh().catch(() => {})),
       );
@@ -560,6 +567,7 @@ export default function App() {
   const viewingLive = selectedRunMatches && Boolean(liveDataset);
   const streamingAuthoritiesReady =
     connected &&
+    !awaitingSnapshot &&
     ["kafka", "flink", "flink_job", "projection_api"].every(
       (name) => readiness.services?.[name] === "ready",
     );
