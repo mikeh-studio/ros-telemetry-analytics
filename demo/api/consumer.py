@@ -6,7 +6,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from aiokafka import AIOKafkaConsumer, TopicPartition
+from aiokafka import AIOKafkaConsumer
 
 from demo.api.store import ProjectionStore
 
@@ -124,18 +124,33 @@ class ProjectionConsumer:
 
     async def _consume(self) -> None:
         assert self.consumer is not None
-        async for message in self.consumer:
-            stream_kind = "metric" if message.topic == "telemetry.metrics.v1" else "anomaly"
-            inserted = await asyncio.to_thread(
-                self.store.project,
-                stream_kind=stream_kind,
-                payload=message.value,
-                kafka_topic=message.topic,
-                kafka_partition=message.partition,
-                kafka_offset=message.offset,
-            )
-            await self.consumer.commit(
-                {TopicPartition(message.topic, message.partition): message.offset + 1}
-            )
-            if inserted:
-                await self.on_projected({"stream_kind": stream_kind, "payload": message.value})
+        while True:
+            batches = await self.consumer.getmany(timeout_ms=500, max_records=500)
+            records = []
+            offsets = {}
+            for partition, messages in batches.items():
+                for message in messages:
+                    records.append(
+                        {
+                            "stream_kind": "metric"
+                            if message.topic == "telemetry.metrics.v1"
+                            else "anomaly",
+                            "payload": message.value,
+                            "kafka_topic": message.topic,
+                            "kafka_partition": message.partition,
+                            "kafka_offset": message.offset,
+                        }
+                    )
+                if messages:
+                    offsets[partition] = messages[-1].offset + 1
+            if not records:
+                continue
+            inserted = await asyncio.to_thread(self.store.project_batch, records)
+            # SQLite is authoritative on reconnect, including a crash between
+            # its commit and Kafka's consumer-offset acknowledgment.
+            await self.consumer.commit(offsets)
+            for record, changed in zip(records, inserted, strict=True):
+                if changed:
+                    await self.on_projected(
+                        {"stream_kind": record["stream_kind"], "payload": record["payload"]}
+                    )

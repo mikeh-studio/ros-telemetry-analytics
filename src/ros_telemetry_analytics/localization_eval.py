@@ -21,9 +21,19 @@ class LocalizationEvalConfig:
     pose_jump_warn_m: float = 0.5
     event_merge_gap_ms: float = 500.0
     event_tolerance_ms: float = 100.0
+    recovery_hold_ms: float = 0.0
+    heading_spread_warn_rad: float | None = None
 
     def __post_init__(self) -> None:
         for name, value in asdict(self).items():
+            if name == "heading_spread_warn_rad" and value is None:
+                continue
+            if name == "recovery_hold_ms":
+                if not math.isfinite(value) or value < 0:
+                    raise ValueError(
+                        "recovery_hold_ms must be finite and greater than or equal to zero"
+                    )
+                continue
             if not math.isfinite(value) or value <= 0:
                 raise ValueError(f"{name} must be finite and greater than zero")
 
@@ -44,6 +54,7 @@ SAMPLE_SCHEMA = {
     "heading_error_rad": pl.Float64,
     "label_failure": pl.Boolean,
     "particle_position_spread_m": pl.Float64,
+    "particle_heading_spread_rad": pl.Float64,
     "estimated_pose_jump_m": pl.Float64,
     "detector_score": pl.Float64,
     "detector_failure": pl.Boolean,
@@ -158,6 +169,72 @@ def _pose_jumps(x: np.ndarray, y: np.ndarray, segment_ids: np.ndarray) -> np.nda
     return jumps
 
 
+def _particle_heading_spread(value: pa.StructArray) -> np.ndarray:
+    """Weighted circular standard deviation; handles the -pi/pi wrap correctly."""
+    particles = _required_field(value, "/particle_cloud/particles")
+    counts = np.diff(np.asarray(particles.offsets.to_numpy(zero_copy_only=False)))
+    headings = particles.values.field("pose").field("orientation")
+    yaw = _yaw_from_quaternion(*[_float_values(headings.field(k)) for k in ("x", "y", "z", "w")])
+    weights = _float_values(particles.values.field("weight"))
+    indices = np.repeat(np.arange(len(counts)), counts)
+    total = np.bincount(indices, weights=weights, minlength=len(counts))
+    cosine = np.bincount(indices, weights=weights * np.cos(yaw), minlength=len(counts))
+    sine = np.bincount(indices, weights=weights * np.sin(yaw), minlength=len(counts))
+    resultant = np.divide(
+        np.hypot(cosine, sine), total, out=np.full(len(counts), np.nan), where=total > 0
+    )
+    return np.sqrt(-2 * np.log(np.clip(resultant, 1e-12, 1.0)))
+
+
+def apply_localization_detector(
+    samples: pl.DataFrame, config: LocalizationEvalConfig
+) -> pl.DataFrame:
+    """Apply the detector causally, reading only observable signals and stream identity.
+
+    A hold keeps an alert active for the configured time after the last threshold
+    crossing. It never backfills earlier samples and resets at source/segment boundaries.
+    The zero-hold default reproduces the published instantaneous baseline.
+    """
+    parts = []
+    for part in samples.partition_by(["run_id", "source_file", "segment_id"], maintain_order=True):
+        times = part["timestamp_ns"].to_numpy()
+        if np.any(np.diff(times) < 0):
+            raise ValueError("Localization timestamps must be nondecreasing within each segment")
+        spread = part["particle_position_spread_m"].to_numpy()
+        jump = part["estimated_pose_jump_m"].to_numpy()
+        score = np.maximum(
+            np.where(np.isfinite(spread), spread / config.particle_spread_warn_m, 0.0),
+            np.where(np.isfinite(jump), jump / config.pose_jump_warn_m, 0.0),
+        )
+        if config.heading_spread_warn_rad is not None:
+            heading = part["particle_heading_spread_rad"].to_numpy()
+            score = np.maximum(
+                score, np.where(np.isfinite(heading), heading / config.heading_spread_warn_rad, 0.0)
+            )
+        predictions = score > 1.0
+        if config.recovery_hold_ms:
+            last_crossing = None
+            hold_ns = int(config.recovery_hold_ms * 1_000_000)
+            for index, timestamp in enumerate(times):
+                if predictions[index]:
+                    last_crossing = int(timestamp)
+                elif last_crossing is not None and int(timestamp) - last_crossing <= hold_ns:
+                    predictions[index] = True
+        parts.append(
+            part.with_columns(
+                pl.Series("detector_score", score), pl.Series("detector_failure", predictions)
+            )
+        )
+    return (
+        pl.concat(parts)
+        if parts
+        else samples.with_columns(
+            pl.lit(None, dtype=pl.Float64).alias("detector_score"),
+            pl.lit(False).alias("detector_failure"),
+        )
+    )
+
+
 def load_tuhh_processed_parquet(
     path: Path,
     config: LocalizationEvalConfig,
@@ -221,7 +298,7 @@ def load_tuhh_processed_parquet(
     match = _RUN_ID_PATTERN.search(path.name)
     run_id = match.group(1) if match else path.stem
 
-    return pl.DataFrame(
+    samples = pl.DataFrame(
         {
             "run_id": [run_id] * len(rows),
             "source_file": [path.name] * len(rows),
@@ -240,12 +317,14 @@ def load_tuhh_processed_parquet(
             "heading_error_rad": heading_error,
             "label_failure": label_failure,
             "particle_position_spread_m": particle_spread,
+            "particle_heading_spread_rad": _particle_heading_spread(value),
             "estimated_pose_jump_m": pose_jump,
             "detector_score": detector_score,
             "detector_failure": detector_failure,
         },
         schema=SAMPLE_SCHEMA,
     )
+    return apply_localization_detector(samples, config)
 
 
 def _events_for_flag(
@@ -430,11 +509,7 @@ def score_localization(
     true_negative = int(np.sum(~labels & ~predictions))
     precision = _safe_ratio(true_positive, true_positive + false_positive)
     recall = _safe_ratio(true_positive, true_positive + false_negative)
-    f1 = (
-        2 * precision * recall / (precision + recall)
-        if precision is not None and recall is not None and precision + recall
-        else None
-    )
+    f1 = _safe_ratio(2 * true_positive, 2 * true_positive + false_positive + false_negative)
 
     event_rows = list(events.iter_rows(named=True))
     expected = [row for row in event_rows if row["event_kind"] == "expected"]
@@ -527,9 +602,10 @@ def render_localization_report(
         f"({_format_metric(summary['failure_rate'])})  ",
         f"Runs: **{summary['run_count']}**",
         "",
-        "## Observable-only baseline",
+        "## Observable-only detector",
         "",
-        "The detector uses particle-cloud position spread and consecutive AMCL pose jumps. "
+        "The detector uses particle-cloud position spread and consecutive AMCL pose jumps, "
+        "with optional particle heading spread and a causal recovery hold. "
         "Ground-truth pose, position error, heading error, and published failure labels are "
         "used only for scoring.",
         "",
@@ -539,6 +615,9 @@ def render_localization_report(
         f"- Event precision: **{_format_metric(event['precision'])}**",
         f"- Event recall: **{_format_metric(event['recall'])}**",
         f"- False-alarm events: **{event['false_alarm_event_count']}**",
+        f"- Recovery hold (ms): **{summary['thresholds'].get('recovery_hold_ms', 0):g}**",
+        "- Heading spread threshold (rad): **"
+        f"{summary['thresholds'].get('heading_spread_warn_rad') or 'disabled'}**",
         "",
         "## Expected versus observed",
         "",
@@ -601,7 +680,12 @@ def evaluate_localization_files(
             "detector_inputs": [
                 "particle_position_spread_m",
                 "estimated_pose_jump_m",
-            ],
+            ]
+            + (
+                ["particle_heading_spread_rad"]
+                if config.heading_spread_warn_rad is not None
+                else []
+            ),
             "evaluation_only_fields": [
                 "ground_truth_pose",
                 "position_error_m",

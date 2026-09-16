@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
 import polars as pl
@@ -104,6 +105,33 @@ def test_tuhh_adapter_keeps_labels_out_of_detector_inputs(tmp_path: Path) -> Non
         samples.get_column("label_failure").to_list()
         != samples.get_column("detector_failure").to_list()
     )
+
+
+@pytest.mark.parametrize("center", [0.0, math.pi])
+def test_heading_uncertainty_uses_circular_statistics_and_is_opt_in(tmp_path, center):
+    row = _measurement(0, False, 0.1)
+    for particle, offset in zip(
+        row["value"]["/particle_cloud/particles"], [-0.3, 0.3], strict=True
+    ):
+        angle = center + offset
+        particle["pose"]["orientation"] = {
+            "x": 0.0,
+            "y": 0.0,
+            "z": math.sin(angle / 2),
+            "w": math.cos(angle / 2),
+        }
+    path = tmp_path / "rec_20250101_000000_id_01.processed.parquet"
+    pq.write_table(pa.Table.from_pylist([{"measurements": [row]}]), path)
+    baseline = load_tuhh_processed_parquet(path, LocalizationEvalConfig())
+    assert baseline["particle_heading_spread_rad"][0] == pytest.approx(
+        math.sqrt(-2 * math.log(math.cos(0.3)))
+    )
+    assert baseline["detector_failure"].to_list() == [False]
+    candidate = load_tuhh_processed_parquet(
+        path, LocalizationEvalConfig(heading_spread_warn_rad=0.2)
+    )
+    assert candidate["detector_failure"].to_list() == [True]
+    assert candidate["label_failure"].to_list() == [False]
 
 
 def test_localization_eval_writes_scorecard_and_expected_observed_timeline(

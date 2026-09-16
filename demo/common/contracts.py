@@ -125,7 +125,10 @@ def telemetry_event(
     stream_timestamp_ms: int,
     attributes: dict[str, str | int | float | bool | None] | None = None,
     ingest_timestamp_ms: int | None = None,
+    source_mode: Literal["recorded_replay", "live_ros2"] = "recorded_replay",
 ) -> dict[str, Any]:
+    if source_mode not in {"recorded_replay", "live_ros2"}:
+        raise ValueError("Unknown telemetry source mode")
     event_id = deterministic_id(1, run_id, bag_id, sequence)
     return {
         "schema_version": 1,
@@ -139,7 +142,7 @@ def telemetry_event(
         "event_timestamp_ns": event_timestamp_ns,
         "stream_timestamp_ms": stream_timestamp_ms,
         "ingest_timestamp_ms": ingest_timestamp_ms or now_ms(),
-        "source_mode": "recorded_replay",
+        "source_mode": source_mode,
         "attributes": attributes or {},
     }
 

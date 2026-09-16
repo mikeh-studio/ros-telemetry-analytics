@@ -1,0 +1,281 @@
+{
+  "development_delay_initial_assumption": {
+    "accepted_observations": 1464,
+    "broker_telemetry_count": 1474,
+    "checks": {
+      "accepted_counts_reconcile": false,
+      "exact_broker_multiplicity": true,
+      "exact_disposition_ids": false,
+      "injections_completed": true,
+      "matching_run": true,
+      "no_projected_active_incidents": true,
+      "no_schema_rejections": true,
+      "no_unexpected_incidents": true,
+      "only_expected_dispositions": true,
+      "source_ledger_reconciled": true,
+      "summaries_verified": true,
+      "ten_distinct_injections": true,
+      "ten_second_delay_observed": true
+    },
+    "eligible_publications": 1426,
+    "excluded_publications": 14,
+    "fault": "delay",
+    "injected_event_ids": [
+      "02a8f7b3a63de03a7ae2c0393c257d0574ed9724c82dacd00424ba74149d19b2",
+      "13c7abb4a4dec14af201c2383712e375af2989d44346265abbd3e93dfedd4a8d",
+      "140ab769c4cf9298ce32e484930143b8f1e32fc7a93f0516cf7d793858fdc13e",
+      "2d6e8516e487b0b2187e71c4079adbcc48a03be2830aff05c19ee4ed9b6df012",
+      "6d5590ab1d29e5e444d4c652ca09b9a4aa0db7315287b2bc0db392663d30064a",
+      "8685dcd4795032ada79e3d13d5b33eafd3cfd491c80be47f4b2f4d50f71eca98",
+      "a3da01aab642df8d3bf3bf0be9f153c1559d222a97d9325e3aa85176a76059b4",
+      "ab46f5f72d4660e60f0af298018ed2e9ad9bc2af5978120d21fec18287940fbd",
+      "b91b7e5419f33582a2bd902bb33e480375922b8844d68769f33032d6fd575362",
+      "c4049a790dbd2fbfa02ed47b5fc057ccd7023945099c8d29080c9c83555477fd"
+    ],
+    "passed": false,
+    "run_id": "live-4705bc758df241a1a4f1cad8beabd35a",
+    "scope": "Real DDS fixture with a test-only pre-Kafka transport shim; not a durable gateway guarantee",
+    "side_dispositions": {
+      "beyond_allowed_lateness": 6,
+      "sequence_gap": 10,
+      "sequence_regression": 10
+    },
+    "summary_message_count": 1468,
+    "unique_observations": 1474
+  },
+  "development_delay_watermark_evaluation": {
+    "accepted_late_count": 4,
+    "accepted_observations": 1468,
+    "broker_telemetry_count": 1474,
+    "checks": {
+      "accepted_counts_reconcile": true,
+      "exact_broker_multiplicity": true,
+      "exact_disposition_ids": true,
+      "injections_completed": true,
+      "late_counters_reconcile": true,
+      "matching_run": true,
+      "no_projected_active_incidents": true,
+      "no_schema_rejections": true,
+      "no_unexpected_incidents": true,
+      "only_expected_dispositions": true,
+      "rejections_follow_watermark": true,
+      "source_ledger_reconciled": true,
+      "summaries_verified": true,
+      "ten_distinct_injections": true,
+      "ten_second_delay_observed": true
+    },
+    "eligible_publications": 1426,
+    "excluded_publications": 14,
+    "fault": "delay",
+    "injected_event_ids": [
+      "02a8f7b3a63de03a7ae2c0393c257d0574ed9724c82dacd00424ba74149d19b2",
+      "13c7abb4a4dec14af201c2383712e375af2989d44346265abbd3e93dfedd4a8d",
+      "140ab769c4cf9298ce32e484930143b8f1e32fc7a93f0516cf7d793858fdc13e",
+      "2d6e8516e487b0b2187e71c4079adbcc48a03be2830aff05c19ee4ed9b6df012",
+      "6d5590ab1d29e5e444d4c652ca09b9a4aa0db7315287b2bc0db392663d30064a",
+      "8685dcd4795032ada79e3d13d5b33eafd3cfd491c80be47f4b2f4d50f71eca98",
+      "a3da01aab642df8d3bf3bf0be9f153c1559d222a97d9325e3aa85176a76059b4",
+      "ab46f5f72d4660e60f0af298018ed2e9ad9bc2af5978120d21fec18287940fbd",
+      "b91b7e5419f33582a2bd902bb33e480375922b8844d68769f33032d6fd575362",
+      "c4049a790dbd2fbfa02ed47b5fc057ccd7023945099c8d29080c9c83555477fd"
+    ],
+    "passed": true,
+    "run_id": "live-4705bc758df241a1a4f1cad8beabd35a",
+    "scope": "Real DDS fixture with a test-only pre-Kafka transport shim; not a durable gateway guarantee",
+    "side_dispositions": {
+      "beyond_allowed_lateness": 6,
+      "sequence_gap": 10,
+      "sequence_regression": 10
+    },
+    "summary_message_count": 1468,
+    "unique_observations": 1474
+  },
+  "development_duplicate": {
+    "accepted_observations": 1474,
+    "broker_telemetry_count": 1484,
+    "checks": {
+      "accepted_counts_reconcile": true,
+      "exact_broker_multiplicity": true,
+      "exact_disposition_ids": true,
+      "injections_completed": true,
+      "matching_run": true,
+      "no_projected_active_incidents": true,
+      "no_schema_rejections": true,
+      "no_unexpected_incidents": true,
+      "only_expected_dispositions": true,
+      "source_ledger_reconciled": true,
+      "summaries_verified": true,
+      "ten_distinct_injections": true
+    },
+    "eligible_publications": 1426,
+    "excluded_publications": 14,
+    "fault": "duplicate",
+    "injected_event_ids": [
+      "020bdfcf750e91d128495b15dba64d890b479537a0165f53eb3a870f98af0ce9",
+      "2628816b74c64d2f9c518eb1da6d14693df0418277e6e6c231fb2642d532937a",
+      "28493779bd19b18a57fbf175c4259fd9f79a578f00fd7080a7f1b80ef01488a8",
+      "31d9bf41dc426180cf42bf1e4a9cfcbb4f7f7b196994dabe1a27c1219207556f",
+      "3ce09e52219801cd62e7c089c854504a1b933ade87f115b715ed82729ad351eb",
+      "4f769d89c9499d003370e0d64e5610be4c35712e991db7732b610ea7a5348967",
+      "62754a871cb7c1bdb7de21a7a084ec0709e0a0868fecd791d494b6f3774e6a35",
+      "c5d413b5a10dd30f0cfe93fd1ad933e581d351b2678afb2b7185d07c77b47f28",
+      "cba4b005a73aa99393e5550112ce757f6e08d34fb3ab561d8049202c8c84e91e",
+      "ef8d4c4d45564f6baaeac4192c9bccac6437926fe8568a47f4d7c988f2eee655"
+    ],
+    "passed": true,
+    "run_id": "live-4ce6d6e276bb4eeb90cfb26da8402461",
+    "scope": "Real DDS fixture with a test-only pre-Kafka transport shim; not a durable gateway guarantee",
+    "side_dispositions": {
+      "duplicate": 10
+    },
+    "summary_message_count": 1474,
+    "unique_observations": 1474
+  },
+  "findings": [
+    "Wall delay does not by itself determine event-time lateness; processing watermarks do.",
+    "Initial delay expectation incorrectly required all ten events to be rejected; four were accepted late and six rejected.",
+    "Independent later-timed delay validation rejected all ten; identities, watermark evidence and counters reconcile."
+  ],
+  "limits": [
+    "Ten injected events per case on one robot per run",
+    "Delay shim uses memory and acknowledges handoff before Kafka; this is not a spool crash test",
+    "Concurrent two-run execution is not the planned three-robot asymmetric fault isolation evaluation"
+  ],
+  "scope": "DDS publication with test-only pre-Kafka transport injection",
+  "validation_delay": {
+    "accepted_late_count": 0,
+    "accepted_observations": 1629,
+    "broker_telemetry_count": 1639,
+    "checks": {
+      "accepted_counts_reconcile": true,
+      "exact_broker_multiplicity": true,
+      "exact_disposition_ids": true,
+      "injections_completed": true,
+      "late_counters_reconcile": true,
+      "matching_run": true,
+      "no_projected_active_incidents": true,
+      "no_schema_rejections": true,
+      "no_unexpected_incidents": true,
+      "only_expected_dispositions": true,
+      "rejections_follow_watermark": true,
+      "source_ledger_reconciled": true,
+      "summaries_verified": true,
+      "ten_distinct_injections": true,
+      "ten_second_delay_observed": true
+    },
+    "eligible_publications": 1586,
+    "excluded_publications": 14,
+    "fault": "delay",
+    "injected_event_ids": [
+      "151250f655983a1d04ceeacda70e88f2cd6196f5b0bcecb67ab0762ba7873b14",
+      "21b88a88eb1144158599b87c5ee0b9cca204c92c4515d115b4b4ded98dda0d81",
+      "544e9198201f5256acf5c02463af9c1e94a88a862045d068ba82babf126d8240",
+      "545fb72a1364db997568b16e9a4d88ecb80d442b996695eb74395fed3eaa1306",
+      "8c6e58ca7a4acad38ff417859882b86a2d057fd360399aa4a7a767ebb5cefa8f",
+      "90b5e58e3153680fdaf091b6df920c18628cfb4d1924b56c8deb4a56f3eacd63",
+      "951b4567de337b6b778603d855144606375e693933ada56f534e5779ae0c22ab",
+      "9febb5f20eacdb3a6c392412803c63c0f3de4901a081219e456793a59d001145",
+      "db3aadf88eb099a830eaa1b997c81cc63068f33997f4f2d5d4317e932e9aff82",
+      "e8de3cc5c7a6d4c1c2b41bf4e94c03adf7b97884a2e7ee56c7602489b54a1ed8"
+    ],
+    "passed": true,
+    "run_id": "live-876a55ce30fe4317bb3fd5d8ebdf39a8",
+    "scope": "Real DDS fixture with a test-only pre-Kafka transport shim; not a durable gateway guarantee",
+    "side_dispositions": {
+      "beyond_allowed_lateness": 10,
+      "sequence_gap": 10,
+      "sequence_regression": 10
+    },
+    "summary_message_count": 1629,
+    "unique_observations": 1639
+  },
+  "validation_duplicate": {
+    "accepted_late_count": 0,
+    "accepted_observations": 1637,
+    "broker_telemetry_count": 1647,
+    "checks": {
+      "accepted_counts_reconcile": true,
+      "duplicate_counter_reconciles": true,
+      "exact_broker_multiplicity": true,
+      "exact_disposition_ids": true,
+      "injections_completed": true,
+      "matching_run": true,
+      "no_projected_active_incidents": true,
+      "no_schema_rejections": true,
+      "no_unexpected_incidents": true,
+      "only_expected_dispositions": true,
+      "source_ledger_reconciled": true,
+      "summaries_verified": true,
+      "ten_distinct_injections": true
+    },
+    "eligible_publications": 1584,
+    "excluded_publications": 16,
+    "fault": "duplicate",
+    "injected_event_ids": [
+      "02d246819bdf882a2f2c45080cef82a24da52fee48d2fad669d9b4307152990c",
+      "18169407a66746a6df1ae072472ab551467851525c7654ac0ab64c7cffc844f4",
+      "26be78bac901964e949e5834ebe0ed08aa2ad3176681d63086c8c0d961bad54d",
+      "44467c201ad1b69f083424db108ee356f9d86b5f11f481ac7d95b6e76e0dfb69",
+      "465fc1735c0c151f33916bafaaad7193656aa1d0028ea7bd3c51e979fe2e18ff",
+      "59b7f032d8157ad95de8ced8efa709a7654c3df92349e780d73ce681fb07eb63",
+      "991e36187b6bd1d71443162975621a2aef3da0f0a3b94fdf0ce8d182c37dcbab",
+      "abbdab1aa758cd2825fd80d4644a599c831381f38d59f9beb7a08c529da868c7",
+      "e1ec07b4afe18c9795b42f692de859b192e1014fd8870b2d537321d4daae8f38",
+      "febfd6a2272589fb4ad407f0eaaf6e3096212fcbf85a9ba2f6d7b1e83e1741b2"
+    ],
+    "passed": true,
+    "run_id": "live-cb97afc5822641faab81341270d86e8a",
+    "scope": "Real DDS fixture with a test-only pre-Kafka transport shim; not a durable gateway guarantee",
+    "side_dispositions": {
+      "duplicate": 10
+    },
+    "summary_message_count": 1637,
+    "unique_observations": 1637
+  },
+  "validation_manifests": {
+    "delay": {
+      "domain": 54,
+      "duration_s": 50,
+      "fault": "delay",
+      "fault_end_s": null,
+      "fault_start_s": 16,
+      "health": {
+        "services": {
+          "flink": "ready",
+          "flink_job": "ready",
+          "kafka": "ready",
+          "projection_api": "ready",
+          "replayer": "ready"
+        },
+        "source": "recorded_replay",
+        "status": "ready"
+      },
+      "image_id": "sha256:8be3f1bca4612d2b15d61760bb8a08387bfe1f72c189b9ef0bb707b4c0629747",
+      "scope": "DDS transport fixture",
+      "transport_delay_s": 10,
+      "transport_injection_count": 10
+    },
+    "duplicate": {
+      "domain": 53,
+      "duration_s": 50,
+      "fault": "duplicate",
+      "fault_end_s": null,
+      "fault_start_s": 16,
+      "health": {
+        "services": {
+          "flink": "ready",
+          "flink_job": "ready",
+          "kafka": "ready",
+          "projection_api": "ready",
+          "replayer": "ready"
+        },
+        "source": "recorded_replay",
+        "status": "ready"
+      },
+      "image_id": "sha256:8be3f1bca4612d2b15d61760bb8a08387bfe1f72c189b9ef0bb707b4c0629747",
+      "scope": "DDS transport fixture",
+      "transport_delay_s": 0,
+      "transport_injection_count": 10
+    }
+  }
+}

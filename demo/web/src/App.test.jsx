@@ -18,7 +18,7 @@ const DEFAULT_DATASET_FOR_TEST = {
   supports_camera_dropout: true,
 };
 
-describe("Flight Deck", () => {
+describe("ROS Workbench", () => {
   beforeEach(() => {
     FakeEventSource.instances = [];
     vi.stubGlobal("EventSource", FakeEventSource);
@@ -38,6 +38,43 @@ describe("Flight Deck", () => {
     vi.unstubAllGlobals();
   });
 
+  it("switches workspace tabs with keyboard controls and a health-view entry point", () => {
+    render(<App />);
+    const health = screen.getByRole("tab", { name: "Telemetry Health" });
+    const investigation = screen.getByRole("tab", { name: "Localization Investigation" });
+    expect(health).toHaveAttribute("aria-selected", "true");
+    fireEvent.keyDown(health, { key: "ArrowRight" });
+    expect(investigation).toHaveFocus();
+    expect(investigation).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tabpanel", { name: "Localization Investigation" })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Monitored Topics" })).not.toBeInTheDocument();
+    fireEvent.keyDown(investigation, { key: "Home" });
+    expect(health).toHaveFocus();
+    fireEvent.click(screen.getByRole("button", { name: "Open Localization Investigation" }));
+    expect(investigation).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("opens Import recording idempotently when clicked twice", () => {
+    const { container } = render(<App />);
+    const dialog = container.querySelector("dialog");
+    dialog.showModal = vi.fn(() => { dialog.open = true; });
+    const addData = screen.getByRole("button", { name: /import recording/i });
+    fireEvent.click(addData);
+    fireEvent.click(addData);
+    expect(dialog.showModal).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders an unavailable catalog entry when status and source are missing", async () => {
+    const originalFetch = fetch.getMockImplementation();
+    fetch.mockImplementation((url) => url.includes("/api/datasets")
+      ? Promise.resolve({ ok: true, json: async () => ({ default_dataset_id: "missing", datasets: [
+        { dataset_id: "missing", name: "Incomplete recording", selectable: false },
+      ] }) }) : originalFetch(url));
+    render(<App />);
+    await waitFor(() => expect(screen.getByRole("option", { name: "Incomplete recording — unavailable" })).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Start mission" })).toBeDisabled();
+  });
+
   it("labels the source as recorded replay and exposes mission controls", async () => {
     render(<App />);
     expect(screen.getByText("Recorded replay")).toBeInTheDocument();
@@ -49,9 +86,35 @@ describe("Flight Deck", () => {
 
   it("explains why camera fault injection is limited to real time", async () => {
     render(<App />);
+    fireEvent.click(screen.getByRole("radio", { name: "5× accelerated" }));
+    expect(screen.getByRole("radio", { name: "5× accelerated" })).toBeChecked();
     fireEvent.change(screen.getByLabelText("Scenario"), { target: { value: "camera-dropout" } });
+    expect(screen.getByRole("radio", { name: "1× real time" })).toBeChecked();
     expect(screen.getByText(/processing-time watchdog stays tied to real time/i)).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "5× accelerated" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "5× accelerated" })).toBeDisabled();
+  });
+
+  it("shows a live robot and prevents replay actions on its session", async () => {
+    render(<App />);
+    await waitFor(() => expect(FakeEventSource.instances.length).toBeGreaterThan(0));
+    act(() => FakeEventSource.instances.at(-1).emit("snapshot", {
+      run_id: "live-example", robot_id: "robot-live-1", dataset_id: "live-ros2",
+      dataset_name: "Live ROS session", source_format: "live_ros2", source: "live_ros2",
+      run: { payload: { status: "running" } }, topic_count: 6,
+      topics: [{ topic: "/scan", payload: { status: "ok", mean_rate_hz: 10 } }],
+      anomalies: [], incident_history: [], completion: {}, consumer_offsets: [], mission_progress_ms: 1000,
+    }));
+    expect(screen.getByText("Live ROS 2")).toBeInTheDocument();
+    expect(screen.getByText("robot-live-1")).toBeInTheDocument();
+    expect(screen.getByText("/scan")).toBeInTheDocument();
+    for (const name of ["Start mission", "Pause", "Resume", "Restart"]) {
+      const action = screen.queryByRole("button", { name });
+      if (action) expect(action).toBeDisabled();
+    }
+    act(() => FakeEventSource.instances.at(-1).emit("completion_failed", {
+      run_id: "older-run", detail: "Old run failed",
+    }));
+    expect(screen.queryByText(/Old run failed/)).not.toBeInTheDocument();
   });
 
   it("switches to an installed public dataset and sends it to replay", async () => {
@@ -163,7 +226,7 @@ describe("Flight Deck", () => {
     expect(screen.getByText(/Processed 1000 · accepted late 2 · duplicate 1 · too late 0/i)).toBeInTheDocument();
   });
 
-  it("renders localization trajectories and honest public-label evaluation metrics", async () => {
+  it.each([false, true])("renders localization metrics with optional heading signal: %s", async (useHeading) => {
     fetch.mockImplementation((url) => Promise.resolve({
       ok: true,
       json: async () => url.includes("/api/health")
@@ -172,6 +235,8 @@ describe("Flight Deck", () => {
         ? {
             status: "available",
             summary: {
+              detector_inputs: useHeading ? ["particle_position_spread_m", "estimated_pose_jump_m", "particle_heading_spread_rad"] : undefined,
+              thresholds: useHeading ? { recovery_hold_ms: 250 } : undefined,
               sample_metrics: { precision: 0.856, recall: 0.468, f1: 0.605 },
               event_metrics: { precision: 0.842, recall: 0.667, false_alarm_event_count: 3 },
             },
@@ -209,14 +274,13 @@ describe("Flight Deck", () => {
     const { container } = render(<App />);
 
     await waitFor(() => expect(screen.getByText("0.856")).toBeInTheDocument());
-    expect(screen.getByRole("img", { name: /ground-truth and amcl estimated trajectories/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Localization Investigation" }));
+    await waitFor(() => expect(screen.getByRole("img", { name: /ground-truth and amcl estimated trajectories/i })).toBeInTheDocument());
     expect(container.querySelectorAll(".trajectory-ground-truth")).toHaveLength(2);
     expect(container.querySelectorAll(".trajectory-estimated")).toHaveLength(2);
-    expect(screen.getByText("missed")).toBeInTheDocument();
     expect(screen.getByText("0.842")).toBeInTheDocument();
-    expect(screen.getByText("Detected failure")).toBeInTheDocument();
-    expect(screen.getByText("expected 00:01")).toBeInTheDocument();
-    expect(screen.getByText(/detected 00:01 \(\+250 ms\) · recovered 00:01/)).toBeInTheDocument();
+    expect(screen.getByText(/Detailed investigation evidence is unavailable/)).toBeInTheDocument();
+    if (useHeading) expect(screen.getByText(/particle_heading_spread_rad/)).toBeInTheDocument();
     expect(screen.getByText(/ground truth and published labels are scoring-only/i)).toBeInTheDocument();
   });
 

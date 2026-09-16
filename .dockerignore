@@ -18,6 +18,7 @@ demo/web/test-results
 streaming/flink-job/target
 data/raw
 data/bronze
+data/evaluations
 data/demo/*.mcap
 data/demo-output/*
 demo-state

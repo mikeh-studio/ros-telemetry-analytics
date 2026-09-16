@@ -1,0 +1,25 @@
+{
+  "checks": {
+    "one_sample_per_topic_bucket": true,
+    "pose_and_odometry_present": true,
+    "qos_callback_projected": true,
+    "retained_projection_exact": true,
+    "same_run": true,
+    "signals_present": true,
+    "source_fields_preserved": true
+  },
+  "passed": true,
+  "retained_count": 207,
+  "run_id": "live-15499083581c4419a7402e0e228ef833",
+  "scope": "Synthetic DDS QoS fixture; source and API reconciliation, not rendered UI",
+  "signal_count": 207,
+  "source_mismatches": [],
+  "topics": [
+    "/_telemetry/gateway_events",
+    "/_telemetry/gateway_health",
+    "/amcl_pose",
+    "/diagnostics",
+    "/odom",
+    "/scan"
+  ]
+}

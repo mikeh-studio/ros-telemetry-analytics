@@ -1,0 +1,115 @@
+{
+  "development": {
+    "catchup_ms": 30162,
+    "checks": {
+      "api_hard_stopped": true,
+      "backlog_accumulated": true,
+      "caught_up_within_thirty_seconds": false,
+      "no_active_incidents": true,
+      "same_run_retained": true,
+      "source_evaluation_passed": true,
+      "summaries_verified_after_restart": true
+    },
+    "frozen_boundary_distance": 256,
+    "outage_s": 15,
+    "passed": false,
+    "run_id": "live-3d46ce59438541a4bb57e74dca788d0a",
+    "scope": "API projection process hard stop and restart; Kafka/Flink stay running; offsets include broker control records",
+    "source_evaluation": {
+      "checks": {
+        "matching_run": true,
+        "no_duplicate_envelopes": true,
+        "no_late_records": true,
+        "no_schema_rejections": true,
+        "no_unexpected_alerts": true,
+        "projection_recovered": true,
+        "source_ledger_reconciled": true,
+        "summaries_verified": true,
+        "summary_counts_reconciled": true
+      },
+      "eligibility": "Subscriber discovered and publication within session, excluding final 100 ms",
+      "eligible_publisher_records": 2064,
+      "excluded_publisher_records": 16,
+      "fault": "clean",
+      "gap_detection_broker_delay_ms": [],
+      "gap_detection_stream_delay_ms": [],
+      "gap_recovery_broker_delay_ms": [],
+      "missing_eligible_records": 0,
+      "passed": true,
+      "publisher_records": 2080,
+      "qos_events": [],
+      "received_by_topic": {
+        "/_telemetry/gateway_health": 65,
+        "/amcl_pose": 64,
+        "/diagnostics": 64,
+        "/odom": 1293,
+        "/scan": 646
+      },
+      "run_id": "live-3d46ce59438541a4bb57e74dca788d0a",
+      "scope": "Real DDS transport fixture; not Nav2 or physical robot evidence",
+      "summary_message_count": 2132,
+      "unexpected_alerts": []
+    },
+    "warmup_s": 12
+  },
+  "finding": "The initial verifier compared SQLite data offsets with broker log-end offsets, including transaction markers. The corrected verifier freezes committed data-record boundaries.",
+  "limits": [
+    "Projection API only; Kafka and Flink continued running",
+    "Frozen boundary distance is in log offset positions, not a throughput measurement",
+    "Flink checkpoint recovery and rendered browser validation remain separate"
+  ],
+  "validation": {
+    "api_image_id": "sha256:bc92f7f002358ee6ccddbac904bdbd94b8ec22bf32cd1e8ebcaef12070942b85",
+    "catchup_ms": 1158,
+    "checks": {
+      "api_hard_stopped": true,
+      "backlog_accumulated": true,
+      "caught_up_within_thirty_seconds": true,
+      "no_active_incidents": true,
+      "same_run_retained": true,
+      "source_evaluation_passed": true,
+      "summaries_verified_after_restart": true
+    },
+    "frozen_boundary_distance": 356,
+    "outage_s": 18,
+    "passed": true,
+    "run_id": "live-16ec5c8c71c246198ed7c87c5c4390e2",
+    "scope": "API projection process hard stop and restart; Kafka/Flink stay running; boundary covers committed data records, excluding broker control markers",
+    "source_evaluation": {
+      "checks": {
+        "matching_run": true,
+        "no_duplicate_envelopes": true,
+        "no_late_records": true,
+        "no_schema_rejections": true,
+        "no_unexpected_alerts": true,
+        "projection_recovered": true,
+        "source_ledger_reconciled": true,
+        "summaries_verified": true,
+        "summary_counts_reconciled": true
+      },
+      "eligibility": "Subscriber discovered and publication within session, excluding final 100 ms",
+      "eligible_publisher_records": 2224,
+      "excluded_publisher_records": 16,
+      "fault": "clean",
+      "gap_detection_broker_delay_ms": [],
+      "gap_detection_stream_delay_ms": [],
+      "gap_recovery_broker_delay_ms": [],
+      "missing_eligible_records": 0,
+      "passed": true,
+      "publisher_records": 2240,
+      "qos_events": [],
+      "received_by_topic": {
+        "/_telemetry/gateway_health": 70,
+        "/amcl_pose": 69,
+        "/diagnostics": 69,
+        "/odom": 1393,
+        "/scan": 696
+      },
+      "run_id": "live-16ec5c8c71c246198ed7c87c5c4390e2",
+      "scope": "Real DDS transport fixture; not Nav2 or physical robot evidence",
+      "summary_message_count": 2297,
+      "unexpected_alerts": []
+    },
+    "warmup_s": 16
+  }
+}

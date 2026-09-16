@@ -18,7 +18,7 @@
   "properties": {
     "schema_version": { "const": 1 },
     "metric_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-    "metric_type": { "enum": ["topic_window", "mission_summary", "run_status", "robot_health"] },
+    "metric_type": { "enum": ["topic_window", "mission_summary", "run_status", "robot_health", "observed_signal"] },
     "run_id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
     "robot_id": { "type": "string", "minLength": 1 },
     "topic": { "type": ["string", "null"] },

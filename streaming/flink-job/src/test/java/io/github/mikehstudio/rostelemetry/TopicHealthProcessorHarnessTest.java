@@ -20,6 +20,74 @@ final class TopicHealthProcessorHarnessTest {
     private static final String TOPIC = "/camera/image_raw";
 
     @Test
+    void liveSignalsAreSampledAfterDispositionAndPreserveObservations() throws Exception {
+        try (Harness harness = harness()) {
+            ObjectNode registered = registration(0, 10.0, 5_000, 5_000);
+            ((ObjectNode) registered.path("body")).put("source_format", "live_ros2");
+            harness.process(registered);
+            for (int timestamp : new int[] {100, 200, 1100}) {
+                ObjectNode event = telemetry("signal-" + timestamp, timestamp, timestamp,
+                        timestamp * 1_000_000L);
+                ((ObjectNode) event.path("body")).putObject("attributes").put("position_x", timestamp);
+                harness.process(event);
+                harness.process(event);
+            }
+            var signals = harness.mainValues("observed_signal");
+            assertEquals(2, signals.size());
+            assertEquals(100, signals.get(0).path("payload").path("attributes").path("position_x").asInt());
+            assertEquals(1100, signals.get(1).path("payload").path("attributes").path("position_x").asInt());
+            assertNotEquals(signals.get(0).path("metric_id"), signals.get(1).path("metric_id"));
+        }
+    }
+
+    @Test
+    void liveDiscoveryGraceDoesNotRaiseRateButLaterLowRateStillDoes() throws Exception {
+        try (Harness harness = harness()) {
+            ObjectNode registered = registration(0, 10.0, 5_000, 5_000);
+            ((ObjectNode) registered.path("body")).put("source_format", "live_ros2");
+            harness.process(registered);
+            for (int timestamp = 3_000; timestamp < 22_000; timestamp += 100) {
+                harness.process(telemetry("live-" + timestamp, timestamp, timestamp / 100,
+                        timestamp * 1_000_000L));
+                harness.watermark(timestamp - 2_000);
+            }
+            assertTrue(harness.sideValues(TopicHealthProcessor.ANOMALIES).isEmpty());
+            assertTrue(harness.mainValues("topic_window").stream().anyMatch(node ->
+                    node.path("payload").path("rate_evaluation_status").asText().equals("startup_grace")
+                            && node.path("payload").path("health_status").asText().equals("starting")));
+            assertTrue(harness.mainValues("topic_window").stream().anyMatch(node ->
+                    node.path("payload").path("rate_evaluation_status").asText().equals("normal_window")));
+            for (int timestamp = 22_000; timestamp < 40_000; timestamp += 200) {
+                harness.process(telemetry("slow-" + timestamp, timestamp, timestamp / 100,
+                        timestamp * 1_000_000L));
+                harness.watermark(timestamp - 2_000);
+            }
+            assertTrue(harness.sideValues(TopicHealthProcessor.ANOMALIES).stream()
+                    .anyMatch(node -> node.path("condition_type").asText().equals("RATE")
+                            && node.path("status").asText().equals("active")));
+        }
+    }
+
+    @Test
+    void oneHertzTopicCanRecoverWithoutAnImpossibleThreeEventBurst() throws Exception {
+        try (Harness harness = harness()) {
+            harness.process(registration(0, 1.0, 2_000, 3_000));
+            harness.process(telemetry("initial", 0, 0, 0));
+            harness.watermark(3_001);
+            harness.process(telemetry("recover-1", 5_000, 1, 5_000_000_000L));
+            harness.process(telemetry("recover-2", 6_000, 2, 6_000_000_000L));
+            harness.watermark(6_001);
+            assertEquals(1, harness.sideValues(TopicHealthProcessor.ANOMALIES).size());
+            harness.process(telemetry("recover-3", 7_000, 3, 7_000_000_000L));
+            harness.watermark(8_001);
+            List<JsonNode> events = harness.sideValues(TopicHealthProcessor.ANOMALIES);
+            assertEquals(List.of("active", "recovered"), events.stream()
+                    .map(node -> node.path("status").asText()).toList());
+            assertEquals(3_000, events.get(1).path("evidence").path("recovery_gate_ms").asInt());
+        }
+    }
+
+    @Test
     void opensNeverSeenFromTheRealEventTimeTimerOnlyOnce() throws Exception {
         try (Harness harness = harness()) {
             harness.process(registration(100_000, 30.0, 2_000, 5_000));

@@ -1,0 +1,427 @@
+{
+  "development": {
+    "case_evaluations": {
+      "control_a": {
+        "checks": {
+          "matching_run": true,
+          "no_duplicate_envelopes": true,
+          "no_late_records": true,
+          "no_schema_rejections": true,
+          "no_unexpected_alerts": true,
+          "projection_recovered": true,
+          "source_ledger_reconciled": true,
+          "summaries_verified": true,
+          "summary_counts_reconciled": true
+        },
+        "eligibility": "Subscriber discovered and publication within session, excluding final 100 ms",
+        "eligible_publisher_records": 1902,
+        "excluded_publisher_records": 18,
+        "fault": "clean",
+        "gap_detection_broker_delay_ms": [],
+        "gap_detection_stream_delay_ms": [],
+        "gap_recovery_broker_delay_ms": [],
+        "missing_eligible_records": 0,
+        "passed": true,
+        "publisher_records": 1920,
+        "qos_events": [],
+        "received_by_topic": {
+          "/_telemetry/gateway_health": 60,
+          "/amcl_pose": 60,
+          "/diagnostics": 60,
+          "/odom": 1190,
+          "/scan": 595
+        },
+        "run_id": "live-1099b34a9bb540db95206e4dd78d512e",
+        "scope": "Real DDS transport fixture; not Nav2 or physical robot evidence",
+        "summary_message_count": 1965,
+        "unexpected_alerts": []
+      },
+      "control_b": {
+        "checks": {
+          "matching_run": true,
+          "no_duplicate_envelopes": true,
+          "no_late_records": true,
+          "no_schema_rejections": true,
+          "no_unexpected_alerts": true,
+          "projection_recovered": true,
+          "source_ledger_reconciled": true,
+          "summaries_verified": true,
+          "summary_counts_reconciled": true
+        },
+        "eligibility": "Subscriber discovered and publication within session, excluding final 100 ms",
+        "eligible_publisher_records": 1893,
+        "excluded_publisher_records": 27,
+        "fault": "clean",
+        "gap_detection_broker_delay_ms": [],
+        "gap_detection_stream_delay_ms": [],
+        "gap_recovery_broker_delay_ms": [],
+        "missing_eligible_records": 0,
+        "passed": true,
+        "publisher_records": 1920,
+        "qos_events": [],
+        "received_by_topic": {
+          "/_telemetry/gateway_health": 60,
+          "/amcl_pose": 59,
+          "/diagnostics": 59,
+          "/odom": 1185,
+          "/scan": 593
+        },
+        "run_id": "live-718e3c07f94446b68b7731c34d8825d1",
+        "scope": "Real DDS transport fixture; not Nav2 or physical robot evidence",
+        "summary_message_count": 1956,
+        "unexpected_alerts": []
+      },
+      "fault": {
+        "acknowledged": 1932,
+        "boundary": "Restart downtime and pre-discovery publications are not durably received; broker delivery may become late evidence. Unobserved publications also include overflow and the session boundary; aggregate counters do not assign per-message causes.",
+        "checks": {
+          "all_accepted_observations_delivered": true,
+          "all_crash_backlog_delivered": true,
+          "all_incidents_recovered": true,
+          "analytical_reconciliation": true,
+          "crash_preserved_all_queued_ids": true,
+          "healthy_delivery_before_disconnection": true,
+          "ledger_balanced": true,
+          "observations_buffered_without_broker": true,
+          "outage_detection_and_recovery": true,
+          "outbox_drained": true,
+          "overflow_matches_expectation": true,
+          "persisted_envelopes_unchanged": true,
+          "projection_has_no_active_incidents": true,
+          "queue_within_record_limit": true,
+          "received_source_records_have_provenance": true,
+          "recovery_timestamps_do_not_precede_detection": true,
+          "registration_and_lifecycle_valid": true,
+          "same_run_identity": true,
+          "schema_valid": true,
+          "sequence_gaps_match_rejections": true,
+          "summaries_verified": true
+        },
+        "crash_wall_ms": 1789066046755,
+        "duplicate_deliveries": 0,
+        "image_id": "sha256:8be3f1bca4612d2b15d61760bb8a08387bfe1f72c189b9ef0bb707b4c0629747",
+        "incident_transitions": [
+          {
+            "anomaly_id": "58b34fb6bb15fdc3b5d18c03ecfc150613678dede1b8c4f760a198cb4221b552",
+            "condition_type": "GAP",
+            "detected_stream_ms": 1789066033121,
+            "status": "active",
+            "topic": "/odom"
+          },
+          {
+            "anomaly_id": "8a8f8ef5c3942b07713b5179ed13b2647036fabb76d701d7f4c8f85d06e32a93",
+            "condition_type": "GAP",
+            "detected_stream_ms": 1789066033072,
+            "status": "active",
+            "topic": "/scan"
+          },
+          {
+            "anomaly_id": "baa658660a33546efb2eb6692dae07cbc5189a731e9d77cea5de8466eb1155c8",
+            "condition_type": "GAP",
+            "detected_stream_ms": 1789066034415,
+            "status": "active",
+            "topic": "/_telemetry/gateway_health"
+          },
+          {
+            "anomaly_id": "e234fe3839a2588c049a99583dc4c24fb54ac45220b91e7d4550a7280f6f6c79",
+            "condition_type": "ROBOT_OFFLINE",
+            "detected_stream_ms": 1789066041621,
+            "status": "active",
+            "topic": null
+          },
+          {
+            "anomaly_id": "e234fe3839a2588c049a99583dc4c24fb54ac45220b91e7d4550a7280f6f6c79",
+            "condition_type": "ROBOT_OFFLINE",
+            "detected_stream_ms": 1789066049098,
+            "status": "recovered",
+            "topic": null
+          },
+          {
+            "anomaly_id": "58b34fb6bb15fdc3b5d18c03ecfc150613678dede1b8c4f760a198cb4221b552",
+            "condition_type": "GAP",
+            "detected_stream_ms": 1789066048674,
+            "status": "recovered",
+            "topic": "/odom"
+          },
+          {
+            "anomaly_id": "8a8f8ef5c3942b07713b5179ed13b2647036fabb76d701d7f4c8f85d06e32a93",
+            "condition_type": "GAP",
+            "detected_stream_ms": 1789066048670,
+            "status": "recovered",
+            "topic": "/scan"
+          },
+          {
+            "anomaly_id": "baa658660a33546efb2eb6692dae07cbc5189a731e9d77cea5de8466eb1155c8",
+            "condition_type": "GAP",
+            "detected_stream_ms": 1789066050577,
+            "status": "recovered",
+            "topic": "/_telemetry/gateway_health"
+          }
+        ],
+        "late_records": 327,
+        "matched_source_publications": 1872,
+        "max_pending_records": 10000,
+        "outage_s": 15,
+        "passed": true,
+        "pre_crash_pending": 499,
+        "received": 1932,
+        "rejected": 0,
+        "restart_wall_ms": 1789066047227,
+        "run_id": "live-e5929ffafd6140e191dc209b194331d6",
+        "side_output_counts": {
+          "beyond_allowed_lateness": 327
+        },
+        "source_publications": 1920,
+        "summary_messages": 1605,
+        "unobserved_source_publications": 48,
+        "warmup_s": 12
+      }
+    },
+    "checks": {
+      "all_case_evaluations_pass": true,
+      "all_runs_still_retained_and_verified": true,
+      "concurrent_for_thirty_seconds": true,
+      "controls_have_no_incidents": true,
+      "fault_has_detected_and_recovered_incident": true,
+      "identities_isolated": true,
+      "restart_during_shared_interval": true,
+      "three_distinct_robots": true,
+      "three_distinct_runs": true
+    },
+    "overlap_ms": 59900,
+    "passed": true,
+    "runs": {
+      "control_a": {
+        "robot_id": "gateway-eval-c0d94fc3c5",
+        "run_id": "live-1099b34a9bb540db95206e4dd78d512e",
+        "summary_messages": 1965
+      },
+      "control_b": {
+        "robot_id": "gateway-eval-2246806014",
+        "run_id": "live-718e3c07f94446b68b7731c34d8825d1",
+        "summary_messages": 1956
+      },
+      "fault": {
+        "robot_id": "edge-eval-d00cd10945",
+        "run_id": "live-e5929ffafd6140e191dc209b194331d6",
+        "summary_messages": 1605
+      }
+    },
+    "scope": "Three DDS fixture robots on one local Kafka/Flink/API stack; one gateway outage/restart, not production fleet capacity"
+  },
+  "limits": [
+    "Three DDS fixture robots on one host; one asymmetric outage and hard restart",
+    "Not a production capacity benchmark or traffic-spike test",
+    "Messages never received during gateway downtime are not recovered; each fault ledger reports those exclusions"
+  ],
+  "validation": {
+    "case_evaluations": {
+      "control_a": {
+        "checks": {
+          "matching_run": true,
+          "no_duplicate_envelopes": true,
+          "no_late_records": true,
+          "no_schema_rejections": true,
+          "no_unexpected_alerts": true,
+          "projection_recovered": true,
+          "source_ledger_reconciled": true,
+          "summaries_verified": true,
+          "summary_counts_reconciled": true
+        },
+        "eligibility": "Subscriber discovered and publication within session, excluding final 100 ms",
+        "eligible_publisher_records": 2058,
+        "excluded_publisher_records": 22,
+        "fault": "clean",
+        "gap_detection_broker_delay_ms": [],
+        "gap_detection_stream_delay_ms": [],
+        "gap_recovery_broker_delay_ms": [],
+        "missing_eligible_records": 0,
+        "passed": true,
+        "publisher_records": 2080,
+        "qos_events": [],
+        "received_by_topic": {
+          "/_telemetry/gateway_health": 65,
+          "/amcl_pose": 64,
+          "/diagnostics": 64,
+          "/odom": 1289,
+          "/scan": 644
+        },
+        "run_id": "live-7594229127ad440eb96de31f8ca23885",
+        "scope": "Real DDS transport fixture; not Nav2 or physical robot evidence",
+        "summary_message_count": 2126,
+        "unexpected_alerts": []
+      },
+      "control_b": {
+        "checks": {
+          "matching_run": true,
+          "no_duplicate_envelopes": true,
+          "no_late_records": true,
+          "no_schema_rejections": true,
+          "no_unexpected_alerts": true,
+          "projection_recovered": true,
+          "source_ledger_reconciled": true,
+          "summaries_verified": true,
+          "summary_counts_reconciled": true
+        },
+        "eligibility": "Subscriber discovered and publication within session, excluding final 100 ms",
+        "eligible_publisher_records": 2058,
+        "excluded_publisher_records": 22,
+        "fault": "clean",
+        "gap_detection_broker_delay_ms": [],
+        "gap_detection_stream_delay_ms": [],
+        "gap_recovery_broker_delay_ms": [],
+        "missing_eligible_records": 0,
+        "passed": true,
+        "publisher_records": 2080,
+        "qos_events": [],
+        "received_by_topic": {
+          "/_telemetry/gateway_health": 65,
+          "/amcl_pose": 64,
+          "/diagnostics": 64,
+          "/odom": 1289,
+          "/scan": 644
+        },
+        "run_id": "live-8a6f28390e0e4188aba80a59749c9850",
+        "scope": "Real DDS transport fixture; not Nav2 or physical robot evidence",
+        "summary_message_count": 2126,
+        "unexpected_alerts": []
+      },
+      "fault": {
+        "acknowledged": 2096,
+        "boundary": "Restart downtime and pre-discovery publications are not durably received; broker delivery may become late evidence. Unobserved publications also include overflow and the session boundary; aggregate counters do not assign per-message causes.",
+        "checks": {
+          "all_accepted_observations_delivered": true,
+          "all_crash_backlog_delivered": true,
+          "all_incidents_recovered": true,
+          "analytical_reconciliation": true,
+          "crash_preserved_all_queued_ids": true,
+          "healthy_delivery_before_disconnection": true,
+          "ledger_balanced": true,
+          "observations_buffered_without_broker": true,
+          "outage_detection_and_recovery": true,
+          "outbox_drained": true,
+          "overflow_matches_expectation": true,
+          "persisted_envelopes_unchanged": true,
+          "projection_has_no_active_incidents": true,
+          "queue_within_record_limit": true,
+          "received_source_records_have_provenance": true,
+          "recovery_timestamps_do_not_precede_detection": true,
+          "registration_and_lifecycle_valid": true,
+          "same_run_identity": true,
+          "schema_valid": true,
+          "sequence_gaps_match_rejections": true,
+          "summaries_verified": true
+        },
+        "crash_wall_ms": 1789066148894,
+        "duplicate_deliveries": 0,
+        "image_id": "sha256:8be3f1bca4612d2b15d61760bb8a08387bfe1f72c189b9ef0bb707b4c0629747",
+        "incident_transitions": [
+          {
+            "anomaly_id": "e9da2989c935671c6c32f555c1fdefbb729c3bcffd57d98095b22c5bc934063d",
+            "condition_type": "GAP",
+            "detected_stream_ms": 1789066133210,
+            "status": "active",
+            "topic": "/scan"
+          },
+          {
+            "anomaly_id": "b3f3df669f18afd53f2f1834218780284c43a49dbc38c419d38f200f5ddb5562",
+            "condition_type": "GAP",
+            "detected_stream_ms": 1789066133215,
+            "status": "active",
+            "topic": "/odom"
+          },
+          {
+            "anomaly_id": "eb66127697c9c283c5138f6679a3e0fbbb9257989462d9e0d9d3bde3ad4db043",
+            "condition_type": "GAP",
+            "detected_stream_ms": 1789066134285,
+            "status": "active",
+            "topic": "/_telemetry/gateway_health"
+          },
+          {
+            "anomaly_id": "b3bc75540fd2556e26548f606fb10e0cf46c39f61a53f529e13c06a07ec19871",
+            "condition_type": "ROBOT_OFFLINE",
+            "detected_stream_ms": 1789066141715,
+            "status": "active",
+            "topic": null
+          },
+          {
+            "anomaly_id": "b3bc75540fd2556e26548f606fb10e0cf46c39f61a53f529e13c06a07ec19871",
+            "condition_type": "ROBOT_OFFLINE",
+            "detected_stream_ms": 1789066151881,
+            "status": "recovered",
+            "topic": null
+          },
+          {
+            "anomaly_id": "e9da2989c935671c6c32f555c1fdefbb729c3bcffd57d98095b22c5bc934063d",
+            "condition_type": "GAP",
+            "detected_stream_ms": 1789066150814,
+            "status": "recovered",
+            "topic": "/scan"
+          },
+          {
+            "anomaly_id": "eb66127697c9c283c5138f6679a3e0fbbb9257989462d9e0d9d3bde3ad4db043",
+            "condition_type": "GAP",
+            "detected_stream_ms": 1789066152748,
+            "status": "recovered",
+            "topic": "/_telemetry/gateway_health"
+          },
+          {
+            "anomaly_id": "b3f3df669f18afd53f2f1834218780284c43a49dbc38c419d38f200f5ddb5562",
+            "condition_type": "GAP",
+            "detected_stream_ms": 1789066154016,
+            "status": "recovered",
+            "topic": "/odom"
+          }
+        ],
+        "late_records": 409,
+        "matched_source_publications": 2032,
+        "max_pending_records": 10000,
+        "outage_s": 17,
+        "passed": true,
+        "pre_crash_pending": 566,
+        "received": 2096,
+        "rejected": 0,
+        "restart_wall_ms": 1789066149375,
+        "run_id": "live-2bb9f71a81f74c538c3f11f3c622baed",
+        "side_output_counts": {
+          "beyond_allowed_lateness": 409
+        },
+        "source_publications": 2080,
+        "summary_messages": 1687,
+        "unobserved_source_publications": 48,
+        "warmup_s": 16
+      }
+    },
+    "checks": {
+      "all_case_evaluations_pass": true,
+      "all_runs_still_retained_and_verified": true,
+      "concurrent_for_thirty_seconds": true,
+      "controls_have_no_incidents": true,
+      "fault_has_detected_and_recovered_incident": true,
+      "identities_isolated": true,
+      "restart_during_shared_interval": true,
+      "three_distinct_robots": true,
+      "three_distinct_runs": true
+    },
+    "overlap_ms": 64944,
+    "passed": true,
+    "runs": {
+      "control_a": {
+        "robot_id": "gateway-eval-37c5b7acd1",
+        "run_id": "live-7594229127ad440eb96de31f8ca23885",
+        "summary_messages": 2126
+      },
+      "control_b": {
+        "robot_id": "gateway-eval-b0cc5b0820",
+        "run_id": "live-8a6f28390e0e4188aba80a59749c9850",
+        "summary_messages": 2126
+      },
+      "fault": {
+        "robot_id": "edge-eval-d8980f9057",
+        "run_id": "live-2bb9f71a81f74c538c3f11f3c622baed",
+        "summary_messages": 1687
+      }
+    },
+    "scope": "Three DDS fixture robots on one local Kafka/Flink/API stack; one gateway outage/restart, not production fleet capacity"
+  }
+}

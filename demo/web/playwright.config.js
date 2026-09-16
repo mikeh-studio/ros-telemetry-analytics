@@ -12,5 +12,5 @@ export default defineConfig({
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { browserName: "chromium" } }],
+  projects: [{ name: process.env.FLIGHT_DECK_BROWSER || "chromium", use: { browserName: process.env.FLIGHT_DECK_BROWSER || "chromium" } }],
 });

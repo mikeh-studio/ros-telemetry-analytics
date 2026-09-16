@@ -21,6 +21,7 @@ final class RobotHealthProcessor extends KeyedProcessFunction<String, String, St
     private transient MapState<String, ActiveCondition> conditions;
     private transient MapState<String, Boolean> topicRecovery;
     private transient ValueState<Boolean> robotRecovery;
+    private transient ValueState<Boolean> observationUnknown;
 
     RobotHealthProcessor() {
         this(RunStateRetention.configuredIdleTimeoutMs());
@@ -44,6 +45,8 @@ final class RobotHealthProcessor extends KeyedProcessFunction<String, String, St
         ValueStateDescriptor<Boolean> robotRecoveryDescriptor =
                 new ValueStateDescriptor<>("robot-offline-recovery-v3", Boolean.class);
         robotRecovery = getRuntimeContext().getState(robotRecoveryDescriptor);
+        observationUnknown = getRuntimeContext().getState(
+                new ValueStateDescriptor<>("robot-observation-unknown-v1", Boolean.class));
     }
 
     @Override
@@ -57,6 +60,7 @@ final class RobotHealthProcessor extends KeyedProcessFunction<String, String, St
                     signal.path("topic").asText(),
                     signal.path("payload").path("recovery_in_progress").asBoolean(false));
         } else if (signal.path("metric_type").asText().equals("robot_health")) {
+            observationUnknown.update(signal.path("payload").path("status").asText().equals("unknown"));
             robotRecovery.update(
                     signal.path("payload").path("status").asText().equals("recovering"));
         }
@@ -76,6 +80,7 @@ final class RobotHealthProcessor extends KeyedProcessFunction<String, String, St
         conditions.clear();
         topicRecovery.clear();
         robotRecovery.clear();
+        observationUnknown.clear();
     }
 
     private void updateCondition(JsonNode anomaly) throws Exception {
@@ -137,7 +142,7 @@ final class RobotHealthProcessor extends KeyedProcessFunction<String, String, St
 
     private String aggregateStatus() throws Exception {
         if (hasCondition("ROBOT_OFFLINE")) return "offline";
-        if (conditions.isEmpty()) return "healthy";
+        if (conditions.isEmpty()) return Boolean.TRUE.equals(observationUnknown.value()) ? "unknown" : "healthy";
         if (recoveryActive()) return "recovering";
         return "degraded";
     }

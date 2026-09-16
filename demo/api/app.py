@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
+from demo.api import localization_investigation
 from demo.api.consumer import ProjectionConsumer
 from demo.api.store import ProjectionStore
 from demo.common.config import load_streaming_config
@@ -407,12 +408,27 @@ async def localization_evaluation() -> dict[str, Any]:
             "summary": summary,
             "trajectory": trajectory.to_dicts(),
             "event_matches": matches.to_dicts(),
+            "investigation": localization_investigation.metadata(LOCALIZATION_EVAL_DIR),
             "trajectory_stride": stride,
             "trajectory_sample_count": trajectory.height,
             "evaluation_start_timestamp_ns": minimum_timestamp,
         }
 
     return await asyncio.to_thread(load)
+
+
+@app.get("/api/localization/interval")
+async def localization_interval(case_id: str, evaluation_id: str) -> dict[str, Any]:
+    try:
+        return await asyncio.to_thread(
+            localization_investigation.interval, LOCALIZATION_EVAL_DIR, case_id, evaluation_id
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (OSError, ValueError, pl.exceptions.PolarsError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.get("/api/events")

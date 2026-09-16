@@ -7,6 +7,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.List;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -14,6 +18,83 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.junit.jupiter.api.Test;
 
 final class RobotLivenessProcessorHarnessTest {
+    @Test
+    void restoredOrphanTimerWaitsForIdentityWithoutEmittingHealth() throws Exception {
+        OperatorSubtaskState snapshot;
+        try (Harness original = harness()) {
+            original.process(lifecycle("run_started", 100_000, 1));
+            original.delegate.getOperator().getKeyedStateBackend().getPartitionedState(
+                    VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE,
+                    new ValueStateDescriptor<>("robot-identity-v2", RobotLivenessProcessor.Identity.class))
+                    .clear();
+            snapshot = original.delegate.snapshot(1, 1000);
+        }
+        try (Harness restored = harness(snapshot)) {
+            restored.processingTime(50_000);
+            restored.process(telemetry("orphan", 151_000));
+            assertTrue(restored.metrics().isEmpty());
+            assertTrue(restored.anomalies().isEmpty());
+            restored.process(lifecycle("run_started", 152_000, 1));
+            restored.processingTime(60_000);
+            assertEquals(1, restored.anomalies().size());
+        }
+    }
+
+    @Test
+    void restoredExpiredTimerReestablishesObservationBeforeDeclaringOffline() throws Exception {
+        OperatorSubtaskState snapshot;
+        try (Harness original = harness()) {
+            original.process(lifecycle("run_started", 100_000, 1));
+            original.process(telemetry("before", 100_000));
+            snapshot = original.delegate.snapshot(1, 1000);
+        }
+        try (Harness restored = harness(snapshot)) {
+            restored.processingTime(50_000);
+            assertTrue(restored.anomalies().isEmpty());
+            assertEquals("unknown", restored.metrics().get(0).path("payload").path("status").asText());
+            restored.processingTime(70_000);
+            assertTrue(restored.anomalies().isEmpty());
+            restored.watermark(100_000);
+            restored.processingTime(71_000);
+            restored.processingTime(80_999);
+            assertTrue(restored.anomalies().isEmpty());
+            restored.processingTime(81_000);
+            assertEquals(1, restored.anomalies().size());
+        }
+    }
+
+    @Test
+    void acceptedInputAfterRestoreClearsUnknownWithoutAnOfflineIncident() throws Exception {
+        OperatorSubtaskState snapshot;
+        try (Harness original = harness()) {
+            original.process(lifecycle("run_started", 100_000, 1));
+            snapshot = original.delegate.snapshot(1, 1000);
+        }
+        try (Harness restored = harness(snapshot)) {
+            restored.processingTime(50_000);
+            restored.process(telemetry("after", 151_000));
+            assertTrue(restored.anomalies().isEmpty());
+            assertEquals("healthy", restored.metrics().get(1).path("payload").path("status").asText());
+        }
+    }
+
+    @Test
+    void bufferedRecoveryCannotPrecedeTheOfflineDecision() throws Exception {
+        try (Harness harness = harness()) {
+            harness.process(lifecycle("run_started", 100_000, 1));
+            harness.process(telemetry("initial", 100_000));
+            harness.processingTime(10_000);
+            harness.processingTime(15_000);
+            harness.process(telemetry("buffered-1", 101_000));
+            harness.process(telemetry("buffered-2", 101_050));
+            harness.process(telemetry("buffered-3", 101_100));
+            JsonNode recovered = harness.anomalies().get(1);
+            assertEquals(115_000, recovered.path("detected_stream_ms").asLong());
+            assertEquals(101_100, recovered.path("evidence")
+                    .path("recovery_observation_stream_ms").asLong());
+        }
+    }
+
     @Test
     void oneXWatchdogOpensOfflineAndRecoversAfterThreeAcceptedEvents() throws Exception {
         try (Harness harness = harness()) {
@@ -78,6 +159,10 @@ final class RobotLivenessProcessorHarnessTest {
     }
 
     private static Harness harness() throws Exception {
+        return harness(null);
+    }
+
+    private static Harness harness(OperatorSubtaskState snapshot) throws Exception {
         KeyedProcessOperator<String, JsonNode, String> operator =
                 new KeyedProcessOperator<>(new RobotLivenessProcessor());
         KeyedOneInputStreamOperatorTestHarness<String, JsonNode, String> delegate =
@@ -89,6 +174,7 @@ final class RobotLivenessProcessorHarnessTest {
                                     + node.path("robot_id").asText();
                         },
                         Types.STRING);
+        if (snapshot != null) delegate.initializeState(snapshot);
         delegate.open();
         return new Harness(delegate);
     }
