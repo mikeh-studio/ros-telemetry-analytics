@@ -36,6 +36,8 @@ class ReplayDataset:
     topic_count: int | None = None
     uploaded: bool = False
     supports_camera_dropout: bool = False
+    role: str = "unclassified"
+    catalog_visible: bool = True
 
     @property
     def selectable(self) -> bool:
@@ -100,6 +102,8 @@ def _manifest_catalog(root: Path, manifest_path: Path) -> list[ReplayDataset]:
                 name=DISPLAY_NAMES.get(str(dataset_id), str(dataset_id).replace("_", " ").title()),
                 description=description,
                 source="public_dataset",
+                role="real_recording",
+                catalog_visible=bool(metadata.get("catalog_visible", True)),
                 file_format=file_format,
                 path=path if status == "ready" else None,
                 status=status,
@@ -147,8 +151,10 @@ def dataset_catalog(
     manifest_path = manifest_path or root / PUBLIC_DATASET_MANIFEST
     built_in = ReplayDataset(
         dataset_id=DEFAULT_DATASET_ID,
-        name="Warehouse Run 17",
-        description="Deterministic 90-second ROS 2 mission with optional camera dropout.",
+        name="Warehouse Run 17 · Controlled demo",
+        description="Synthetic 90-second timing demo: repeated payloads, zero header stamps, "
+        "constant 1×1 image. Not suitable for sensor-quality or motion-realism evaluation.",
+        role="controlled_demo",
         source="built_in",
         file_format="rosbag2_mcap",
         path=fixture_path if fixture_path.is_file() else None,
@@ -158,9 +164,34 @@ def dataset_catalog(
         topic_count=4,
         supports_camera_dropout=True,
     )
+    public = {item.dataset_id: item for item in _manifest_catalog(root, manifest_path)}
+    curated_path = root / "configs/investigations.yaml"
+    if curated_path.exists():
+        curated = yaml.safe_load(curated_path.read_text())["datasets"]
+        for dataset_id, spec in curated.items():
+            path = root / spec["input"]
+            installed = path.is_file()
+            valid = installed and path.stat().st_size > 0
+            if spec.get("bytes"):
+                valid = valid and path.stat().st_size == spec["bytes"]
+            elif dataset_id in public:
+                # Preserve existing manifest admission/size checks when enriching its labels.
+                valid = valid and public[dataset_id].selectable
+            public[dataset_id] = ReplayDataset(
+                dataset_id=dataset_id,
+                name=spec["name"],
+                description=spec["purpose"],
+                source="public_dataset",
+                file_format="rosbag1",
+                path=path if valid else None,
+                status="ready" if valid else "invalid" if installed else "not_installed",
+                size_bytes=path.stat().st_size if installed else None,
+                role=spec["role"],
+                catalog_visible=valid,
+            )
     return [
         built_in,
-        *_manifest_catalog(root, manifest_path),
+        *public.values(),
         *_uploaded_catalog(upload_dir),
     ]
 

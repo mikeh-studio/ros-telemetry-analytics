@@ -35,6 +35,7 @@ const DEFAULT_DATASET_FOR_TEST = {
 
 describe("ROS Workbench", () => {
   beforeEach(() => {
+    localStorage.clear();
     FakeEventSource.instances = [];
     vi.stubGlobal("EventSource", FakeEventSource);
     vi.stubGlobal(
@@ -72,7 +73,7 @@ describe("ROS Workbench", () => {
     vi.unstubAllGlobals();
   });
 
-  it("switches workspace tabs with keyboard controls and a health-view entry point", () => {
+  it("switches workspace tabs with keyboard controls and pointer input", () => {
     render(<App />);
     const health = screen.getByRole("tab", { name: "Telemetry Health" });
     const investigation = screen.getByRole("tab", {
@@ -80,6 +81,11 @@ describe("ROS Workbench", () => {
     });
     expect(health).toHaveAttribute("aria-selected", "true");
     fireEvent.keyDown(health, { key: "ArrowRight" });
+    const recordings = screen.getByRole("tab", {
+      name: "Recording Investigation",
+    });
+    expect(recordings).toHaveFocus();
+    fireEvent.keyDown(recordings, { key: "ArrowRight" });
     expect(investigation).toHaveFocus();
     expect(investigation).toHaveAttribute("aria-selected", "true");
     expect(
@@ -90,10 +96,79 @@ describe("ROS Workbench", () => {
     ).not.toBeInTheDocument();
     fireEvent.keyDown(investigation, { key: "Home" });
     expect(health).toHaveFocus();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Open Localization Investigation" }),
-    );
+    fireEvent.click(investigation);
     expect(investigation).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("offers prepared evidence without empty monitors or redundant scenario controls", async () => {
+    const original = fetch.getMockImplementation();
+    fetch.mockImplementation((url) =>
+      url.includes("/api/datasets")
+        ? Promise.resolve({
+            ok: true,
+            json: async () => ({
+              default_dataset_id: "walking",
+              datasets: [
+                {
+                  dataset_id: "walking",
+                  name: "Walking XYZ",
+                  selectable: true,
+                  source: "public_dataset",
+                  capabilities: {
+                    health: "ready",
+                    recordings: "ready",
+                    localization: "unsupported",
+                  },
+                },
+              ],
+            }),
+          })
+        : url.includes("/api/health")
+          ? Promise.resolve({
+              ok: false,
+              json: async () => ({
+                status: "starting",
+                services: { projection_api: "ready" },
+              }),
+            })
+          : original(url),
+    );
+    render(<App />);
+    const inspect = await screen.findByRole("button", {
+      name: "Inspect sensor evidence",
+    });
+    expect(screen.queryByLabelText("Fault injection")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Monitor" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("tab", { name: "Telemetry Health" }),
+    ).toHaveAccessibleDescription("Services not ready");
+    expect(
+      screen.getByRole("tab", { name: "Recording Investigation" }),
+    ).toHaveAccessibleDescription("Ready");
+    expect(
+      screen.getByRole("tab", { name: "Localization Investigation" }),
+    ).toHaveAccessibleDescription("Analysis not prepared");
+    expect(screen.getAllByText("Replay services are not ready.")).toHaveLength(
+      1,
+    );
+    expect(screen.getByRole("button", { name: "Start replay" })).toBeDisabled();
+    const about = screen.getByRole("button", { name: "About this recording" });
+    expect(about).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(about);
+    expect(
+      screen.getByRole("button", { name: "Refresh dataset catalog" }),
+    ).toBeVisible();
+    fireEvent.click(about);
+    fireEvent.click(inspect);
+    expect(
+      screen.getByRole("tab", { name: "Recording Investigation" }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByLabelText("Dataset")).toHaveValue("walking");
+    expect(
+      screen.getByRole("button", { name: "Upload recording" }),
+    ).toBeVisible();
   });
 
   it("retains unavailable topic evidence and clears the connection warning on reconnect", async () => {
@@ -179,7 +254,7 @@ describe("ROS Workbench", () => {
     dialog.showModal = vi.fn(() => {
       dialog.open = true;
     });
-    const addData = screen.getByRole("button", { name: /import recording/i });
+    const addData = screen.getByRole("button", { name: /upload recording/i });
     fireEvent.click(addData);
     fireEvent.click(addData);
     expect(dialog.showModal).toHaveBeenCalledTimes(1);
@@ -205,6 +280,7 @@ describe("ROS Workbench", () => {
         : originalFetch(url),
     );
     render(<App />);
+    fireEvent.click(screen.getByLabelText("Dataset"));
     await waitFor(() =>
       expect(
         screen.getByRole("option", {
@@ -212,20 +288,24 @@ describe("ROS Workbench", () => {
         }),
       ).toBeInTheDocument(),
     );
-    expect(
-      screen.getByRole("button", { name: "Start mission" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Start replay" })).toBeDisabled();
   });
 
   it("labels the source as recorded replay and exposes mission controls", async () => {
     render(<App />);
-    expect(screen.getByText("Recorded replay")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Replay", exact: true }),
+    ).toBeInTheDocument();
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Start mission" }),
+        screen.getByRole("button", { name: "Start replay" }),
       ).toBeEnabled(),
     );
+    expect(
+      screen.getByRole("tab", { name: "Telemetry Health" }),
+    ).toHaveAccessibleDescription("Ready");
     expect(screen.getByText("Camera dropout")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Connection details"));
     expect(screen.getByText("Streaming job")).toBeInTheDocument();
     expect(
       within(
@@ -238,7 +318,7 @@ describe("ROS Workbench", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("radio", { name: "5× accelerated" }));
     expect(screen.getByRole("radio", { name: "5× accelerated" })).toBeChecked();
-    fireEvent.change(screen.getByLabelText("Scenario"), {
+    fireEvent.change(screen.getByLabelText("Fault injection"), {
       target: { value: "camera-dropout" },
     });
     expect(screen.getByRole("radio", { name: "1× real time" })).toBeChecked();
@@ -278,7 +358,7 @@ describe("ROS Workbench", () => {
     expect(screen.getByText("Live ROS 2")).toBeInTheDocument();
     expect(screen.getByText("robot-live-1")).toBeInTheDocument();
     expect(screen.getByText("/scan")).toBeInTheDocument();
-    for (const name of ["Start mission", "Pause", "Resume", "Restart"]) {
+    for (const name of ["Start replay", "Pause", "Resume", "Restart"]) {
       const action = screen.queryByRole("button", { name });
       if (action) expect(action).toBeDisabled();
     }
@@ -353,20 +433,21 @@ describe("ROS Workbench", () => {
     );
 
     render(<App />);
+    fireEvent.click(screen.getByLabelText("Dataset"));
     await waitFor(() =>
       expect(
         screen.getByRole("option", { name: /LILocBench/ }),
       ).toBeInTheDocument(),
     );
-    expect(screen.getByRole("option", { name: /OpenLORIS/ })).toBeDisabled();
-    fireEvent.change(screen.getByLabelText("Dataset"), {
-      target: { value: "lilocbench_dynamics_0" },
-    });
+    expect(
+      screen.getByRole("option", { name: /OpenLORIS/ }),
+    ).not.toBeDisabled();
+    fireEvent.click(screen.getByRole("option", { name: /LILocBench/ }));
     expect(screen.getByText("Dynamic people mission")).toBeInTheDocument();
     expect(
-      screen.getByRole("option", { name: "Camera dropout" }),
-    ).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "Start mission" }));
+      screen.queryByRole("option", { name: "Camera dropout" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Start replay" }));
 
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith(
@@ -464,6 +545,9 @@ describe("ROS Workbench", () => {
                   too_late_events: 0,
                 }
               : {
+                  run_id: "checkpoint-run",
+                  dataset_id: "warehouse_run_17",
+                  run: { payload: { status: "running" } },
                   topics: [],
                   anomalies: [],
                   incident_history: [],
@@ -493,114 +577,126 @@ describe("ROS Workbench", () => {
         Promise.resolve({
           ok: true,
           json: async () =>
-            url.includes("/api/health")
+            url.includes("/api/datasets")
               ? {
-                  status: "ready",
-                  services: {
-                    kafka: "ready",
-                    flink: "ready",
-                    flink_job: "ready",
-                    projection_api: "ready",
-                    replayer: "ready",
-                  },
+                  default_dataset_id: "localization:test",
+                  datasets: [
+                    {
+                      dataset_id: "localization:test",
+                      name: "Test evaluation",
+                      capabilities: { localization: "ready" },
+                    },
+                  ],
                 }
-              : url.includes("/api/localization/evaluation")
+              : url.includes("/api/health")
                 ? {
-                    status: "available",
-                    summary: {
-                      detector_inputs: useHeading
-                        ? [
-                            "particle_position_spread_m",
-                            "estimated_pose_jump_m",
-                            "particle_heading_spread_rad",
-                          ]
-                        : undefined,
-                      thresholds: useHeading
-                        ? { recovery_hold_ms: 250 }
-                        : undefined,
-                      sample_metrics: {
-                        precision: 0.856,
-                        recall: 0.468,
-                        f1: 0.605,
-                      },
-                      event_metrics: {
-                        precision: 0.842,
-                        recall: 0.667,
-                        false_alarm_event_count: 3,
-                      },
+                    status: "ready",
+                    services: {
+                      kafka: "ready",
+                      flink: "ready",
+                      flink_job: "ready",
+                      projection_api: "ready",
+                      replayer: "ready",
                     },
-                    evaluation_start_timestamp_ns: 0,
-                    trajectory: [
-                      {
-                        segment_id: 0,
-                        elapsed_ms: 0,
-                        ground_truth_x: 0,
-                        ground_truth_y: 0,
-                        estimated_x: 0,
-                        estimated_y: 0,
-                        label_failure: false,
-                        detector_failure: false,
-                      },
-                      {
-                        segment_id: 0,
-                        elapsed_ms: 1000,
-                        ground_truth_x: 1,
-                        ground_truth_y: 0,
-                        estimated_x: 1.2,
-                        estimated_y: 0.2,
-                        label_failure: true,
-                        detector_failure: false,
-                      },
-                      {
-                        segment_id: 1,
-                        elapsed_ms: 2000,
-                        ground_truth_x: 5,
-                        ground_truth_y: 5,
-                        estimated_x: 5,
-                        estimated_y: 5,
-                        label_failure: false,
-                        detector_failure: false,
-                      },
-                      {
-                        segment_id: 1,
-                        elapsed_ms: 3000,
-                        ground_truth_x: 6,
-                        ground_truth_y: 5,
-                        estimated_x: 6.1,
-                        estimated_y: 5.1,
-                        label_failure: false,
-                        detector_failure: false,
-                      },
-                    ],
-                    event_matches: [
-                      {
-                        expected_event_id: "expected-1",
-                        expected_start_timestamp_ns: 1_000_000_000,
-                        observed_start_timestamp_ns: 1_250_000_000,
-                        observed_end_timestamp_ns: 1_750_000_000,
-                        detected: true,
-                        onset_lag_ms: 250,
-                      },
-                      {
-                        expected_event_id: "expected-2",
-                        expected_start_timestamp_ns: 2_000_000_000,
-                        observed_start_timestamp_ns: null,
-                        observed_end_timestamp_ns: null,
-                        detected: false,
-                        onset_lag_ms: null,
-                      },
-                    ],
                   }
-                : url.includes("/api/flink/summary")
-                  ? { status: "available" }
-                  : {
-                      topics: [],
-                      anomalies: [],
-                      incident_history: [],
-                      completion: {},
-                      consumer_offsets: [],
-                      mission_progress_ms: 0,
-                    },
+                : url.includes("/api/localization/evaluation")
+                  ? {
+                      status: "available",
+                      dataset_id: "localization:test",
+                      summary: {
+                        detector_inputs: useHeading
+                          ? [
+                              "particle_position_spread_m",
+                              "estimated_pose_jump_m",
+                              "particle_heading_spread_rad",
+                            ]
+                          : undefined,
+                        thresholds: useHeading
+                          ? { recovery_hold_ms: 250 }
+                          : undefined,
+                        sample_metrics: {
+                          precision: 0.856,
+                          recall: 0.468,
+                          f1: 0.605,
+                        },
+                        event_metrics: {
+                          precision: 0.842,
+                          recall: 0.667,
+                          false_alarm_event_count: 3,
+                        },
+                      },
+                      evaluation_start_timestamp_ns: 0,
+                      trajectory: [
+                        {
+                          segment_id: 0,
+                          elapsed_ms: 0,
+                          ground_truth_x: 0,
+                          ground_truth_y: 0,
+                          estimated_x: 0,
+                          estimated_y: 0,
+                          label_failure: false,
+                          detector_failure: false,
+                        },
+                        {
+                          segment_id: 0,
+                          elapsed_ms: 1000,
+                          ground_truth_x: 1,
+                          ground_truth_y: 0,
+                          estimated_x: 1.2,
+                          estimated_y: 0.2,
+                          label_failure: true,
+                          detector_failure: false,
+                        },
+                        {
+                          segment_id: 1,
+                          elapsed_ms: 2000,
+                          ground_truth_x: 5,
+                          ground_truth_y: 5,
+                          estimated_x: 5,
+                          estimated_y: 5,
+                          label_failure: false,
+                          detector_failure: false,
+                        },
+                        {
+                          segment_id: 1,
+                          elapsed_ms: 3000,
+                          ground_truth_x: 6,
+                          ground_truth_y: 5,
+                          estimated_x: 6.1,
+                          estimated_y: 5.1,
+                          label_failure: false,
+                          detector_failure: false,
+                        },
+                      ],
+                      event_matches: [
+                        {
+                          expected_event_id: "expected-1",
+                          expected_start_timestamp_ns: 1_000_000_000,
+                          observed_start_timestamp_ns: 1_250_000_000,
+                          observed_end_timestamp_ns: 1_750_000_000,
+                          detected: true,
+                          onset_lag_ms: 250,
+                        },
+                        {
+                          expected_event_id: "expected-2",
+                          expected_start_timestamp_ns: 2_000_000_000,
+                          observed_start_timestamp_ns: null,
+                          observed_end_timestamp_ns: null,
+                          detected: false,
+                          onset_lag_ms: null,
+                        },
+                      ],
+                    }
+                  : url.includes("/api/flink/summary")
+                    ? { status: "available" }
+                    : {
+                        topics: [],
+                        anomalies: [],
+                        incident_history: [],
+                        completion: {},
+                        consumer_offsets: [],
+                        mission_progress_ms: 0,
+                      },
         }),
       );
 
@@ -733,6 +829,7 @@ describe("ROS Workbench", () => {
       expect(screen.getAllByText("unavailable").length).toBeGreaterThan(0),
     );
     expect(screen.queryByText("healthy")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Connection details"));
     expect(screen.getByText(/docker compose ps/)).toBeInTheDocument();
   });
 
@@ -857,5 +954,220 @@ describe("ROS Workbench", () => {
       expect(screen.getByText("completed")).toBeInTheDocument(),
     );
     expect(screen.getByText("Verified")).toBeInTheDocument();
+  });
+  it("keeps one dataset and upload action across all tabs without loading unrelated localization", async () => {
+    const original = fetch.getMockImplementation();
+    fetch.mockImplementation((url) =>
+      url.includes("/api/datasets")
+        ? Promise.resolve({
+            ok: true,
+            json: async () => ({
+              default_dataset_id: "recording-a",
+              datasets: [
+                {
+                  dataset_id: "recording-a",
+                  name: "Recording A",
+                  selectable: true,
+                  description: "Camera recording",
+                  capabilities: {
+                    health: "ready",
+                    recordings: "not_prepared",
+                    localization: "unsupported",
+                  },
+                },
+              ],
+            }),
+          })
+        : original(url),
+    );
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByLabelText("Dataset")).toHaveValue("recording-a"),
+    );
+    for (const name of [
+      "Recording Investigation",
+      "Localization Investigation",
+      "Telemetry Health",
+    ]) {
+      fireEvent.click(screen.getByRole("tab", { name }));
+      expect(screen.getByLabelText("Dataset")).toHaveValue("recording-a");
+      expect(
+        screen.getByRole("button", { name: "Upload recording" }),
+      ).toBeVisible();
+    }
+    expect(
+      fetch.mock.calls.some(([url]) =>
+        url.includes("/api/localization/evaluation"),
+      ),
+    ).toBe(false);
+    expect(localStorage.getItem("workbench.view")).toBe("health");
+  });
+
+  it("keeps replay A isolated while browsing B, including disconnected runtime authority", async () => {
+    const original = fetch.getMockImplementation();
+    fetch.mockImplementation((url) =>
+      url.includes("/api/datasets")
+        ? Promise.resolve({
+            ok: true,
+            json: async () => ({
+              default_dataset_id: "a",
+              datasets: ["a", "b"].map((id) => ({
+                dataset_id: id,
+                name: `Recording ${id}`,
+                selectable: true,
+              })),
+            }),
+          })
+        : original(url),
+    );
+    render(<App />);
+    fireEvent.click(screen.getByLabelText("Dataset"));
+    await screen.findByRole("option", { name: "Recording b" });
+    act(() =>
+      FakeEventSource.instances.at(-1).emit("snapshot", {
+        run_id: "run-a",
+        dataset_id: "a",
+        dataset_name: "Recording a",
+        run: { payload: { status: "running" } },
+        topics: [],
+        anomalies: [],
+        incident_history: [],
+        completion: {},
+        consumer_offsets: [],
+        mission_progress_ms: 1,
+      }),
+    );
+    fireEvent.click(screen.getByRole("option", { name: "Recording b" }));
+    expect(screen.getByLabelText("Dataset")).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Start replay" })).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Pause", exact: true }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/No replay results yet/)).toBeVisible();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Return to active replay" }),
+    );
+    expect(screen.getByLabelText("Dataset")).toHaveValue("a");
+  });
+
+  it("restores a saved selection and explains removal without retaining old context", async () => {
+    localStorage.setItem("workbench.dataset", "removed");
+    localStorage.setItem("workbench.view", "recordings");
+    const original = fetch.getMockImplementation();
+    fetch.mockImplementation((url) =>
+      url.includes("/api/datasets")
+        ? Promise.resolve({
+            ok: true,
+            json: async () => ({
+              default_dataset_id: "a",
+              datasets: [
+                { dataset_id: "a", name: "Recording A", selectable: true },
+              ],
+            }),
+          })
+        : original(url),
+    );
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByLabelText("Dataset")).toHaveValue("a"),
+    );
+    expect(
+      screen.getByRole("tab", { name: "Recording Investigation" }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(
+      screen.getByText(/previous dataset is no longer available/),
+    ).toBeVisible();
+    expect(localStorage.getItem("workbench.dataset")).toBe("a");
+  });
+
+  it("selects a successful upload globally without starting replay or promising sensor evidence", async () => {
+    const original = fetch.getMockImplementation();
+    let uploaded = false;
+    fetch.mockImplementation((url, options) => {
+      if (url.includes("/api/datasets/upload")) {
+        uploaded = true;
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ dataset_id: "upload:mine.bag" }),
+        });
+      }
+      if (url.endsWith("/api/datasets"))
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            default_dataset_id: "a",
+            datasets: [
+              { dataset_id: "a", name: "A", selectable: true },
+              ...(uploaded
+                ? [
+                    {
+                      dataset_id: "upload:mine.bag",
+                      name: "Mine",
+                      source: "user_upload",
+                      selectable: true,
+                    },
+                  ]
+                : []),
+            ],
+          }),
+        });
+      return original(url, options);
+    });
+    const { container } = render(<App />);
+    await waitFor(() =>
+      expect(screen.getByLabelText("Dataset")).toHaveValue("a"),
+    );
+    fireEvent.click(
+      screen.getByRole("tab", { name: "Recording Investigation" }),
+    );
+    const dialog = container.querySelector("dialog");
+    dialog.showModal = () => {
+      dialog.open = true;
+    };
+    dialog.close = () => {
+      dialog.open = false;
+    };
+    fireEvent.click(screen.getByRole("button", { name: "Upload recording" }));
+    fireEvent.change(container.querySelector('input[type="file"]'), {
+      target: { files: [new File(["bag"], "mine.bag")] },
+    });
+    await waitFor(() =>
+      expect(screen.getByLabelText("Dataset")).toHaveValue("upload:mine.bag"),
+    );
+    expect(
+      screen.getByText(/Your upload is available for replay/),
+    ).toBeVisible();
+    expect(
+      fetch.mock.calls.some(([url]) => url.includes("/api/replay/start")),
+    ).toBe(false);
+  });
+
+  it("preserves the selected recording after an upload fails", async () => {
+    const original = fetch.getMockImplementation();
+    fetch.mockImplementation((url, options) =>
+      url.includes("/api/datasets/upload")
+        ? Promise.resolve({
+            ok: false,
+            json: async () => ({ detail: "Recording is invalid" }),
+          })
+        : original(url, options),
+    );
+    const { container } = render(<App />);
+    const before = screen.getByLabelText("Dataset").value;
+    const dialog = container.querySelector("dialog");
+    dialog.showModal = () => {
+      dialog.open = true;
+    };
+    fireEvent.click(screen.getByRole("button", { name: "Upload recording" }));
+    fireEvent.change(container.querySelector('input[type="file"]'), {
+      target: { files: [new File(["bad"], "bad.bag")] },
+    });
+    await waitFor(() =>
+      expect(within(dialog).getByRole("alert")).toHaveTextContent(
+        "Recording is invalid",
+      ),
+    );
+    expect(screen.getByLabelText("Dataset")).toHaveValue(before);
+    expect(dialog.open).toBe(true);
   });
 });

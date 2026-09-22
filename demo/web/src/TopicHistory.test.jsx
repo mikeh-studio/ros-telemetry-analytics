@@ -37,6 +37,7 @@ it("keeps corrected windows isolated by robot and leaves missing and partial win
 });
 it("inspects recorded timestamps without inventing a value in a missing window", () => {
   const latest = sample(13000, 20);
+  latest.payload.max_inter_message_gap_s = 0.9;
   render(
     <TopicHistory
       topics={[latest]}
@@ -47,6 +48,9 @@ it("inspects recorded timestamps without inventing a value in a missing window",
   );
   fireEvent.change(screen.getByRole("slider"), { target: { value: "12000" } });
   expect(screen.getByText("No sample")).toBeInTheDocument();
+  expect(screen.getByText(/Window max gap:/)).toHaveTextContent(
+    "Window max gap: —",
+  );
   expect(
     screen.getByText(/No recorded window ends at 00:12/),
   ).toBeInTheDocument();

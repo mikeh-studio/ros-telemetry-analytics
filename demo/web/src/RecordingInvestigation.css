@@ -1,0 +1,223 @@
+.recording-investigation {
+  max-width: 1250px;
+  margin: 24px auto;
+  color: var(--white, #f0f0fa);
+}
+.recording-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.recording-heading h2 {
+  font-size: 30px;
+  margin: 4px 0 10px;
+}
+.recording-investigation p {
+  line-height: 1.6;
+}
+.recording-investigation button {
+  border: 1px solid #9eafb3;
+  background: var(--control, #12181c);
+  padding: 10px 16px;
+  border-radius: 5px;
+  color: var(--white, #f0f0fa);
+  cursor: pointer;
+}
+.recording-select {
+  display: grid;
+  gap: 8px;
+  margin: 20px 0;
+  font-weight: 600;
+}
+.recording-investigation select,
+.recording-investigation input[type="number"] {
+  padding: 10px;
+  border: 1px solid #a8babe;
+  border-radius: 5px;
+  background: var(--control, #12181c);
+  color: var(--white, #f0f0fa);
+  max-width: 100%;
+}
+.recording-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px 0;
+}
+.recording-summary span {
+  background: var(--chip, #142326);
+  padding: 8px 12px;
+  border-radius: 5px;
+  font-size: 13px;
+}
+.recording-case {
+  padding: 16px 24px;
+  border-left: 4px solid #218c87;
+  background: #102124;
+}
+.recording-window {
+  display: flex;
+  gap: 16px;
+  align-items: end;
+  margin: 24px 0;
+  flex-wrap: wrap;
+}
+.recording-window label {
+  display: grid;
+  gap: 8px;
+}
+.recording-cursor {
+  display: grid;
+  gap: 12px;
+  padding: 16px 0;
+  font-weight: 600;
+}
+.recording-cursor input {
+  width: 100%;
+  accent-color: #b73841;
+}
+.recording-plots {
+  display: grid;
+  gap: 18px;
+}
+.recording-plots > div {
+  padding: 16px;
+  border: 1px solid #31454a;
+  border-radius: 6px;
+  background: var(--surface, #101519);
+}
+.recording-plots label {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.recording-plots select {
+  flex: 1;
+  min-width: 0;
+}
+.recording-plot {
+  margin: 16px 0 0;
+}
+.recording-plot figcaption,
+.recording-preview figcaption {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.recording-plot figcaption span,
+.recording-muted {
+  color: #a3b6bc;
+  font-size: 13px;
+}
+.recording-plot svg {
+  width: 100%;
+  display: block;
+  cursor: crosshair;
+}
+.recording-plot text {
+  font-size: 10px;
+  fill: #a3b6bc;
+}
+.recording-previews {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.recording-preview {
+  margin: 0 0 20px;
+  padding: 12px;
+  border: 1px solid #31454a;
+  background: var(--surface, #101519);
+  border-radius: 6px;
+  min-width: 0;
+}
+.recording-preview img,
+.recording-preview svg {
+  display: block;
+  width: 100%;
+  height: 200px;
+  object-fit: contain;
+  margin-bottom: 14px;
+}
+.recording-preview svg text {
+  font-size: 9px;
+}
+.recording-investigation details {
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid #31454a;
+  border-radius: 6px;
+}
+.recording-investigation summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.recording-availability > div {
+  display: grid;
+  grid-template-columns: 290px 1fr;
+  gap: 16px;
+  font-size: 12px;
+  margin: 12px 0;
+  align-items: center;
+}
+.recording-availability svg {
+  width: 100%;
+}
+.recording-table {
+  overflow-x: auto;
+}
+.recording-table table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+  margin-top: 16px;
+}
+.recording-table td,
+.recording-table th {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid #31454a;
+}
+.recording-digest {
+  overflow-wrap: anywhere;
+}
+.recording-error {
+  background: #39251d;
+  border: 1px solid #c99b76;
+  padding: 16px;
+}
+@media (max-width: 700px) {
+  .recording-heading {
+    align-items: start;
+    flex-direction: column;
+  }
+  .recording-previews {
+    grid-template-columns: 1fr;
+  }
+  .recording-availability > div {
+    grid-template-columns: 1fr;
+  }
+  .recording-plots label {
+    display: grid;
+  }
+}
+
+.recording-case p {
+  margin: 10px 0;
+}
+.recording-investigation h3 {
+  margin: 14px 0 10px;
+}
+.recording-investigation a {
+  color: #77d6d0;
+}
+.recording-investigation button:focus-visible,
+.recording-investigation select:focus-visible {
+  outline-color: #77d6d0;
+}
+.recording-preview svg text {
+  fill: #a3b6bc;
+}

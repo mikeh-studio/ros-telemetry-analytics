@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef } from "react";
 
 const DESCRIPTIONS = {
+  "/vrpn_client/raw_transform":
+    "External reference tracking transforms. Gaps limit reference coverage; this stream is not the robot’s localization estimate.",
   "/camera/image_raw":
     "Images captured by the robot’s camera. Monitoring this stream helps identify interrupted or irregular image delivery.",
   "/imu/data":

@@ -14,12 +14,13 @@ from pathlib import Path
 from typing import Any
 
 import polars as pl
+import yaml
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from demo.api import localization_investigation
+from demo.api import localization_investigation, recording_investigation
 from demo.api.consumer import ProjectionConsumer
 from demo.api.store import ProjectionStore
 from demo.common.config import load_streaming_config
@@ -197,6 +198,13 @@ app.add_middleware(
 )
 
 
+app.include_router(
+    recording_investigation.router(
+        ROOT, Path(os.environ.get("INVESTIGATIONS_DIR", ROOT / "data/investigations")).resolve()
+    )
+)
+
+
 class StartRequest(BaseModel):
     rate: int = Field(default=1)
     scenario: str | None = None
@@ -292,10 +300,132 @@ async def datasets() -> dict[str, Any]:
         fixture_path=FIXTURE,
         upload_dir=UPLOAD_DIR,
     )
+    prepared = (
+        await asyncio.to_thread(
+            recording_investigation.evidence.collection,
+            ROOT,
+            Path(os.environ.get("INVESTIGATIONS_DIR", ROOT / "data/investigations")),
+        )
+        if (ROOT / "configs/investigations.yaml").exists()
+        else {"datasets": []}
+    )
+    admitted = {d["dataset_id"] for d in prepared["datasets"] if d["status"] == "ready"}
+    default = next(
+        (d.dataset_id for d in catalog if d.selectable and d.dataset_id in admitted),
+        DEFAULT_DATASET_ID,
+    )
     return {
-        "default_dataset_id": DEFAULT_DATASET_ID,
-        "datasets": [dataset.public_dict() for dataset in catalog],
+        "default_dataset_id": default,
+        "datasets": await asyncio.to_thread(workbench_catalog, catalog, prepared["datasets"]),
     }
+
+
+def workbench_catalog(catalog, prepared):
+    """Join inspectable sources without conflating replay admission with evidence readiness."""
+    evidence = {row["dataset_id"]: row for row in prepared}
+    specs = (
+        recording_investigation.evidence.specs(ROOT)
+        if (ROOT / "configs/investigations.yaml").exists()
+        else {}
+    )
+    output = Path(os.environ.get("INVESTIGATIONS_DIR", ROOT / "data/investigations"))
+    result = []
+    for dataset in catalog:
+        row = dataset.public_dict()
+        item = dict(evidence.get(dataset.dataset_id, {}))
+        spec = specs.get(dataset.dataset_id, {})
+        item.update(
+            {
+                "source_url": spec.get("source"),
+                "license": spec.get("license"),
+                "reference_topics": spec.get("reference_topics", []),
+            }
+        )
+        if item.get("status") in {"ready", "limited"}:
+            try:
+                _, metadata = recording_investigation.evidence.load_bundle(
+                    ROOT, output, dataset.dataset_id
+                )
+                item.update(
+                    {key: metadata.get(key) for key in ("coverage", "created_at", "interpretation")}
+                )
+            except (OSError, ValueError, KeyError):
+                item["status"] = "stale"
+        row.update(
+            {
+                key: item[key]
+                for key in (
+                    "purpose",
+                    "source_url",
+                    "license",
+                    "reference_topics",
+                    "coverage",
+                    "created_at",
+                    "integrity",
+                    "interpretation",
+                )
+                if key in item
+            }
+        )
+        if item.get("duration_s") is not None:
+            row["mission_duration_ms"] = item["duration_s"] * 1000
+        row["capabilities"] = {
+            "health": "ready" if dataset.selectable else dataset.status,
+            "recordings": item.get("status", "not_prepared"),
+            "localization": "unsupported",
+        }
+        result.append(row)
+    meta = localization_investigation.metadata(LOCALIZATION_EVAL_DIR)
+    if meta.get("status") == "available":
+        evaluation_id = meta["evaluation_id"]
+        is_tuhh = meta.get("dataset") == "tuhh_robot_localization_failure_prediction_v1"
+        try:
+            manifest = (
+                yaml.safe_load((ROOT / "configs/public_test_datasets.yaml").read_text()) or {}
+            )
+            origin = (
+                manifest.get("datasets", {}).get("tuhh_robot_localization_failure_prediction", {})
+                if is_tuhh
+                else {}
+            )
+        except (OSError, yaml.YAMLError):
+            origin = {}
+        result.append(
+            {
+                "dataset_id": f"localization:{evaluation_id}",
+                "evaluation_id": evaluation_id,
+                "name": "TUHH · Saved localization evaluation"
+                if is_tuhh
+                else "Saved localization evaluation",
+                "description": (
+                    "Prepared localization estimates, reference evidence and labels "
+                    "for detector review. Ground truth is scoring-only."
+                ),
+                "purpose": "Inspect detected failures, missed failures and false alarms",
+                "role": "simulation_evaluation" if is_tuhh else "evaluation_bundle",
+                "source_url": origin.get("source_page"),
+                "license": origin.get("license"),
+                "interpretation": (
+                    "Only the listed prepared runs are loaded. Ground truth and "
+                    "published labels are evaluation-only; observations do not establish "
+                    "physical cause."
+                ),
+                "source": "saved_evaluation",
+                "status": "ready",
+                "selectable": False,
+                "catalog_visible": True,
+                "file_format": "parquet",
+                "mission_duration_ms": meta.get("duration_ms"),
+                "runs": meta.get("runs", []),
+                "recordings": meta.get("recordings", []),
+                "capabilities": {
+                    "health": "unsupported",
+                    "recordings": "unsupported",
+                    "localization": "ready",
+                },
+            }
+        )
+    return result
 
 
 @app.post("/api/datasets/upload", status_code=201)
@@ -362,10 +492,20 @@ async def upload_dataset(
 
 
 @app.get("/api/localization/evaluation")
-async def localization_evaluation() -> dict[str, Any]:
+async def localization_evaluation(dataset_id: str | None = None) -> dict[str, Any]:
     """Return a bounded view of the latest offline localization evaluation."""
 
     def load() -> dict[str, Any]:
+        identity = (
+            localization_investigation.metadata(LOCALIZATION_EVAL_DIR) if dataset_id else None
+        )
+        if dataset_id and (
+            identity.get("status") != "available"
+            or dataset_id != f"localization:{identity.get('evaluation_id')}"
+        ):
+            raise HTTPException(
+                409, "No matching localization evaluation. Refresh the dataset catalog."
+            )
         summary_path = LOCALIZATION_EVAL_DIR / "localization_eval.json"
         samples_path = LOCALIZATION_EVAL_DIR / "localization_samples.parquet"
         matches_path = LOCALIZATION_EVAL_DIR / "localization_event_matches.parquet"
@@ -402,13 +542,20 @@ async def localization_evaluation() -> dict[str, Any]:
             matches = pl.read_parquet(matches_path).head(100)
         except (OSError, ValueError, json.JSONDecodeError, pl.exceptions.PolarsError) as exc:
             return {"status": "error", "detail": f"Localization evaluation is unreadable: {exc}"}
+        if dataset_id and localization_investigation.metadata(LOCALIZATION_EVAL_DIR).get(
+            "evaluation_id"
+        ) != identity.get("evaluation_id"):
+            raise HTTPException(
+                409, "Evaluation changed while loading. Refresh the dataset catalog."
+            )
         summary["input_files"] = [Path(path).name for path in summary.get("input_files", [])]
         return {
             "status": "available",
             "summary": summary,
             "trajectory": trajectory.to_dicts(),
             "event_matches": matches.to_dicts(),
-            "investigation": localization_investigation.metadata(LOCALIZATION_EVAL_DIR),
+            "dataset_id": dataset_id,
+            "investigation": identity or localization_investigation.metadata(LOCALIZATION_EVAL_DIR),
             "trajectory_stride": stride,
             "trajectory_sample_count": trajectory.height,
             "evaluation_start_timestamp_ns": minimum_timestamp,

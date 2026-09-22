@@ -1,0 +1,3150 @@
+{
+  "created_at": "2026-09-21T05:52:13.981959+00:00",
+  "scope": "Host assets only; Docker unavailable",
+  "audit_id": "a04ce50102044110aed1e953e9e2f9fb",
+  "physical_file_count": 77,
+  "physical_bytes": 10596815779,
+  "logical_bag_count": 12,
+  "active_recordings": [
+    {
+      "dataset_id": "tum_rgbd_freiburg1_xyz",
+      "name": "TUM RGB-D \u00b7 Freiburg 1 XYZ",
+      "analysis_id": "1ee20745b2a447988a2bd57c5b35ee81",
+      "source_bytes": 503765314,
+      "source_sha256": "27bb3db41ddaa7228a8b39191f6b8a112ddf7bca3eed862cd753384696ba8d7e",
+      "source": "https://cvg.cit.tum.de/data/datasets/rgbd-dataset/download",
+      "license": "CC-BY-4.0",
+      "integrity": "local_baseline_match",
+      "duration_s": 30.428861394,
+      "message_count": 25626,
+      "status": "ready",
+      "extraction_errors": 0,
+      "preview_count": 12,
+      "verified_previews": 12,
+      "elapsed_s": 91.31381383400003,
+      "coverage": [
+        {
+          "bag_id": "rgbd_dataset_freiburg1_xyz__3eeb5248",
+          "topic": "/camera/depth/camera_info",
+          "message_type": "sensor_msgs/msg/CameraInfo",
+          "message_count": 798,
+          "analysis_status": "timing_only",
+          "domain": "unclassified",
+          "analyzed_message_count": 0,
+          "extraction_error_count": 0,
+          "analysis_ratio": 0.0,
+          "detail": "No payload analyzer is registered for this message type."
+        },
+        {
+          "bag_id": "rgbd_dataset_freiburg1_xyz__3eeb5248",
+          "topic": "/camera/depth/image",
+          "message_type": "sensor_msgs/msg/Image",
+          "message_count": 798,
+          "analysis_status": "full",
+          "domain": "image",
+          "analyzed_message_count": 798,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "rgbd_dataset_freiburg1_xyz__3eeb5248",
+          "topic": "/camera/rgb/camera_info",
+          "message_type": "sensor_msgs/msg/CameraInfo",
+          "message_count": 798,
+          "analysis_status": "timing_only",
+          "domain": "unclassified",
+          "analyzed_message_count": 0,
+          "extraction_error_count": 0,
+          "analysis_ratio": 0.0,
+          "detail": "No payload analyzer is registered for this message type."
+        },
+        {
+          "bag_id": "rgbd_dataset_freiburg1_xyz__3eeb5248",
+          "topic": "/camera/rgb/image_color",
+          "message_type": "sensor_msgs/msg/Image",
+          "message_count": 798,
+          "analysis_status": "full",
+          "domain": "image",
+          "analyzed_message_count": 798,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "rgbd_dataset_freiburg1_xyz__3eeb5248",
+          "topic": "/cortex_marker_array",
+          "message_type": "visualization_msgs/msg/MarkerArray",
+          "message_count": 3034,
+          "analysis_status": "timing_only",
+          "domain": "unclassified",
+          "analyzed_message_count": 0,
+          "extraction_error_count": 0,
+          "analysis_ratio": 0.0,
+          "detail": "No payload analyzer is registered for this message type."
+        },
+        {
+          "bag_id": "rgbd_dataset_freiburg1_xyz__3eeb5248",
+          "topic": "/imu",
+          "message_type": "sensor_msgs/msg/Imu",
+          "message_count": 15158,
+          "analysis_status": "full",
+          "domain": "imu",
+          "analyzed_message_count": 15158,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "rgbd_dataset_freiburg1_xyz__3eeb5248",
+          "topic": "/tf",
+          "message_type": "tf/msg/tfMessage",
+          "message_count": 4242,
+          "analysis_status": "full",
+          "domain": "tf",
+          "analyzed_message_count": 4242,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        }
+      ],
+      "header_profile": [
+        {
+          "domain": "images",
+          "topic": "/camera/depth/image",
+          "frame_id": "/openni_rgb_optical_frame",
+          "records": 798,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "images",
+          "topic": "/camera/rgb/image_color",
+          "frame_id": "/openni_rgb_optical_frame",
+          "records": 798,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "imu",
+          "topic": "/imu",
+          "frame_id": "",
+          "records": 15158,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "/kinect",
+          "child_frame_id": "/openni_camera",
+          "records": 3034,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "/world",
+          "child_frame_id": "/kinect",
+          "records": 3024,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "/openni_depth_frame",
+          "child_frame_id": "/openni_depth_optical_frame",
+          "records": 302,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "/openni_camera",
+          "child_frame_id": "/openni_depth_frame",
+          "records": 302,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "/openni_rgb_frame",
+          "child_frame_id": "/openni_rgb_optical_frame",
+          "records": 302,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "/openni_camera",
+          "child_frame_id": "/openni_rgb_frame",
+          "records": 302,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        }
+      ],
+      "temporal_profile": [
+        {
+          "topic": "/imu",
+          "message_count": 15158,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 1.157839,
+          "max_interval_ms": 9.101495
+        },
+        {
+          "topic": "/cortex_marker_array",
+          "message_count": 3034,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 10.000778,
+          "max_interval_ms": 12.447342
+        },
+        {
+          "topic": "/tf",
+          "message_count": 4242,
+          "reference_context": true,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 9.95635,
+          "max_interval_ms": 51.326582
+        },
+        {
+          "topic": "/camera/depth/camera_info",
+          "message_count": 798,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 32.526532,
+          "max_interval_ms": 40.770582
+        },
+        {
+          "topic": "/camera/depth/image",
+          "message_count": 798,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 32.526532,
+          "max_interval_ms": 40.770582
+        },
+        {
+          "topic": "/camera/rgb/camera_info",
+          "message_count": 798,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 32.107177,
+          "max_interval_ms": 41.076094
+        },
+        {
+          "topic": "/camera/rgb/image_color",
+          "message_count": 798,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 32.107177,
+          "max_interval_ms": 41.076094
+        }
+      ],
+      "disposition": "keep active",
+      "supported_use": "RGB-D control and nominal interval inspection",
+      "event_count": 0,
+      "case_ids": [],
+      "limits": [
+        "Sample reconciliation is not an exhaustive physical quality certification",
+        "Local digest only; independent upstream checksum not established"
+      ],
+      "continuity_checks": [
+        {
+          "bag_id": "rgbd_dataset_freiburg1_xyz__3eeb5248",
+          "check_type": "timestamp_continuity",
+          "topic": "/tf",
+          "topic_left": null,
+          "topic_right": null,
+          "message_count": 4242,
+          "mean_rate_hz": 139.57407818366872,
+          "max_inter_message_gap_s": 0.051326582,
+          "max_gap_to_mean_interval_ratio": 7.163860368968484,
+          "left_message_count": null,
+          "right_message_count": null,
+          "paired_message_count": null,
+          "unmatched_left_count": null,
+          "unmatched_right_count": null,
+          "max_abs_sync_skew_ns": null,
+          "p95_abs_sync_skew_ns": null,
+          "mean_abs_sync_skew_ns": null,
+          "status": "warn",
+          "detail": "max gap is 7.16x mean interval"
+        }
+      ]
+    },
+    {
+      "dataset_id": "tum_vi_room4_512",
+      "name": "TUM VI \u00b7 Room 4",
+      "analysis_id": "8b376ac8f0324479baf68185913adde2",
+      "source_bytes": 2346890121,
+      "source_sha256": "8027451a7390efd51098a10949b91dae7c183d9daf1a09ab058e8169c55ecf9e",
+      "source": "https://cvg.cit.tum.de/data/datasets/visual-inertial-dataset",
+      "license": "CC-BY-4.0",
+      "integrity": "local_baseline_match",
+      "duration_s": 111.404953404,
+      "message_count": 39743,
+      "status": "ready",
+      "extraction_errors": 0,
+      "preview_count": 18,
+      "verified_previews": 18,
+      "elapsed_s": 12.449520709000353,
+      "coverage": [
+        {
+          "bag_id": "dataset-room4_512_16__ed8353f4",
+          "topic": "/cam0/image_raw",
+          "message_type": "sensor_msgs/msg/Image",
+          "message_count": 2228,
+          "analysis_status": "full",
+          "domain": "image",
+          "analyzed_message_count": 2228,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "dataset-room4_512_16__ed8353f4",
+          "topic": "/cam1/image_raw",
+          "message_type": "sensor_msgs/msg/Image",
+          "message_count": 2228,
+          "analysis_status": "full",
+          "domain": "image",
+          "analyzed_message_count": 2228,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "dataset-room4_512_16__ed8353f4",
+          "topic": "/imu0",
+          "message_type": "sensor_msgs/msg/Imu",
+          "message_count": 22212,
+          "analysis_status": "full",
+          "domain": "imu",
+          "analyzed_message_count": 22212,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "dataset-room4_512_16__ed8353f4",
+          "topic": "/vrpn_client/raw_transform",
+          "message_type": "geometry_msgs/msg/TransformStamped",
+          "message_count": 13075,
+          "analysis_status": "full",
+          "domain": "tf",
+          "analyzed_message_count": 13075,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        }
+      ],
+      "header_profile": [
+        {
+          "domain": "images",
+          "topic": "/cam0/image_raw",
+          "records": 2228,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "images",
+          "topic": "/cam1/image_raw",
+          "records": 2228,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "imu",
+          "topic": "/imu0",
+          "frame_id": "",
+          "records": 22212,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/vrpn_client/raw_transform",
+          "frame_id": "optitrack",
+          "child_frame_id": "imu0",
+          "records": 13075,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        }
+      ],
+      "temporal_profile": [
+        {
+          "topic": "/cam0/image_raw",
+          "message_count": 2228,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 50.002,
+          "max_interval_ms": 51.727965
+        },
+        {
+          "topic": "/cam1/image_raw",
+          "message_count": 2228,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 50.002,
+          "max_interval_ms": 51.727965
+        },
+        {
+          "topic": "/imu0",
+          "message_count": 22212,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 5.016,
+          "max_interval_ms": 5.036
+        },
+        {
+          "topic": "/vrpn_client/raw_transform",
+          "message_count": 13075,
+          "reference_context": true,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 8.333,
+          "max_interval_ms": 483.334
+        }
+      ],
+      "disposition": "keep active",
+      "supported_use": "Image usability and independent reference-stream coverage",
+      "event_count": 63,
+      "case_ids": [
+        "image-usefulness",
+        "reference-coverage"
+      ],
+      "limits": [
+        "Sample reconciliation is not an exhaustive physical quality certification",
+        "Local digest only; independent upstream checksum not established"
+      ],
+      "continuity_checks": [
+        {
+          "bag_id": "dataset-room4_512_16__ed8353f4",
+          "check_type": "stereo_sync",
+          "topic": "/cam0/image_raw <-> /cam1/image_raw",
+          "topic_left": "/cam0/image_raw",
+          "topic_right": "/cam1/image_raw",
+          "message_count": null,
+          "mean_rate_hz": null,
+          "max_inter_message_gap_s": null,
+          "max_gap_to_mean_interval_ratio": null,
+          "left_message_count": 2228,
+          "right_message_count": 2228,
+          "paired_message_count": 2228,
+          "unmatched_left_count": 0,
+          "unmatched_right_count": 0,
+          "max_abs_sync_skew_ns": 0,
+          "p95_abs_sync_skew_ns": 0.0,
+          "mean_abs_sync_skew_ns": 0.0,
+          "status": "ok",
+          "detail": "paired 2228; unmatched topic_a/topic_b 0/0; max skew 0 ns"
+        }
+      ]
+    },
+    {
+      "dataset_id": "lilocbench_dynamics_0",
+      "name": "LILocBench \u00b7 Dynamics 0",
+      "analysis_id": "cd142d7c1f394625a9d6e19d0c6b7c5c",
+      "source_bytes": 38063988,
+      "source_sha256": "df4abb923df1bb1ff46326abab8667188f4bc17e7ae12ea16905e9d632470c58",
+      "source": "https://www.ipb.uni-bonn.de/html/projects/localization_benchmark/",
+      "license": "CC-BY-NC-SA",
+      "integrity": "local_baseline_match",
+      "duration_s": 159.978065735,
+      "message_count": 30577,
+      "status": "ready",
+      "extraction_errors": 0,
+      "preview_count": 18,
+      "verified_previews": 18,
+      "elapsed_s": 1.1196448340015195,
+      "coverage": [
+        {
+          "bag_id": "dynamics_0__96738615",
+          "topic": "/dingo_velocity_controller/cmd_vel",
+          "message_type": "geometry_msgs/msg/Twist",
+          "message_count": 6866,
+          "analysis_status": "full",
+          "domain": "command",
+          "analyzed_message_count": 6866,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "dynamics_0__96738615",
+          "topic": "/dingo_velocity_controller/odom",
+          "message_type": "nav_msgs/msg/Odometry",
+          "message_count": 2328,
+          "analysis_status": "full",
+          "domain": "odometry",
+          "analyzed_message_count": 2328,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "dynamics_0__96738615",
+          "topic": "/joint_states",
+          "message_type": "sensor_msgs/msg/JointState",
+          "message_count": 2329,
+          "analysis_status": "timing_only",
+          "domain": "unclassified",
+          "analyzed_message_count": 0,
+          "extraction_error_count": 0,
+          "analysis_ratio": 0.0,
+          "detail": "No payload analyzer is registered for this message type."
+        },
+        {
+          "bag_id": "dynamics_0__96738615",
+          "topic": "/laser_scan_front/scan",
+          "message_type": "sensor_msgs/msg/LaserScan",
+          "message_count": 2400,
+          "analysis_status": "full",
+          "domain": "laser_scan",
+          "analyzed_message_count": 2400,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "dynamics_0__96738615",
+          "topic": "/laser_scan_rear/scan",
+          "message_type": "sensor_msgs/msg/LaserScan",
+          "message_count": 2400,
+          "analysis_status": "full",
+          "domain": "laser_scan",
+          "analyzed_message_count": 2400,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "dynamics_0__96738615",
+          "topic": "/tf",
+          "message_type": "tf/msg/tfMessage",
+          "message_count": 2328,
+          "analysis_status": "full",
+          "domain": "tf",
+          "analyzed_message_count": 2328,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "dynamics_0__96738615",
+          "topic": "/tf",
+          "message_type": "tf2_msgs/msg/TFMessage",
+          "message_count": 11922,
+          "analysis_status": "full",
+          "domain": "tf",
+          "analyzed_message_count": 11922,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "dynamics_0__96738615",
+          "topic": "/tf_static",
+          "message_type": "tf2_msgs/msg/TFMessage",
+          "message_count": 4,
+          "analysis_status": "full",
+          "domain": "tf",
+          "analyzed_message_count": 4,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        }
+      ],
+      "header_profile": [
+        {
+          "domain": "commands",
+          "topic": "/dingo_velocity_controller/cmd_vel",
+          "frame_id": "",
+          "records": 6866,
+          "missing": 6866,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "laser_scans",
+          "topic": "/laser_scan_front/scan",
+          "frame_id": "scan_front_link",
+          "records": 2400,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "laser_scans",
+          "topic": "/laser_scan_rear/scan",
+          "frame_id": "scan_rear_link",
+          "records": 2400,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "odometry",
+          "topic": "/dingo_velocity_controller/odom",
+          "frame_id": "odom",
+          "child_frame_id": "base_link",
+          "records": 2328,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "base_link",
+          "child_frame_id": "chassis_link",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "front_c_mount",
+          "child_frame_id": "front_b_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "chassis_link",
+          "child_frame_id": "front_bumper_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "mid_mount",
+          "child_frame_id": "front_c_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "front_b_mount",
+          "child_frame_id": "front_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "chassis_link",
+          "child_frame_id": "imu_link",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "chassis_link",
+          "child_frame_id": "mid_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "rear_c_mount",
+          "child_frame_id": "rear_b_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "mid_mount",
+          "child_frame_id": "rear_c_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "rear_b_mount",
+          "child_frame_id": "rear_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_front_link",
+          "child_frame_id": "camera_front_depth_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_front_depth_frame",
+          "child_frame_id": "camera_front_depth_optical_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_front_link",
+          "child_frame_id": "camera_front_color_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_front_color_frame",
+          "child_frame_id": "camera_front_color_optical_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_right_link",
+          "child_frame_id": "camera_right_depth_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_right_depth_frame",
+          "child_frame_id": "camera_right_depth_optical_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_right_link",
+          "child_frame_id": "camera_right_color_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_right_color_frame",
+          "child_frame_id": "camera_right_color_optical_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_left_link",
+          "child_frame_id": "camera_left_depth_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_left_depth_frame",
+          "child_frame_id": "camera_left_depth_optical_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_left_link",
+          "child_frame_id": "camera_left_color_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_left_color_frame",
+          "child_frame_id": "camera_left_color_optical_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "base_link",
+          "child_frame_id": "camera_front_link",
+          "records": 1599,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "base_link",
+          "child_frame_id": "scan_rear_link",
+          "records": 1599,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "base_link",
+          "child_frame_id": "camera_right_link",
+          "records": 1599,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "base_link",
+          "child_frame_id": "camera_left_link",
+          "records": 1599,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "odom",
+          "child_frame_id": "base_link",
+          "records": 2328,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "chassis_link",
+          "child_frame_id": "front_left_wheel_link",
+          "records": 2329,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "chassis_link",
+          "child_frame_id": "front_right_wheel_link",
+          "records": 2329,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "chassis_link",
+          "child_frame_id": "rear_left_wheel_link",
+          "records": 2329,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "chassis_link",
+          "child_frame_id": "rear_right_wheel_link",
+          "records": 2329,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "base_link",
+          "child_frame_id": "gt_camera",
+          "records": 1599,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "base_link",
+          "child_frame_id": "scan_front_link",
+          "records": 1598,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        }
+      ],
+      "temporal_profile": [
+        {
+          "topic": "/tf_static",
+          "message_count": 4,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 0.186844,
+          "max_interval_ms": 2.110283
+        },
+        {
+          "topic": "/tf",
+          "message_count": 14250,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 1.276136,
+          "max_interval_ms": 35.389611
+        },
+        {
+          "topic": "/laser_scan_front/scan",
+          "message_count": 2400,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 66.711163,
+          "max_interval_ms": 73.120515
+        },
+        {
+          "topic": "/laser_scan_rear/scan",
+          "message_count": 2400,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 66.702543,
+          "max_interval_ms": 67.921052
+        },
+        {
+          "topic": "/joint_states",
+          "message_count": 2329,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 69.8282505,
+          "max_interval_ms": 75.43288
+        },
+        {
+          "topic": "/dingo_velocity_controller/odom",
+          "message_count": 2328,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 69.889465,
+          "max_interval_ms": 135.086266
+        },
+        {
+          "topic": "/dingo_velocity_controller/cmd_vel",
+          "message_count": 6866,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 11.901184,
+          "max_interval_ms": 1715.979123
+        }
+      ],
+      "disposition": "keep active",
+      "supported_use": "Scan integrity and command/odometry observations around moving people",
+      "event_count": 3,
+      "case_ids": [
+        "motion-observation"
+      ],
+      "limits": [
+        "Sample reconciliation is not an exhaustive physical quality certification",
+        "Local digest only; independent upstream checksum not established"
+      ],
+      "reference_check": {
+        "rows": 3194,
+        "columns": 8,
+        "nonfinite_pose_values": 0,
+        "nonincreasing_timestamps": 0,
+        "numeric_start_s_in_bag_clock": 0.011497144,
+        "numeric_end_s_in_bag_clock": 159.962835816,
+        "max_gap_ms": 150.000944,
+        "scope": "Numeric checks only; frame/extrinsic alignment not validated; evaluation-only"
+      },
+      "continuity_checks": [
+        {
+          "bag_id": "dynamics_0__96738615",
+          "check_type": "timestamp_continuity",
+          "topic": "/dingo_velocity_controller/odom",
+          "topic_left": null,
+          "topic_right": null,
+          "message_count": 2328,
+          "mean_rate_hz": 14.550113052985,
+          "max_inter_message_gap_s": 0.135086266,
+          "max_gap_to_mean_interval_ratio": 1.9655204422056038,
+          "left_message_count": null,
+          "right_message_count": null,
+          "paired_message_count": null,
+          "unmatched_left_count": null,
+          "unmatched_right_count": null,
+          "max_abs_sync_skew_ns": null,
+          "p95_abs_sync_skew_ns": null,
+          "mean_abs_sync_skew_ns": null,
+          "status": "ok",
+          "detail": "max gap is 1.97x mean interval"
+        },
+        {
+          "bag_id": "dynamics_0__96738615",
+          "check_type": "timestamp_continuity",
+          "topic": "/tf",
+          "topic_left": null,
+          "topic_right": null,
+          "message_count": 14250,
+          "mean_rate_hz": 89.0766960613193,
+          "max_inter_message_gap_s": 0.035389611,
+          "max_gap_to_mean_interval_ratio": 3.1523896227753223,
+          "left_message_count": null,
+          "right_message_count": null,
+          "paired_message_count": null,
+          "unmatched_left_count": null,
+          "unmatched_right_count": null,
+          "max_abs_sync_skew_ns": null,
+          "p95_abs_sync_skew_ns": null,
+          "mean_abs_sync_skew_ns": null,
+          "status": "warn",
+          "detail": "max gap is 3.15x mean interval"
+        }
+      ]
+    },
+    {
+      "dataset_id": "lilocbench_static_0",
+      "name": "LILocBench \u00b7 Static 0",
+      "analysis_id": "0c906fce8d4143afb2fa9fa67106cc80",
+      "source_bytes": 141839376,
+      "source_sha256": "5579090b35a48cf24a66fb1118899052218d2089f9b956788d5abee76e01f4ce",
+      "source": "https://www.ipb.uni-bonn.de/html/projects/localization_benchmark/",
+      "license": "CC-BY-NC-SA",
+      "integrity": "local_digest_only",
+      "duration_s": 598.794300935,
+      "message_count": 110812,
+      "status": "ready",
+      "extraction_errors": 0,
+      "preview_count": 12,
+      "verified_previews": 12,
+      "elapsed_s": 3.2202799170008802,
+      "coverage": [
+        {
+          "bag_id": "static_0__ecb11acd",
+          "topic": "/dingo_velocity_controller/cmd_vel",
+          "message_type": "geometry_msgs/msg/Twist",
+          "message_count": 22092,
+          "analysis_status": "full",
+          "domain": "command",
+          "analyzed_message_count": 22092,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "static_0__ecb11acd",
+          "topic": "/dingo_velocity_controller/odom",
+          "message_type": "nav_msgs/msg/Odometry",
+          "message_count": 8714,
+          "analysis_status": "full",
+          "domain": "odometry",
+          "analyzed_message_count": 8714,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "static_0__ecb11acd",
+          "topic": "/joint_states",
+          "message_type": "sensor_msgs/msg/JointState",
+          "message_count": 8715,
+          "analysis_status": "timing_only",
+          "domain": "unclassified",
+          "analyzed_message_count": 0,
+          "extraction_error_count": 0,
+          "analysis_ratio": 0.0,
+          "detail": "No payload analyzer is registered for this message type."
+        },
+        {
+          "bag_id": "static_0__ecb11acd",
+          "topic": "/laser_scan_front/scan",
+          "message_type": "sensor_msgs/msg/LaserScan",
+          "message_count": 8982,
+          "analysis_status": "full",
+          "domain": "laser_scan",
+          "analyzed_message_count": 8982,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "static_0__ecb11acd",
+          "topic": "/laser_scan_rear/scan",
+          "message_type": "sensor_msgs/msg/LaserScan",
+          "message_count": 8982,
+          "analysis_status": "full",
+          "domain": "laser_scan",
+          "analyzed_message_count": 8982,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "static_0__ecb11acd",
+          "topic": "/tf",
+          "message_type": "tf/msg/tfMessage",
+          "message_count": 8710,
+          "analysis_status": "full",
+          "domain": "tf",
+          "analyzed_message_count": 8710,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "static_0__ecb11acd",
+          "topic": "/tf",
+          "message_type": "tf2_msgs/msg/TFMessage",
+          "message_count": 44613,
+          "analysis_status": "full",
+          "domain": "tf",
+          "analyzed_message_count": 44613,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "static_0__ecb11acd",
+          "topic": "/tf_static",
+          "message_type": "tf2_msgs/msg/TFMessage",
+          "message_count": 4,
+          "analysis_status": "full",
+          "domain": "tf",
+          "analyzed_message_count": 4,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        }
+      ],
+      "header_profile": [
+        {
+          "domain": "commands",
+          "topic": "/dingo_velocity_controller/cmd_vel",
+          "frame_id": "",
+          "records": 22092,
+          "missing": 22092,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "laser_scans",
+          "topic": "/laser_scan_front/scan",
+          "frame_id": "scan_front_link",
+          "records": 8982,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "laser_scans",
+          "topic": "/laser_scan_rear/scan",
+          "frame_id": "scan_rear_link",
+          "records": 8982,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "odometry",
+          "topic": "/dingo_velocity_controller/odom",
+          "frame_id": "odom",
+          "child_frame_id": "base_link",
+          "records": 8714,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "base_link",
+          "child_frame_id": "chassis_link",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "front_c_mount",
+          "child_frame_id": "front_b_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "chassis_link",
+          "child_frame_id": "front_bumper_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "mid_mount",
+          "child_frame_id": "front_c_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "front_b_mount",
+          "child_frame_id": "front_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "chassis_link",
+          "child_frame_id": "imu_link",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "chassis_link",
+          "child_frame_id": "mid_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "rear_c_mount",
+          "child_frame_id": "rear_b_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "mid_mount",
+          "child_frame_id": "rear_c_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "rear_b_mount",
+          "child_frame_id": "rear_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_front_link",
+          "child_frame_id": "camera_front_depth_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_front_depth_frame",
+          "child_frame_id": "camera_front_depth_optical_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_front_link",
+          "child_frame_id": "camera_front_color_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_front_color_frame",
+          "child_frame_id": "camera_front_color_optical_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_right_link",
+          "child_frame_id": "camera_right_depth_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_right_depth_frame",
+          "child_frame_id": "camera_right_depth_optical_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_right_link",
+          "child_frame_id": "camera_right_color_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_right_color_frame",
+          "child_frame_id": "camera_right_color_optical_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_left_link",
+          "child_frame_id": "camera_left_depth_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_left_depth_frame",
+          "child_frame_id": "camera_left_depth_optical_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_left_link",
+          "child_frame_id": "camera_left_color_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_left_color_frame",
+          "child_frame_id": "camera_left_color_optical_frame",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "odom",
+          "child_frame_id": "base_link",
+          "records": 8710,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "chassis_link",
+          "child_frame_id": "front_left_wheel_link",
+          "records": 8715,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "chassis_link",
+          "child_frame_id": "front_right_wheel_link",
+          "records": 8715,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "chassis_link",
+          "child_frame_id": "rear_left_wheel_link",
+          "records": 8715,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "chassis_link",
+          "child_frame_id": "rear_right_wheel_link",
+          "records": 8715,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "base_link",
+          "child_frame_id": "gt_camera",
+          "records": 5983,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "base_link",
+          "child_frame_id": "scan_rear_link",
+          "records": 5983,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "base_link",
+          "child_frame_id": "scan_front_link",
+          "records": 5983,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "base_link",
+          "child_frame_id": "camera_front_link",
+          "records": 5983,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "base_link",
+          "child_frame_id": "camera_right_link",
+          "records": 5983,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "base_link",
+          "child_frame_id": "camera_left_link",
+          "records": 5983,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        }
+      ],
+      "temporal_profile": [
+        {
+          "topic": "/tf_static",
+          "message_count": 4,
+          "reference_context": false,
+          "repeated_log_stamps": 3,
+          "backward_log_stamps": 0,
+          "median_interval_ms": null,
+          "max_interval_ms": null
+        },
+        {
+          "topic": "/dingo_velocity_controller/cmd_vel",
+          "message_count": 22092,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 20.042468,
+          "max_interval_ms": 68.038486
+        },
+        {
+          "topic": "/laser_scan_front/scan",
+          "message_count": 8982,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 66.706767,
+          "max_interval_ms": 69.989414
+        },
+        {
+          "topic": "/joint_states",
+          "message_count": 8715,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 69.8217445,
+          "max_interval_ms": 139.999328
+        },
+        {
+          "topic": "/dingo_velocity_controller/odom",
+          "message_count": 8714,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 69.886439,
+          "max_interval_ms": 135.226105
+        },
+        {
+          "topic": "/tf",
+          "message_count": 53323,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 0.7698775,
+          "max_interval_ms": 74.582648
+        },
+        {
+          "topic": "/laser_scan_rear/scan",
+          "message_count": 8982,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 66.717644,
+          "max_interval_ms": 70.445099
+        }
+      ],
+      "disposition": "keep active",
+      "supported_use": "Static-environment comparison for scan and motion observations",
+      "event_count": 3,
+      "case_ids": [],
+      "limits": [
+        "Sample reconciliation is not an exhaustive physical quality certification",
+        "Local digest only; independent upstream checksum not established"
+      ],
+      "reference_check": {
+        "rows": 11929,
+        "columns": 8,
+        "nonfinite_pose_values": 0,
+        "nonincreasing_timestamps": 0,
+        "numeric_start_s_in_bag_clock": 0.042748945,
+        "numeric_end_s_in_bag_clock": 598.799561825,
+        "max_gap_ms": 150.002192,
+        "scope": "Numeric checks only; frame/extrinsic alignment not validated; evaluation-only"
+      },
+      "continuity_checks": [
+        {
+          "bag_id": "static_0__ecb11acd",
+          "check_type": "timestamp_continuity",
+          "topic": "/dingo_velocity_controller/odom",
+          "topic_left": null,
+          "topic_right": null,
+          "message_count": 8714,
+          "mean_rate_hz": 14.5527198962381,
+          "max_inter_message_gap_s": 0.135226105,
+          "max_gap_to_mean_interval_ratio": 1.9679076287242825,
+          "left_message_count": null,
+          "right_message_count": null,
+          "paired_message_count": null,
+          "unmatched_left_count": null,
+          "unmatched_right_count": null,
+          "max_abs_sync_skew_ns": null,
+          "p95_abs_sync_skew_ns": null,
+          "mean_abs_sync_skew_ns": null,
+          "status": "ok",
+          "detail": "max gap is 1.97x mean interval"
+        },
+        {
+          "bag_id": "static_0__ecb11acd",
+          "check_type": "timestamp_continuity",
+          "topic": "/tf",
+          "topic_left": null,
+          "topic_right": null,
+          "message_count": 53323,
+          "mean_rate_hz": 89.0597511475313,
+          "max_inter_message_gap_s": 0.074582648,
+          "max_gap_to_mean_interval_ratio": 6.642312070803922,
+          "left_message_count": null,
+          "right_message_count": null,
+          "paired_message_count": null,
+          "unmatched_left_count": null,
+          "unmatched_right_count": null,
+          "max_abs_sync_skew_ns": null,
+          "p95_abs_sync_skew_ns": null,
+          "mean_abs_sync_skew_ns": null,
+          "status": "warn",
+          "detail": "max gap is 6.64x mean interval"
+        }
+      ]
+    },
+    {
+      "dataset_id": "lilocbench_lt_changes_0",
+      "name": "LILocBench \u00b7 Changed environment",
+      "analysis_id": "c9433f618372473c804d83763bac9f26",
+      "source_bytes": 103773946,
+      "source_sha256": "638f9ee912302bb252a32aeb146fb96337fb5ac7c09556e58aa462b7cb5ca830",
+      "source": "https://www.ipb.uni-bonn.de/html/projects/localization_benchmark/",
+      "license": "CC-BY-NC-SA",
+      "integrity": "local_digest_only",
+      "duration_s": 435.98877521,
+      "message_count": 85117,
+      "status": "ready",
+      "extraction_errors": 0,
+      "preview_count": 12,
+      "verified_previews": 12,
+      "elapsed_s": 2.5034232500001963,
+      "coverage": [
+        {
+          "bag_id": "lt_changes_0__20f9683c",
+          "topic": "/dingo_velocity_controller/cmd_vel",
+          "message_type": "geometry_msgs/msg/Twist",
+          "message_count": 20507,
+          "analysis_status": "full",
+          "domain": "command",
+          "analyzed_message_count": 20507,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "lt_changes_0__20f9683c",
+          "topic": "/dingo_velocity_controller/odom",
+          "message_type": "nav_msgs/msg/Odometry",
+          "message_count": 6347,
+          "analysis_status": "full",
+          "domain": "odometry",
+          "analyzed_message_count": 6347,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "lt_changes_0__20f9683c",
+          "topic": "/joint_states",
+          "message_type": "sensor_msgs/msg/JointState",
+          "message_count": 6346,
+          "analysis_status": "timing_only",
+          "domain": "unclassified",
+          "analyzed_message_count": 0,
+          "extraction_error_count": 0,
+          "analysis_ratio": 0.0,
+          "detail": "No payload analyzer is registered for this message type."
+        },
+        {
+          "bag_id": "lt_changes_0__20f9683c",
+          "topic": "/laser_scan_front/scan",
+          "message_type": "sensor_msgs/msg/LaserScan",
+          "message_count": 6540,
+          "analysis_status": "full",
+          "domain": "laser_scan",
+          "analyzed_message_count": 6540,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "lt_changes_0__20f9683c",
+          "topic": "/laser_scan_rear/scan",
+          "message_type": "sensor_msgs/msg/LaserScan",
+          "message_count": 6540,
+          "analysis_status": "full",
+          "domain": "laser_scan",
+          "analyzed_message_count": 6540,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "lt_changes_0__20f9683c",
+          "topic": "/tf",
+          "message_type": "tf/msg/tfMessage",
+          "message_count": 6345,
+          "analysis_status": "full",
+          "domain": "tf",
+          "analyzed_message_count": 6345,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "lt_changes_0__20f9683c",
+          "topic": "/tf",
+          "message_type": "tf2_msgs/msg/TFMessage",
+          "message_count": 32482,
+          "analysis_status": "full",
+          "domain": "tf",
+          "analyzed_message_count": 32482,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "lt_changes_0__20f9683c",
+          "topic": "/tf_static",
+          "message_type": "tf2_msgs/msg/TFMessage",
+          "message_count": 10,
+          "analysis_status": "full",
+          "domain": "tf",
+          "analyzed_message_count": 10,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        }
+      ],
+      "header_profile": [
+        {
+          "domain": "commands",
+          "topic": "/dingo_velocity_controller/cmd_vel",
+          "frame_id": "",
+          "records": 20507,
+          "missing": 20507,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "laser_scans",
+          "topic": "/laser_scan_rear/scan",
+          "frame_id": "scan_rear_link",
+          "records": 6540,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "laser_scans",
+          "topic": "/laser_scan_front/scan",
+          "frame_id": "scan_front_link",
+          "records": 6540,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "odometry",
+          "topic": "/dingo_velocity_controller/odom",
+          "frame_id": "odom",
+          "child_frame_id": "base_link",
+          "records": 6347,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "base_link",
+          "child_frame_id": "chassis_link",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "front_c_mount",
+          "child_frame_id": "front_b_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "chassis_link",
+          "child_frame_id": "front_bumper_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "mid_mount",
+          "child_frame_id": "front_c_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "front_b_mount",
+          "child_frame_id": "front_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "chassis_link",
+          "child_frame_id": "imu_link",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "chassis_link",
+          "child_frame_id": "mid_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "rear_c_mount",
+          "child_frame_id": "rear_b_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "mid_mount",
+          "child_frame_id": "rear_c_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "rear_b_mount",
+          "child_frame_id": "rear_mount",
+          "records": 1,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_front_link",
+          "child_frame_id": "camera_front_depth_frame",
+          "records": 3,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_front_depth_frame",
+          "child_frame_id": "camera_front_depth_optical_frame",
+          "records": 3,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_front_link",
+          "child_frame_id": "camera_front_color_frame",
+          "records": 3,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_front_color_frame",
+          "child_frame_id": "camera_front_color_optical_frame",
+          "records": 3,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_left_link",
+          "child_frame_id": "camera_left_depth_frame",
+          "records": 3,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_left_depth_frame",
+          "child_frame_id": "camera_left_depth_optical_frame",
+          "records": 3,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_left_link",
+          "child_frame_id": "camera_left_color_frame",
+          "records": 3,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_left_color_frame",
+          "child_frame_id": "camera_left_color_optical_frame",
+          "records": 3,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_right_link",
+          "child_frame_id": "camera_right_depth_frame",
+          "records": 3,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_right_depth_frame",
+          "child_frame_id": "camera_right_depth_optical_frame",
+          "records": 3,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_right_link",
+          "child_frame_id": "camera_right_color_frame",
+          "records": 3,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf_static",
+          "frame_id": "camera_right_color_frame",
+          "child_frame_id": "camera_right_color_optical_frame",
+          "records": 3,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "odom",
+          "child_frame_id": "base_link",
+          "records": 6345,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "chassis_link",
+          "child_frame_id": "front_left_wheel_link",
+          "records": 6346,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "chassis_link",
+          "child_frame_id": "front_right_wheel_link",
+          "records": 6346,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "chassis_link",
+          "child_frame_id": "rear_left_wheel_link",
+          "records": 6346,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "chassis_link",
+          "child_frame_id": "rear_right_wheel_link",
+          "records": 6346,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "base_link",
+          "child_frame_id": "gt_camera",
+          "records": 4356,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "base_link",
+          "child_frame_id": "scan_rear_link",
+          "records": 4356,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "base_link",
+          "child_frame_id": "scan_front_link",
+          "records": 4356,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "base_link",
+          "child_frame_id": "camera_right_link",
+          "records": 4356,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "base_link",
+          "child_frame_id": "camera_left_link",
+          "records": 4356,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "base_link",
+          "child_frame_id": "camera_front_link",
+          "records": 4356,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        }
+      ],
+      "temporal_profile": [
+        {
+          "topic": "/tf_static",
+          "message_count": 10,
+          "reference_context": false,
+          "repeated_log_stamps": 9,
+          "backward_log_stamps": 0,
+          "median_interval_ms": null,
+          "max_interval_ms": null
+        },
+        {
+          "topic": "/dingo_velocity_controller/cmd_vel",
+          "message_count": 20507,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 8.0970375,
+          "max_interval_ms": 287.965392
+        },
+        {
+          "topic": "/dingo_velocity_controller/odom",
+          "message_count": 6347,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 69.87873,
+          "max_interval_ms": 75.496083
+        },
+        {
+          "topic": "/joint_states",
+          "message_count": 6346,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 69.823639,
+          "max_interval_ms": 140.094196
+        },
+        {
+          "topic": "/tf",
+          "message_count": 38827,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 0.681363,
+          "max_interval_ms": 74.869178
+        },
+        {
+          "topic": "/laser_scan_rear/scan",
+          "message_count": 6540,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 66.702419,
+          "max_interval_ms": 68.301121
+        },
+        {
+          "topic": "/laser_scan_front/scan",
+          "message_count": 6540,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 66.702942,
+          "max_interval_ms": 75.230164
+        }
+      ],
+      "disposition": "keep active",
+      "supported_use": "Scan observations with rearranged objects; no failure labels implied",
+      "event_count": 5,
+      "case_ids": [],
+      "limits": [
+        "Sample reconciliation is not an exhaustive physical quality certification",
+        "Local digest only; independent upstream checksum not established"
+      ],
+      "reference_check": {
+        "rows": 8700,
+        "columns": 8,
+        "nonfinite_pose_values": 0,
+        "nonincreasing_timestamps": 0,
+        "numeric_start_s_in_bag_clock": 0.010744657,
+        "numeric_end_s_in_bag_clock": 435.966030937,
+        "max_gap_ms": 150.009976,
+        "scope": "Numeric checks only; frame/extrinsic alignment not validated; evaluation-only"
+      },
+      "continuity_checks": [
+        {
+          "bag_id": "lt_changes_0__20f9683c",
+          "check_type": "timestamp_continuity",
+          "topic": "/dingo_velocity_controller/odom",
+          "topic_left": null,
+          "topic_right": null,
+          "message_count": 6347,
+          "mean_rate_hz": 14.556040926723947,
+          "max_inter_message_gap_s": 0.075496083,
+          "max_gap_to_mean_interval_ratio": 1.0989240739553479,
+          "left_message_count": null,
+          "right_message_count": null,
+          "paired_message_count": null,
+          "unmatched_left_count": null,
+          "unmatched_right_count": null,
+          "max_abs_sync_skew_ns": null,
+          "p95_abs_sync_skew_ns": null,
+          "mean_abs_sync_skew_ns": null,
+          "status": "ok",
+          "detail": "max gap is 1.10x mean interval"
+        },
+        {
+          "bag_id": "lt_changes_0__20f9683c",
+          "check_type": "timestamp_continuity",
+          "topic": "/tf",
+          "topic_left": null,
+          "topic_right": null,
+          "message_count": 38827,
+          "mean_rate_hz": 89.0563777550108,
+          "max_inter_message_gap_s": 0.074869178,
+          "max_gap_to_mean_interval_ratio": 6.667577798175143,
+          "left_message_count": null,
+          "right_message_count": null,
+          "paired_message_count": null,
+          "unmatched_left_count": null,
+          "unmatched_right_count": null,
+          "max_abs_sync_skew_ns": null,
+          "p95_abs_sync_skew_ns": null,
+          "mean_abs_sync_skew_ns": null,
+          "status": "warn",
+          "detail": "max gap is 6.67x mean interval"
+        }
+      ]
+    },
+    {
+      "dataset_id": "tum_rgbd_sitting_xyz",
+      "name": "TUM RGB-D \u00b7 Sitting XYZ",
+      "analysis_id": "575709c07cda4b18aaab7d5785a992a0",
+      "source_bytes": 845060537,
+      "source_sha256": "7c052d123d2a9ab03d54608afa962e2ca37d030df6d4360d6b92d0d55929e136",
+      "source": "https://cvg.cit.tum.de/data/datasets/rgbd-dataset/download",
+      "license": "CC-BY-4.0",
+      "integrity": "local_digest_only",
+      "duration_s": 42.797206338,
+      "message_count": 15227,
+      "status": "ready",
+      "extraction_errors": 0,
+      "preview_count": 12,
+      "verified_previews": 12,
+      "elapsed_s": 138.51300337499924,
+      "coverage": [
+        {
+          "bag_id": "rgbd_dataset_freiburg3_sitting_xyz__4d122f81",
+          "topic": "/camera/depth/camera_info",
+          "message_type": "sensor_msgs/msg/CameraInfo",
+          "message_count": 1231,
+          "analysis_status": "timing_only",
+          "domain": "unclassified",
+          "analyzed_message_count": 0,
+          "extraction_error_count": 0,
+          "analysis_ratio": 0.0,
+          "detail": "No payload analyzer is registered for this message type."
+        },
+        {
+          "bag_id": "rgbd_dataset_freiburg3_sitting_xyz__4d122f81",
+          "topic": "/camera/depth/image",
+          "message_type": "sensor_msgs/msg/Image",
+          "message_count": 1231,
+          "analysis_status": "full",
+          "domain": "image",
+          "analyzed_message_count": 1231,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "rgbd_dataset_freiburg3_sitting_xyz__4d122f81",
+          "topic": "/camera/rgb/camera_info",
+          "message_type": "sensor_msgs/msg/CameraInfo",
+          "message_count": 1261,
+          "analysis_status": "timing_only",
+          "domain": "unclassified",
+          "analyzed_message_count": 0,
+          "extraction_error_count": 0,
+          "analysis_ratio": 0.0,
+          "detail": "No payload analyzer is registered for this message type."
+        },
+        {
+          "bag_id": "rgbd_dataset_freiburg3_sitting_xyz__4d122f81",
+          "topic": "/camera/rgb/image_color",
+          "message_type": "sensor_msgs/msg/Image",
+          "message_count": 1261,
+          "analysis_status": "full",
+          "domain": "image",
+          "analyzed_message_count": 1261,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "rgbd_dataset_freiburg3_sitting_xyz__4d122f81",
+          "topic": "/cortex_marker_array",
+          "message_type": "visualization_msgs/msg/MarkerArray",
+          "message_count": 4270,
+          "analysis_status": "timing_only",
+          "domain": "unclassified",
+          "analyzed_message_count": 0,
+          "extraction_error_count": 0,
+          "analysis_ratio": 0.0,
+          "detail": "No payload analyzer is registered for this message type."
+        },
+        {
+          "bag_id": "rgbd_dataset_freiburg3_sitting_xyz__4d122f81",
+          "topic": "/tf",
+          "message_type": "tf/msg/tfMessage",
+          "message_count": 5973,
+          "analysis_status": "full",
+          "domain": "tf",
+          "analyzed_message_count": 5973,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        }
+      ],
+      "header_profile": [
+        {
+          "domain": "images",
+          "topic": "/camera/rgb/image_color",
+          "frame_id": "/openni_rgb_optical_frame",
+          "records": 1261,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "images",
+          "topic": "/camera/depth/image",
+          "frame_id": "/openni_rgb_optical_frame",
+          "records": 1231,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "/kinect",
+          "child_frame_id": "/openni_camera",
+          "records": 4270,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "/world",
+          "child_frame_id": "/kinect",
+          "records": 4270,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "/openni_camera",
+          "child_frame_id": "/openni_rgb_frame",
+          "records": 426,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "/openni_camera",
+          "child_frame_id": "/openni_depth_frame",
+          "records": 426,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "/openni_rgb_frame",
+          "child_frame_id": "/openni_rgb_optical_frame",
+          "records": 426,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "/openni_depth_frame",
+          "child_frame_id": "/openni_depth_optical_frame",
+          "records": 425,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        }
+      ],
+      "temporal_profile": [
+        {
+          "topic": "/cortex_marker_array",
+          "message_count": 4270,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 9.999867,
+          "max_interval_ms": 17.187791
+        },
+        {
+          "topic": "/tf",
+          "message_count": 5973,
+          "reference_context": true,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 8.8111755,
+          "max_interval_ms": 54.950283
+        },
+        {
+          "topic": "/camera/rgb/camera_info",
+          "message_count": 1261,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 32.1575325,
+          "max_interval_ms": 73.972103
+        },
+        {
+          "topic": "/camera/rgb/image_color",
+          "message_count": 1261,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 32.1575325,
+          "max_interval_ms": 73.972103
+        },
+        {
+          "topic": "/camera/depth/camera_info",
+          "message_count": 1231,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 32.320922,
+          "max_interval_ms": 94.148503
+        },
+        {
+          "topic": "/camera/depth/image",
+          "message_count": 1231,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 32.320922,
+          "max_interval_ms": 94.148503
+        }
+      ],
+      "disposition": "keep active",
+      "supported_use": "RGB-D comparison with slowly moving foreground objects",
+      "event_count": 120,
+      "case_ids": [],
+      "limits": [
+        "Sample reconciliation is not an exhaustive physical quality certification",
+        "Local digest only; independent upstream checksum not established"
+      ],
+      "continuity_checks": [
+        {
+          "bag_id": "rgbd_dataset_freiburg3_sitting_xyz__4d122f81",
+          "check_type": "timestamp_continuity",
+          "topic": "/tf",
+          "topic_left": null,
+          "topic_right": null,
+          "message_count": 5973,
+          "mean_rate_hz": 139.5418185204629,
+          "max_inter_message_gap_s": 0.054950283,
+          "max_gap_to_mean_interval_ratio": 7.667862418034076,
+          "left_message_count": null,
+          "right_message_count": null,
+          "paired_message_count": null,
+          "unmatched_left_count": null,
+          "unmatched_right_count": null,
+          "max_abs_sync_skew_ns": null,
+          "p95_abs_sync_skew_ns": null,
+          "mean_abs_sync_skew_ns": null,
+          "status": "warn",
+          "detail": "max gap is 7.67x mean interval"
+        }
+      ]
+    },
+    {
+      "dataset_id": "tum_rgbd_walking_xyz",
+      "name": "TUM RGB-D \u00b7 Walking XYZ",
+      "analysis_id": "b23526bce90c4b999e3b6214eb0333e7",
+      "source_bytes": 578591964,
+      "source_sha256": "9c4de34d24c709388451c2f34bcc5e7ef37167f1cf7bc08e0ead55945a53fbc0",
+      "source": "https://cvg.cit.tum.de/data/datasets/rgbd-dataset/download",
+      "license": "CC-BY-4.0",
+      "integrity": "local_digest_only",
+      "duration_s": 29.066828278,
+      "message_count": 10341,
+      "status": "ready",
+      "extraction_errors": 0,
+      "preview_count": 12,
+      "verified_previews": 12,
+      "elapsed_s": 94.17773566699907,
+      "coverage": [
+        {
+          "bag_id": "rgbd_dataset_freiburg3_walking_xyz__782289ae",
+          "topic": "/camera/depth/camera_info",
+          "message_type": "sensor_msgs/msg/CameraInfo",
+          "message_count": 834,
+          "analysis_status": "timing_only",
+          "domain": "unclassified",
+          "analyzed_message_count": 0,
+          "extraction_error_count": 0,
+          "analysis_ratio": 0.0,
+          "detail": "No payload analyzer is registered for this message type."
+        },
+        {
+          "bag_id": "rgbd_dataset_freiburg3_walking_xyz__782289ae",
+          "topic": "/camera/depth/image",
+          "message_type": "sensor_msgs/msg/Image",
+          "message_count": 833,
+          "analysis_status": "full",
+          "domain": "image",
+          "analyzed_message_count": 833,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "rgbd_dataset_freiburg3_walking_xyz__782289ae",
+          "topic": "/camera/rgb/camera_info",
+          "message_type": "sensor_msgs/msg/CameraInfo",
+          "message_count": 859,
+          "analysis_status": "timing_only",
+          "domain": "unclassified",
+          "analyzed_message_count": 0,
+          "extraction_error_count": 0,
+          "analysis_ratio": 0.0,
+          "detail": "No payload analyzer is registered for this message type."
+        },
+        {
+          "bag_id": "rgbd_dataset_freiburg3_walking_xyz__782289ae",
+          "topic": "/camera/rgb/image_color",
+          "message_type": "sensor_msgs/msg/Image",
+          "message_count": 859,
+          "analysis_status": "full",
+          "domain": "image",
+          "analyzed_message_count": 859,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        },
+        {
+          "bag_id": "rgbd_dataset_freiburg3_walking_xyz__782289ae",
+          "topic": "/cortex_marker_array",
+          "message_type": "visualization_msgs/msg/MarkerArray",
+          "message_count": 2900,
+          "analysis_status": "timing_only",
+          "domain": "unclassified",
+          "analyzed_message_count": 0,
+          "extraction_error_count": 0,
+          "analysis_ratio": 0.0,
+          "detail": "No payload analyzer is registered for this message type."
+        },
+        {
+          "bag_id": "rgbd_dataset_freiburg3_walking_xyz__782289ae",
+          "topic": "/tf",
+          "message_type": "tf/msg/tfMessage",
+          "message_count": 4056,
+          "analysis_status": "full",
+          "domain": "tf",
+          "analyzed_message_count": 4056,
+          "extraction_error_count": 0,
+          "analysis_ratio": 1.0,
+          "detail": "Every message was processed by the registered payload analyzer."
+        }
+      ],
+      "header_profile": [
+        {
+          "domain": "images",
+          "topic": "/camera/rgb/image_color",
+          "frame_id": "/openni_rgb_optical_frame",
+          "records": 859,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "images",
+          "topic": "/camera/depth/image",
+          "frame_id": "/openni_rgb_optical_frame",
+          "records": 833,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "/kinect",
+          "child_frame_id": "/openni_camera",
+          "records": 2900,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "/world",
+          "child_frame_id": "/kinect",
+          "records": 2900,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "/openni_camera",
+          "child_frame_id": "/openni_depth_frame",
+          "records": 289,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "/openni_camera",
+          "child_frame_id": "/openni_rgb_frame",
+          "records": 289,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "/openni_depth_frame",
+          "child_frame_id": "/openni_depth_optical_frame",
+          "records": 289,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        },
+        {
+          "domain": "transforms",
+          "topic": "/tf",
+          "frame_id": "/openni_rgb_frame",
+          "child_frame_id": "/openni_rgb_optical_frame",
+          "records": 289,
+          "missing": 0,
+          "zero": 0,
+          "repeated": 0,
+          "backward": 0
+        }
+      ],
+      "temporal_profile": [
+        {
+          "topic": "/cortex_marker_array",
+          "message_count": 2900,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 9.99976,
+          "max_interval_ms": 17.513578
+        },
+        {
+          "topic": "/tf",
+          "message_count": 4056,
+          "reference_context": true,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 9.371315,
+          "max_interval_ms": 29.009366
+        },
+        {
+          "topic": "/camera/rgb/camera_info",
+          "message_count": 859,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 32.195454,
+          "max_interval_ms": 68.028175
+        },
+        {
+          "topic": "/camera/rgb/image_color",
+          "message_count": 859,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 32.195454,
+          "max_interval_ms": 68.028175
+        },
+        {
+          "topic": "/camera/depth/camera_info",
+          "message_count": 834,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 32.310628,
+          "max_interval_ms": 69.565581
+        },
+        {
+          "topic": "/camera/depth/image",
+          "message_count": 833,
+          "reference_context": false,
+          "repeated_log_stamps": 0,
+          "backward_log_stamps": 0,
+          "median_interval_ms": 32.3106555,
+          "max_interval_ms": 69.565581
+        }
+      ],
+      "disposition": "keep active",
+      "supported_use": "RGB-D comparison with quickly moving foreground objects",
+      "event_count": 76,
+      "case_ids": [],
+      "limits": [
+        "Sample reconciliation is not an exhaustive physical quality certification",
+        "Local digest only; independent upstream checksum not established"
+      ],
+      "continuity_checks": [
+        {
+          "bag_id": "rgbd_dataset_freiburg3_walking_xyz__782289ae",
+          "check_type": "timestamp_continuity",
+          "topic": "/tf",
+          "topic_left": null,
+          "topic_right": null,
+          "message_count": 4056,
+          "mean_rate_hz": 139.50610507680105,
+          "max_inter_message_gap_s": 0.029009366,
+          "max_gap_to_mean_interval_ratio": 4.0469836614073795,
+          "left_message_count": null,
+          "right_message_count": null,
+          "paired_message_count": null,
+          "unmatched_left_count": null,
+          "unmatched_right_count": null,
+          "max_abs_sync_skew_ns": null,
+          "p95_abs_sync_skew_ns": null,
+          "mean_abs_sync_skew_ns": null,
+          "status": "warn",
+          "detail": "max gap is 4.05x mean interval"
+        }
+      ]
+    }
+  ],
+  "specialist_bags": [
+    {
+      "path": "data/raw/isaac_ros_assets/visual_slam/isaac_ros_visual_slam/quickstart_bag",
+      "dataset_id": null,
+      "role": "compatibility_sample",
+      "bytes": 1660798923,
+      "fingerprint": "54261315cfb31d7e13459567ac474d6a0e3db651f91860a00047ab17cd6d2641",
+      "physical_files": [
+        "data/raw/isaac_ros_assets/visual_slam/isaac_ros_visual_slam/quickstart_bag/metadata.yaml",
+        "data/raw/isaac_ros_assets/visual_slam/isaac_ros_visual_slam/quickstart_bag/quickstart_bag_0.db3"
+      ],
+      "format": "rosbag2_sqlite3",
+      "reader_check": {
+        "status": "reader_metadata_ok",
+        "message_count": 957,
+        "topics": [
+          {
+            "topic": "/tf_static",
+            "type": "tf2_msgs/msg/TFMessage",
+            "count": 1
+          },
+          {
+            "topic": "/back_stereo_camera/left/camera_info",
+            "type": "sensor_msgs/msg/CameraInfo",
+            "count": 60
+          },
+          {
+            "topic": "/back_stereo_camera/right/image_raw",
+            "type": "sensor_msgs/msg/Image",
+            "count": 60
+          },
+          {
+            "topic": "/back_stereo_camera/right/camera_info",
+            "type": "sensor_msgs/msg/CameraInfo",
+            "count": 60
+          },
+          {
+            "topic": "/tf",
+            "type": "tf2_msgs/msg/TFMessage",
+            "count": 478
+          },
+          {
+            "topic": "/front_stereo_camera/left/image_raw",
+            "type": "sensor_msgs/msg/Image",
+            "count": 60
+          },
+          {
+            "topic": "/front_stereo_camera/right/camera_info",
+            "type": "sensor_msgs/msg/CameraInfo",
+            "count": 59
+          },
+          {
+            "topic": "/back_stereo_camera/left/image_raw",
+            "type": "sensor_msgs/msg/Image",
+            "count": 60
+          },
+          {
+            "topic": "/front_stereo_camera/right/image_raw",
+            "type": "sensor_msgs/msg/Image",
+            "count": 60
+          },
+          {
+            "topic": "/front_stereo_camera/left/camera_info",
+            "type": "sensor_msgs/msg/CameraInfo",
+            "count": 59
+          }
+        ],
+        "duration_s": 1.997236086,
+        "scope": "Reader index/metadata only; payload not certified"
+      }
+    },
+    {
+      "path": "data/raw/public_datasets/ros_fixtures/chatter_50hz.bag",
+      "dataset_id": null,
+      "role": "parser_regression",
+      "bytes": 28923,
+      "fingerprint": "ce10d675634772666db56f025884e5963c72e1beb197fd707a5b1a7c80e4e59d",
+      "physical_files": [
+        "data/raw/public_datasets/ros_fixtures/chatter_50hz.bag"
+      ],
+      "format": "rosbag1",
+      "reader_check": {
+        "status": "reader_rejected",
+        "error": "AssertionError: "
+      }
+    },
+    {
+      "path": "data/raw/public_datasets/ros_fixtures/clock_alive.bag",
+      "dataset_id": null,
+      "role": "parser_regression",
+      "bytes": 15201385,
+      "fingerprint": "d2d5d6376f7b09ea8934450955730503287f31533609957050a50cbe5db32533",
+      "physical_files": [
+        "data/raw/public_datasets/ros_fixtures/clock_alive.bag"
+      ],
+      "format": "rosbag1",
+      "reader_check": {
+        "status": "reader_metadata_ok",
+        "message_count": 40000,
+        "topics": [
+          {
+            "topic": "/blabla",
+            "type": "std_msgs/msg/String",
+            "count": 40000
+          }
+        ],
+        "duration_s": 39.990000001,
+        "scope": "Reader index/metadata only; payload not certified"
+      }
+    },
+    {
+      "path": "data/raw/public_datasets/ros_fixtures/test_future_version_2.1.bag",
+      "dataset_id": null,
+      "role": "parser_regression",
+      "bytes": 6051,
+      "fingerprint": "a5ba2753746120dd7549a53fb0d1f87219e071badf3f2c00a7e436f546e8cdd5",
+      "physical_files": [
+        "data/raw/public_datasets/ros_fixtures/test_future_version_2.1.bag"
+      ],
+      "format": "rosbag1",
+      "reader_check": {
+        "status": "reader_rejected",
+        "error": "AnyReaderError: Bag version 201 is not supported."
+      }
+    },
+    {
+      "path": "data/raw/public_datasets/ros_fixtures/test_indexed_1.2.bag",
+      "dataset_id": null,
+      "role": "parser_regression",
+      "bytes": 142311,
+      "fingerprint": "4e825053830e0e4321c623e352c80bf43e5507df6f7e5f41fa322b841bfb5fc9",
+      "physical_files": [
+        "data/raw/public_datasets/ros_fixtures/test_indexed_1.2.bag"
+      ],
+      "format": "rosbag1",
+      "reader_check": {
+        "status": "reader_rejected",
+        "error": "AnyReaderError: File magic is invalid."
+      }
+    }
+  ],
+  "tuhh": {
+    "role": "simulation localization evaluation",
+    "processed_parts": 42,
+    "outer_parquet_rows": 208,
+    "segment_count": 208,
+    "samples": 417185,
+    "failure_labels": 96310,
+    "missing_labels": 0,
+    "duplicate_timestamp_rows": 112435,
+    "conflicting_label_timestamps": 495,
+    "backward_timestamps": 0,
+    "limits": "Nested time and label audit within original segments; existing study split and conflict policy retained"
+  },
+  "cleanup": {
+    "status": "removed_verified_duplicates",
+    "files": [
+      {
+        "remove": "data/raw/downloads/visual_slam/isaac_ros_visual_slam/quickstart_bag/quickstart_bag_0.db3",
+        "retain": "data/raw/isaac_ros_assets/visual_slam/isaac_ros_visual_slam/quickstart_bag/quickstart_bag_0.db3",
+        "bytes": 1660792832,
+        "sha256": "f9baa7b80d456aaf89ea69d1cc312775b763f185c073887ad5ac4c3f05e9afca"
+      },
+      {
+        "remove": "data/raw/downloads/visual_slam/isaac_ros_visual_slam/quickstart_bag/metadata.yaml",
+        "retain": "data/raw/isaac_ros_assets/visual_slam/isaac_ros_visual_slam/quickstart_bag/metadata.yaml",
+        "bytes": 6091,
+        "sha256": "c0c7935fcae26b2d1f180ceeb81896665ef9e5cc2ec18e50939a728d6228aee2"
+      }
+    ],
+    "archive_retained": "data/raw/downloads/visual_slam/quickstart.tar.gz",
+    "dependency_check": "assets.py EXTRACT_DIR uses canonical isaac_ros_assets tree; no code/config references the cache extraction"
+  },
+  "cost": {
+    "prepare_wall_s": 343.2974215860013,
+    "process_peak_rss_bytes": 449282048,
+    "current_evidence_bytes": 18669954,
+    "memory_scope": "Process lifetime high-water mark"
+  },
+  "limitations": [
+    "Docker named upload/demo volumes not enumerated: daemon is stopped",
+    "Full Kafka/Flink/replayer smoke test not rerun",
+    "LILocBench reference frame alignment not validated",
+    "NVIDIA compatibility sample checked at reader metadata level only"
+  ]
+}

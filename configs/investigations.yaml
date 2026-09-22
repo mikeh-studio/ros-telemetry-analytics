@@ -1,0 +1,77 @@
+schema_version: 1
+datasets:
+  tum_rgbd_freiburg1_xyz:
+    name: TUM RGB-D · Freiburg 1 XYZ
+    input: data/raw/public_datasets/tum_rgbd/rgbd_dataset_freiburg1_xyz.bag
+    profile: configs/public_robotics/tum_rgbd.yaml
+    role: real_recording
+    purpose: RGB-D control and nominal interval inspection
+    source: https://cvg.cit.tum.de/data/datasets/rgbd-dataset/download
+    license: CC-BY-4.0
+    recorded_sha256: 27bb3db41ddaa7228a8b39191f6b8a112ddf7bca3eed862cd753384696ba8d7e
+    reference_topics: [/tf]
+  tum_vi_room4_512:
+    preview_focus_s: [45.45]
+    image_frame_semantics: exposure_ns
+    name: TUM VI · Room 4
+    input: data/raw/public_datasets/tum_vi/dataset-room4_512_16.bag
+    profile: configs/public_test_pipeline.yaml
+    role: real_recording
+    purpose: Image usability and independent reference-stream coverage
+    source: https://cvg.cit.tum.de/data/datasets/visual-inertial-dataset
+    license: CC-BY-4.0
+    recorded_sha256: 8027451a7390efd51098a10949b91dae7c183d9daf1a09ab058e8169c55ecf9e
+    reference_topics: [/vrpn_client/raw_transform]
+  lilocbench_dynamics_0:
+    preview_focus_s: [65.82]
+    name: LILocBench · Dynamics 0
+    input: data/raw/public_datasets/lilocbench/dynamics_0.bag
+    profile: configs/public_robotics/lilocbench_investigation.yaml
+    role: real_recording
+    purpose: Scan integrity and command/odometry observations around moving people
+    source: https://www.ipb.uni-bonn.de/html/projects/localization_benchmark/
+    license: CC-BY-NC-SA
+    recorded_sha256: df4abb923df1bb1ff46326abab8667188f4bc17e7ae12ea16905e9d632470c58
+    reference_url: https://www.ipb.uni-bonn.de/html/projects/localization_benchmark/data/gt_poses_public/dynamics_0/gt_poses.txt
+  lilocbench_static_0:
+    name: LILocBench · Static 0
+    input: data/raw/public_datasets/lilocbench/static_0.bag
+    profile: configs/public_robotics/lilocbench_investigation.yaml
+    role: real_recording
+    purpose: Static-environment comparison for scan and motion observations
+    source: https://www.ipb.uni-bonn.de/html/projects/localization_benchmark/
+    license: CC-BY-NC-SA
+    download_url: https://www.ipb.uni-bonn.de/html/projects/localization_benchmark/data/bagfiles_no_cams/static_0.bag
+    bytes: 141839376
+    reference_url: https://www.ipb.uni-bonn.de/html/projects/localization_benchmark/data/gt_poses_public/static_0/gt_poses.txt
+  lilocbench_lt_changes_0:
+    name: LILocBench · Changed environment
+    input: data/raw/public_datasets/lilocbench/lt_changes_0.bag
+    profile: configs/public_robotics/lilocbench_investigation.yaml
+    role: real_recording
+    purpose: Scan observations with rearranged objects; no failure labels implied
+    source: https://www.ipb.uni-bonn.de/html/projects/localization_benchmark/
+    license: CC-BY-NC-SA
+    download_url: https://www.ipb.uni-bonn.de/html/projects/localization_benchmark/data/bagfiles_no_cams/lt_changes_0.bag
+    bytes: 103773946
+    reference_url: https://www.ipb.uni-bonn.de/html/projects/localization_benchmark/data/gt_poses_public/lt_changes_0/gt_poses.txt
+  tum_rgbd_sitting_xyz:
+    name: TUM RGB-D · Sitting XYZ
+    input: data/raw/public_datasets/tum_rgbd/rgbd_dataset_freiburg3_sitting_xyz.bag
+    profile: configs/public_robotics/tum_rgbd.yaml
+    role: real_recording
+    purpose: RGB-D comparison with slowly moving foreground objects
+    source: https://cvg.cit.tum.de/data/datasets/rgbd-dataset/download
+    license: CC-BY-4.0
+    download_url: https://cvg.cit.tum.de/rgbd/dataset/freiburg3/rgbd_dataset_freiburg3_sitting_xyz.bag
+    reference_topics: [/tf]
+  tum_rgbd_walking_xyz:
+    name: TUM RGB-D · Walking XYZ
+    input: data/raw/public_datasets/tum_rgbd/rgbd_dataset_freiburg3_walking_xyz.bag
+    profile: configs/public_robotics/tum_rgbd.yaml
+    role: real_recording
+    purpose: RGB-D comparison with quickly moving foreground objects
+    source: https://cvg.cit.tum.de/data/datasets/rgbd-dataset/download
+    license: CC-BY-4.0
+    download_url: https://cvg.cit.tum.de/rgbd/dataset/freiburg3/rgbd_dataset_freiburg3_walking_xyz.bag
+    reference_topics: [/tf]

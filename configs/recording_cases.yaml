@@ -1,0 +1,41 @@
+schema_version: 1
+datasets:
+  tum_vi_room4_512:
+    source_sha256: 8027451a7390efd51098a10949b91dae7c183d9daf1a09ab058e8169c55ecf9e
+    cases:
+      - id: image-usefulness
+        question: Can image usefulness fall while frame delivery stays steady?
+        start_s: 100.8
+        end_s: 105
+        focus_s: 102.903
+        plots: [mean_intensity, sharpness_score, inter_message_gap_ms]
+        topics: [/cam0/image_raw, /cam0/image_raw, /cam0/image_raw]
+        observation: The sampled cam0 image at 102.903 s has mean intensity 15.67 and sharpness 1.073, below configured thresholds 20 and 2. Its view points toward a dark, relatively texture-poor floor. Images one second earlier and later provide scene context.
+        conclusion: Image content changes despite steady delivery. The warning is useful for inspection, but these features do not distinguish blur, lighting and scene texture or establish a camera malfunction.
+        next_check: Compare both camera views and their exposure metadata, then inspect a nominal interval near the beginning. Test feature tracking before claiming a visual-odometry impact.
+        limits: Camera maximum receive interval is 51.73 ms across the recording, below the 75 ms configured gap threshold. The image header frame_id encodes exposure in nanoseconds, not a coordinate frame. These thresholds are illustrative, not validated fault labels.
+      - id: reference-coverage
+        question: Is this delivery warning on a sensor or on reference tracking?
+        start_s: 44
+        end_s: 47
+        focus_s: 45.45
+        plots: [inter_message_gap_ms, inter_message_gap_ms, inter_message_gap_ms]
+        topics: [/vrpn_client/raw_transform, /cam0/image_raw, /imu0]
+        observation: The reference-pose stream has a 483.334 ms recorded gap from 45.211 to 45.694 s. Camera and IMU delivery continue across this window.
+        conclusion: This limits reference coverage for evaluation; it is not evidence of camera or IMU failure. The exact reason for the missing reference poses is not established.
+        next_check: Exclude unsupported reference intervals when scoring an estimator and inspect reference acquisition/calibration records if available.
+        limits: There are 36 configured reference-gap warnings in this recording. The acquisition pipeline may sort messages, so recorded-time checks alone cannot establish transport arrival order or network packet loss.
+  lilocbench_dynamics_0:
+    source_sha256: df4abb923df1bb1ff46326abab8667188f4bc17e7ae12ea16905e9d632470c58
+    cases:
+      - id: motion-observation
+        question: Does a command-without-motion warning establish a physical failure?
+        start_s: 64.5
+        end_s: 67.5
+        focus_s: 65.82
+        plots: [valid_range_fraction, linear_x, linear_x]
+        topics: [/laser_scan_front/scan, /dingo_velocity_controller/cmd_vel, /dingo_velocity_controller/odom]
+        observation: Thirteen motion commands in a roughly 72 ms interval around 65.8 s match low translational odometry under the configured nearest-sample rule. The surrounding data includes a transition from turning to forward motion. Front and rear scans remain largely valid.
+        conclusion: This is a short command/odometry disagreement worth inspecting. Controller response, sampling alignment and turning are plausible explanations; neither wheel slip nor localization loss is established.
+        next_check: Switch the motion plots to angular_z, compare the turning transition and later odometry response, then inspect controller feedback if available.
+        limits: Commands are unstamped Twist messages without a frame. Odometry twist is in its child frame; direct axis equivalence requires the platform convention. Public reference trajectories were downloaded but are not aligned or used as detector inputs. Scan previews are in separate sensor frames, not a fused map.
