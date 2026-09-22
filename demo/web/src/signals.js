@@ -10,6 +10,7 @@ export function signalLabel(topic = "") {
     "/scan": "Lidar",
     "/amcl_pose": "Map localization",
     "/diagnostics": "Diagnostics",
+    "/vrpn_client/raw_transform": "Reference transform",
     "/_telemetry/gateway_health": "Gateway health",
     "/_telemetry/gateway_events": "Gateway events",
   }[topic];

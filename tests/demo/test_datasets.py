@@ -90,3 +90,49 @@ def test_safe_upload_name(filename: str, expected: str) -> None:
 def test_safe_upload_name_rejects_archives() -> None:
     with pytest.raises(ValueError, match="supported ROS recording"):
         safe_upload_name("recording.zip")
+
+
+def test_curated_collection_has_roles_and_hides_deferred_downloads(tmp_path):
+    import yaml
+
+    configs = tmp_path / "configs"
+    configs.mkdir()
+    (tmp_path / "small.bag").write_bytes(b"recording")
+    (configs / "investigations.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "datasets": {
+                    "small": {
+                        "name": "Real sample",
+                        "input": "small.bag",
+                        "purpose": "Scan comparison",
+                        "role": "real_recording",
+                        "bytes": 9,
+                    },
+                    "later": {
+                        "name": "Deferred",
+                        "input": "missing.bag",
+                        "purpose": "Later",
+                        "role": "real_recording",
+                    },
+                }
+            }
+        )
+    )
+    catalog = dataset_catalog(
+        root=tmp_path, fixture_path=tmp_path / "demo.mcap", upload_dir=tmp_path / "uploads"
+    )
+    by_id = {d.dataset_id: d for d in catalog}
+    assert by_id["small"].selectable and by_id["small"].catalog_visible
+    assert not by_id["later"].catalog_visible
+    assert by_id["warehouse_run_17"].role == "controlled_demo"
+    assert "1×1" in by_id["warehouse_run_17"].description
+
+
+def test_investigation_profile_does_not_assume_periodic_commands():
+    from ros_telemetry_analytics.config import load_pipeline_config
+
+    root = Path(__file__).resolve().parents[2]
+    config = load_pipeline_config(root / "configs/public_robotics/lilocbench_investigation.yaml")
+    assert config.analytics.expected_rate("/dingo_velocity_controller/cmd_vel") is None
+    assert config.analytics.expected_rate("/laser_scan_front/scan") == 15

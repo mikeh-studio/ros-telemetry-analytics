@@ -3,13 +3,35 @@ import {
   ArrowCounterClockwiseIcon,
   PauseIcon,
   PlayIcon,
+  PulseIcon,
+  RecordIcon,
+  NavigationArrowIcon,
 } from "@phosphor-icons/react";
 import IncidentDetail from "./IncidentDetail";
 import TopicHistory from "./TopicHistory";
+import DatasetContext, {
+  capability,
+  AnalysisUnavailable,
+} from "./DatasetContext";
+import RecordingInvestigation from "./RecordingInvestigation";
 import LocalizationInvestigation from "./LocalizationInvestigation";
 import TelemetryPipeline, { pipelineState } from "./TelemetryPipeline";
 import { isPipelineTopic, isEventDriven, signalLabel } from "./signals";
 
+function saved(key, fallback) {
+  try {
+    return localStorage.getItem(key) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+function remember(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* Storage may be disabled. */
+  }
+}
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const CONNECTION_ERROR =
   "Telemetry API unavailable. Keep the stack running; this view will reconnect automatically.";
@@ -34,7 +56,7 @@ const DEFAULT_DATASET = {
   dataset_id: "warehouse_run_17",
   name: "Warehouse Run 17",
   description:
-    "Deterministic 90-second ROS 2 mission with optional camera dropout.",
+    "Synthetic timing demo with repeated payloads, zero header stamps and a constant 1×1 image.",
   source: "built_in",
   file_format: "rosbag2_mcap",
   status: "ready",
@@ -381,7 +403,12 @@ function LocalizationTrajectory({ points }) {
 }
 
 export default function App() {
-  const [activeView, setActiveView] = useState("health");
+  const [activeView, setActiveView] = useState(() => {
+    const view = saved("workbench.view", "health");
+    return ["health", "recordings", "localization"].includes(view)
+      ? view
+      : "health";
+  });
   const [snapshot, setSnapshot] = useState(EMPTY);
   const [scenario, setScenario] = useState("clean");
   const [rate, setRate] = useState(1);
@@ -393,18 +420,27 @@ export default function App() {
   const [readiness, setReadiness] = useState(EMPTY_READINESS);
   const [localization, setLocalization] = useState(EMPTY_LOCALIZATION);
   const [datasetCatalog, setDatasetCatalog] = useState(EMPTY_DATASETS);
-  const [selectedDatasetId, setSelectedDatasetId] = useState(
-    EMPTY_DATASETS.default_dataset_id,
+  const [selectedDatasetId, setSelectedDatasetId] = useState(() =>
+    saved("workbench.dataset", EMPTY_DATASETS.default_dataset_id),
   );
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const uploadDialog = useRef(null);
-  const datasetSelectionTouched = useRef(false);
+  const datasetSelectionTouched = useRef(
+    Boolean(saved("workbench.dataset", "")),
+  );
+  const [catalogNotice, setCatalogNotice] = useState("");
+  useEffect(() => {
+    remember("workbench.view", activeView);
+  }, [activeView]);
   const currentRunId = useRef(null);
+  const currentLiveId = useRef(null);
 
   const applySnapshot = useCallback((payload) => {
     if (currentRunId.current !== payload.run_id) setError("");
     currentRunId.current = payload.run_id;
+    currentLiveId.current =
+      payload.source_format === "live_ros2" ? payload.dataset_id : null;
     setSnapshot(payload);
     if (
       !datasetSelectionTouched.current &&
@@ -425,15 +461,39 @@ export default function App() {
     const response = await fetch(`${API_URL}/api/datasets`);
     if (!response.ok) throw new Error("Dataset catalog is unavailable");
     const payload = await response.json();
+    const entries = payload.datasets || EMPTY_DATASETS.datasets;
+    setSelectedDatasetId((current) => {
+      if (
+        entries.some((d) => d.dataset_id === current) ||
+        current === currentLiveId.current
+      )
+        return current;
+      const next =
+        payload.default_dataset_id ||
+        entries[0]?.dataset_id ||
+        EMPTY_DATASETS.default_dataset_id;
+      if (datasetSelectionTouched.current)
+        setCatalogNotice(
+          "The previous dataset is no longer available. Selected the catalog default.",
+        );
+      remember("workbench.dataset", next);
+      return next;
+    });
     setDatasetCatalog({
       default_dataset_id:
         payload.default_dataset_id || EMPTY_DATASETS.default_dataset_id,
       datasets: payload.datasets || EMPTY_DATASETS.datasets,
     });
+    if (
+      !datasetSelectionTouched.current &&
+      !currentRunId.current &&
+      payload.default_dataset_id
+    )
+      setSelectedDatasetId(payload.default_dataset_id);
   }, []);
 
   useEffect(() => {
-    loadDatasets().catch((reason) => setError(reason.message));
+    loadDatasets().catch((reason) => setCatalogNotice(reason.message));
   }, [loadDatasets]);
 
   useEffect(() => {
@@ -501,17 +561,32 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const load = () =>
-      fetch(`${API_URL}/api/localization/evaluation`)
-        .then((response) =>
-          response.ok ? response.json() : EMPTY_LOCALIZATION,
-        )
-        .then(setLocalization)
-        .catch(() => setLocalization(EMPTY_LOCALIZATION));
+    setLocalization(EMPTY_LOCALIZATION);
+    if (!selectedDatasetId.startsWith("localization:")) return;
+    const controller = new AbortController();
+    const load = async () => {
+      try {
+        const response = await fetch(
+          `${API_URL}/api/localization/evaluation?dataset_id=${encodeURIComponent(selectedDatasetId)}`,
+          { signal: controller.signal },
+        );
+        const body = await response.json();
+        if (!response.ok)
+          throw new Error(body.detail || "Evaluation unavailable");
+        if (!controller.signal.aborted && body.dataset_id === selectedDatasetId)
+          setLocalization(body);
+      } catch (reason) {
+        if (!controller.signal.aborted)
+          setLocalization({ status: "unavailable", detail: reason.message });
+      }
+    };
     load();
     const interval = window.setInterval(load, 10_000);
-    return () => window.clearInterval(interval);
-  }, []);
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+    };
+  }, [selectedDatasetId]);
 
   useEffect(() => {
     const load = () =>
@@ -538,19 +613,28 @@ export default function App() {
           file_format: "live_ros2",
           source: "live_ros2",
           status: "live session",
+          capabilities: {
+            health: "ready",
+            recordings: "unsupported",
+            localization: "unsupported",
+          },
           selectable: false,
         }
       : null;
   const availableDatasets = liveDataset
     ? [...datasetCatalog.datasets, liveDataset]
     : datasetCatalog.datasets;
-  const selectedDataset =
-    availableDatasets.find(
-      (dataset) => dataset.dataset_id === selectedDatasetId,
-    ) ||
-    datasetCatalog.datasets.find(
-      (dataset) => dataset.dataset_id === datasetCatalog.default_dataset_id,
-    );
+  const selectedDataset = availableDatasets.find(
+    (dataset) => dataset.dataset_id === selectedDatasetId,
+  ) || {
+    dataset_id: selectedDatasetId,
+    name: "Loading selected dataset…",
+    capabilities: {
+      health: "loading",
+      recordings: "loading",
+      localization: "loading",
+    },
+  };
 
   useEffect(() => {
     if (
@@ -618,16 +702,45 @@ export default function App() {
   const selectedRunActive = selectedRunMatches && Boolean(snapshot.run_id);
   const missionDurationMs = selectedRunActive
     ? snapshot.mission_duration_ms
-    : selectedDataset?.mission_duration_ms || 90_000;
+    : (selectedDataset?.mission_duration_ms ?? null);
   const expectedTopicCount = selectedRunActive
     ? snapshot.topic_count
     : selectedDataset?.topic_count;
-  const datasetLocked = [
-    "starting",
-    "running",
-    "paused",
-    "finalizing",
-  ].includes(runStatus);
+  const datasetLocked =
+    ["starting", "running", "paused", "finalizing"].includes(
+      snapshot.run?.payload?.status,
+    ) && !snapshot.completion?.verified;
+
+  function tabAvailability(view) {
+    const state = capability(selectedDataset, view);
+    if (state === "loading") return "Loading";
+    if (view === "health") {
+      if (viewingLive)
+        return streamingAuthoritiesReady ? "Live" : "Connection unavailable";
+      if (!selectedDataset?.selectable || state !== "ready")
+        return state === "not_installed"
+          ? "Not installed"
+          : "Recording unavailable";
+      if (readiness.status !== "ready") return "Services not ready";
+      if (datasetLocked && !selectedRunMatches) return "Another replay active";
+      if (datasetLocked)
+        return {
+          starting: "Starting replay",
+          running: "Replaying",
+          paused: "Paused",
+          finalizing: "Finishing replay",
+        }[snapshot.run?.payload?.status];
+      return "Ready";
+    }
+    return (
+      {
+        ready: "Ready",
+        limited: "Limited coverage",
+        stale: "Needs refresh",
+        not_installed: "Not installed",
+      }[state] || "Analysis not prepared"
+    );
+  }
 
   async function control(path, body) {
     setBusy(true);
@@ -650,6 +763,14 @@ export default function App() {
     }
   }
 
+  function chooseDataset(id) {
+    datasetSelectionTouched.current = true;
+    setSelectedDatasetId(id);
+    remember("workbench.dataset", id);
+    setCatalogNotice("");
+    setScenario("clean");
+  }
+
   async function uploadDataset(event) {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -670,8 +791,7 @@ export default function App() {
       if (!response.ok)
         throw new Error(payload.detail || "Dataset upload failed");
       await loadDatasets();
-      datasetSelectionTouched.current = true;
-      setSelectedDatasetId(payload.dataset_id);
+      chooseDataset(payload.dataset_id);
       setScenario("clean");
       uploadDialog.current.close();
     } catch (reason) {
@@ -683,199 +803,178 @@ export default function App() {
   }
 
   return (
-    <main>
+    <main className="workbench-theme">
       <header className="command-header">
         <div className="title-lockup">
           <h1>ROS Workbench</h1>
         </div>
-        <div
-          className="workspace-tabs"
-          role="tablist"
-          aria-label="ROS Workbench views"
+        <button
+          className="header-upload"
+          disabled={uploading}
+          onClick={() => {
+            setUploadError("");
+            if (uploadDialog.current && !uploadDialog.current.open)
+              uploadDialog.current.showModal();
+          }}
         >
-          {[
-            ["health", "Telemetry Health"],
-            ["localization", "Localization Investigation"],
-          ].map(([id, label], index) => (
-            <button
-              key={id}
-              id={`view-${id}`}
-              role="tab"
-              aria-selected={activeView === id}
-              aria-controls={`panel-${id}`}
-              tabIndex={activeView === id ? 0 : -1}
-              onClick={() => setActiveView(id)}
-              onKeyDown={(event) => {
-                if (
-                  !["ArrowLeft", "ArrowRight", "Home", "End"].includes(
-                    event.key,
-                  )
-                )
-                  return;
-                event.preventDefault();
-                const next =
-                  event.key === "Home"
-                    ? "health"
-                    : event.key === "End"
-                      ? "localization"
-                      : index === 0
-                        ? "localization"
-                        : "health";
-                setActiveView(next);
-                document.getElementById(`view-${next}`).focus();
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="header-state" role="status">
-          <span
-            aria-hidden="true"
-            className={`connection-dot ${connected ? "live" : ""}`}
-          />
-          {connected ? "API connected" : "Reconnecting"}
-        </div>
+          {uploading ? "Uploading…" : "Upload recording"}
+        </button>
       </header>
+      <DatasetContext
+        datasets={availableDatasets}
+        selected={selectedDataset}
+        onSelect={chooseDataset}
+        notice={catalogNotice}
+        onRefresh={() =>
+          loadDatasets().catch((reason) => setCatalogNotice(reason.message))
+        }
+      />
+      <dialog
+        className="add-data-dialog"
+        ref={uploadDialog}
+        aria-labelledby="add-data-title"
+      >
+        <div className="add-data-heading">
+          <h2 id="add-data-title">Upload recording</h2>
+          <button
+            className="add-data-button"
+            onClick={() => uploadDialog.current.close()}
+            aria-label="Close upload recording"
+          >
+            Close
+          </button>
+        </div>
+        <p>Choose a ROS recording to add to your available datasets.</p>
+        <label className="upload-control">
+          Upload recording
+          <input
+            type="file"
+            accept=".bag,.mcap,.db3"
+            disabled={uploading}
+            onChange={uploadDataset}
+          />
+          <span>
+            {uploading ? "Validating upload…" : "Choose .bag, .mcap, or .db3"}
+          </span>
+        </label>
+        <p role="status">
+          {uploading
+            ? "Uploading and validating your recording…"
+            : "After validation, your recording will be selected for replay."}
+        </p>
+        {uploadError && (
+          <p className="upload-error" role="alert">
+            {uploadError}
+          </p>
+        )}
+      </dialog>
+      {datasetLocked && (
+        <aside className="active-run-banner" role="status">
+          Replay {snapshot.run?.payload?.status} on{" "}
+          {snapshot.dataset_name || snapshot.dataset_id}.
+          {!selectedRunMatches && (
+            <>
+              <span> Finish this replay before starting another.</span>
+              <button
+                onClick={() => {
+                  chooseDataset(snapshot.dataset_id);
+                  setActiveView("health");
+                }}
+              >
+                Return to active replay
+              </button>
+            </>
+          )}
+        </aside>
+      )}
+      <div
+        className="workspace-tabs"
+        role="tablist"
+        aria-label="ROS Workbench views"
+      >
+        {[
+          ["health", "Telemetry Health", PulseIcon],
+          ["recordings", "Recording Investigation", RecordIcon],
+          ["localization", "Localization Investigation", NavigationArrowIcon],
+        ].map(([id, label, Icon], index) => (
+          <button
+            key={id}
+            id={`view-${id}`}
+            role="tab"
+            aria-label={label}
+            aria-describedby={`availability-${id}`}
+            aria-selected={activeView === id}
+            aria-controls={`panel-${id}`}
+            tabIndex={activeView === id ? 0 : -1}
+            onClick={() => setActiveView(id)}
+            onKeyDown={(event) => {
+              if (
+                !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
+              )
+                return;
+              event.preventDefault();
+              const tabs = ["health", "recordings", "localization"];
+              const next =
+                event.key === "Home"
+                  ? tabs[0]
+                  : event.key === "End"
+                    ? tabs[2]
+                    : tabs[(index + (event.key === "ArrowRight" ? 1 : 2)) % 3];
+              setActiveView(next);
+              document.getElementById(`view-${next}`).focus();
+            }}
+          >
+            <span className="tab-label">
+              <Icon
+                className="tab-icon"
+                size={20}
+                weight="regular"
+                aria-hidden="true"
+                focusable="false"
+              />
+              {label}
+            </span>
+            <span className="tab-availability" id={`availability-${id}`}>
+              {tabAvailability(id)}
+            </span>
+          </button>
+        ))}
+      </div>
+
       <section
         id="panel-health"
         role="tabpanel"
         aria-labelledby="view-health"
         hidden={activeView !== "health"}
       >
-        <div className="workspace-heading health-heading">
-          <h2>Mission setup</h2>
-          <span className="workspace-mode">
-            {viewingLive ? "Live ROS 2" : "Recorded replay"}
-          </span>
-          <p>
-            {viewingLive
-              ? "Inspect the connected ROS session and monitor its topics."
-              : "Choose a recording, configure its replay, then start monitoring."}
-          </p>
-        </div>
         <div className="analysis-workspace">
           <section
             className="mission-overview launch-bar"
-            aria-label="Mission selection"
+            aria-label="Replay controls"
           >
-            <div className="launch-source">
-              <div className="mission-dataset">
-                <label>
-                  Dataset
-                  <select
-                    value={selectedDatasetId}
-                    onChange={(event) => {
-                      datasetSelectionTouched.current = true;
-                      setSelectedDatasetId(event.target.value);
-                    }}
-                    disabled={busy || uploading || datasetLocked}
-                  >
-                    {availableDatasets.map((dataset) => (
-                      <option
-                        value={dataset.dataset_id}
-                        disabled={
-                          !dataset.selectable && dataset !== liveDataset
-                        }
-                        key={dataset.dataset_id}
-                      >
-                        {dataset.name}
-                        {dataset.selectable
-                          ? ""
-                          : ` — ${(dataset.status || "unavailable").replaceAll("_", " ")}`}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <p className="launch-metadata">
-                {(selectedDataset?.source || "unknown source").replaceAll(
-                  "_",
-                  " ",
-                )}
-                {Number.isFinite(selectedDataset?.mission_duration_ms)
-                  ? ` · ${formatTime(selectedDataset.mission_duration_ms)}`
-                  : ""}{" "}
-                · {formatBytes(selectedDataset?.size_bytes)}
-              </p>
-              <details className="dataset-details">
-                <summary>Details</summary>
-                <p className="launch-description">
-                  {selectedDataset?.description ||
-                    "Select a built-in, public, or uploaded ROS recording."}
-                </p>
-              </details>
-              <button
-                className="import-recording-button"
-                disabled={busy || uploading || datasetLocked}
-                onClick={() => {
-                  setUploadError("");
-                  if (uploadDialog.current && !uploadDialog.current.open)
-                    uploadDialog.current.showModal();
-                }}
-              >
-                Import recording…
-              </button>
-            </div>
-            <dialog
-              className="add-data-dialog"
-              ref={uploadDialog}
-              aria-labelledby="add-data-title"
-            >
-              <div className="add-data-heading">
-                <h2 id="add-data-title">Import recording</h2>
-                <button
-                  className="add-data-button"
-                  onClick={() => uploadDialog.current.close()}
-                  aria-label="Close import recording"
-                >
-                  Close
-                </button>
-              </div>
-              <p>Choose a ROS recording to add to your available datasets.</p>
-              <label className="upload-control">
-                Upload recording
-                <input
-                  type="file"
-                  accept=".bag,.mcap,.db3"
-                  disabled={busy || uploading || datasetLocked}
-                  onChange={uploadDataset}
-                />
-                <span>
-                  {uploading
-                    ? "Validating upload…"
-                    : "Choose .bag, .mcap, or .db3"}
-                </span>
-              </label>
-              <p role="status">
-                {uploading
-                  ? "Uploading and validating your recording…"
-                  : "After validation, your recording will be selected for replay."}
-              </p>
-              {uploadError && (
-                <p className="upload-error" role="alert">
-                  {uploadError}
-                </p>
-              )}
-            </dialog>
+            <h2 className="replay-title">
+              {viewingLive ? "Live ROS 2" : "Replay"}
+            </h2>
             <div className="mission-controls">
               <div className="selector-grid">
-                <label>
-                  Scenario
-                  <select
-                    value={scenario}
-                    onChange={(event) => setScenario(event.target.value)}
-                    disabled={viewingLive || busy || datasetLocked}
-                  >
-                    <option value="clean">Clean mission</option>
-                    <option
-                      value="camera-dropout"
-                      disabled={!selectedDataset?.supports_camera_dropout}
+                {selectedDataset?.supports_camera_dropout && (
+                  <label>
+                    Fault injection
+                    <select
+                      value={scenario}
+                      onChange={(event) => setScenario(event.target.value)}
+                      disabled={viewingLive || busy || datasetLocked}
                     >
-                      Camera dropout
-                    </option>
-                  </select>
-                </label>
+                      <option value="clean">None</option>
+                      <option
+                        value="camera-dropout"
+                        disabled={!selectedDataset?.supports_camera_dropout}
+                      >
+                        Camera dropout
+                      </option>
+                    </select>
+                  </label>
+                )}
                 <fieldset
                   className="replay-speed"
                   disabled={viewingLive || busy || datasetLocked}
@@ -903,28 +1002,16 @@ export default function App() {
               </div>
             </div>
             <div className="launch-actions">
-              <p className="launch-readiness">
-                {viewingLive
-                  ? "Managed by ROS gateway"
-                  : busy
-                    ? "Applying request…"
-                    : readiness.status !== "ready"
-                      ? "Waiting for services"
-                      : !selectedDataset?.selectable
-                        ? "Recording unavailable"
-                        : datasetLocked
-                          ? "Mission in progress"
-                          : "Ready to replay"}
-              </p>
               <div className="transport-controls">
                 <TransportAction
                   label={
-                    runStatus === "completed" ? "Replay again" : "Start mission"
+                    runStatus === "completed" ? "Replay again" : "Start replay"
                   }
                   primary
                   disabled={
                     busy ||
                     uploading ||
+                    viewingLive ||
                     readiness.status !== "ready" ||
                     datasetLocked ||
                     !selectedDataset?.selectable
@@ -976,7 +1063,7 @@ export default function App() {
             {scenario === "camera-dropout" && (
               <p className="selector-note">
                 Camera dropout runs at 1× so the processing-time watchdog stays
-                tied to real time. Use 5× for the clean mission.
+                tied to real time. Use 5× without fault injection.
               </p>
             )}
             {error && (
@@ -986,27 +1073,46 @@ export default function App() {
             )}
           </section>
 
-          <div className="analysis-main">
-            <div className="monitor-heading">
-              <h2>Monitor</h2>
-              <StatusPill
-                status={runStatus === "ready" ? "not started" : runStatus}
-              />
-            </div>
-            {readiness.status !== "ready" && (
-              <p className="recovery-message" role="status">
-                Stack services are still starting or unavailable. If this
-                persists, run <code>docker compose ps</code> and{" "}
-                <code>docker compose logs</code>.
-              </p>
-            )}
-
-            <details
-              className="stack-disclosure"
-              open={readiness.status !== "ready" ? true : undefined}
-            >
+          {(!selectedRunActive || readiness.status !== "ready") && (
+            <section className="replay-empty" aria-label="Replay status">
+              <div className="replay-message" role="status">
+                <p>
+                  {capability(selectedDataset, "health") === "loading"
+                    ? "Loading recording availability…"
+                    : !selectedDataset?.selectable
+                      ? "Replay is unavailable for this recording."
+                      : datasetLocked && !selectedRunMatches
+                        ? "Another recording is being replayed."
+                        : readiness.status !== "ready"
+                          ? "Replay services are not ready."
+                          : "Ready to replay this recording."}
+                </p>
+                <p>
+                  {capability(selectedDataset, "recordings") === "ready"
+                    ? "Prepared sensor evidence is available."
+                    : selectedRunActive
+                      ? "Live results will resume when services reconnect."
+                      : "No replay results yet for this dataset."}
+                </p>
+              </div>
+            </section>
+          )}
+          <div className="replay-followup">
+            {(!selectedRunActive || readiness.status !== "ready") &&
+              capability(selectedDataset, "recordings") === "ready" && (
+                <button
+                  className="inspect-evidence"
+                  onClick={() => {
+                    setActiveView("recordings");
+                    document.getElementById("view-recordings").focus();
+                  }}
+                >
+                  Inspect sensor evidence
+                </button>
+              )}
+            <details className="stack-disclosure">
               <summary>
-                <span>Stack readiness</span>
+                <span>Connection details</span>
                 <strong>
                   {
                     Object.values(readiness.services || {}).filter(
@@ -1015,10 +1121,20 @@ export default function App() {
                   }
                   /5 services ready
                 </strong>
-                <span>Details</span>
               </summary>
               <section className="readiness" aria-label="Stack readiness">
-                <span className="eyebrow">Stack readiness</span>
+                <p className="connection-summary">
+                  {connected ? "API connected" : "Reconnecting to API"}.{" "}
+                  {readiness.status === "ready"
+                    ? "Replay services are ready."
+                    : "Start the local replay stack to enable streaming analytics."}
+                </p>
+                {readiness.status !== "ready" && (
+                  <p className="connection-summary">
+                    Check <code>docker compose ps</code> and{" "}
+                    <code>docker compose logs</code> for service diagnostics.
+                  </p>
+                )}
                 <div className="readiness-services">
                   {Object.entries(SERVICE_LABELS).map(([name, label]) => {
                     const status = readiness.services?.[name] || "unknown";
@@ -1036,333 +1152,352 @@ export default function App() {
                 </div>
               </section>
             </details>
-            <section className="timeline-section">
-              <div className="section-title compact">
-                <div>
-                  <span className="eyebrow">
-                    Mission timeline <b>({formatTime(missionDurationMs)})</b>
-                  </span>
-                </div>
-                <strong className="elapsed">
-                  {formatTime(
-                    selectedRunMatches ? snapshot.mission_progress_ms : 0,
-                  )}{" "}
-                  / {formatTime(missionDurationMs)}
-                </strong>
+          </div>
+          {selectedRunActive && (
+            <div className="analysis-main">
+              <div className="monitor-heading">
+                <h2>Monitor</h2>
+                <StatusPill
+                  status={runStatus === "ready" ? "not started" : runStatus}
+                />
               </div>
-              <MissionTimeline
-                incidents={selectedRunMatches ? snapshot.anomalies : []}
-                startMs={snapshot.run_start_stream_ms}
-                progressMs={
-                  selectedRunMatches ? snapshot.mission_progress_ms : 0
-                }
-                durationMs={missionDurationMs}
-              />
-            </section>
-
-            <section className="mission-summary" aria-label="Operations status">
-              <div className="summary-cell robot-summary">
-                <span className="eyebrow">
-                  Telemetry status
-                  {runStatus === "completed" ? " · end of run" : " · latest"}
-                </span>
-                <div className="summary-heading">
-                  <h2>
-                    {selectedRunMatches
-                      ? snapshot.robot_id ||
-                        snapshot.run?.robot_id ||
-                        "Unknown source"
-                      : "—"}
-                  </h2>
-                  <StatusPill status={robotStatus} />
-                </div>
-                <dl>
-                  <div>
-                    <dt>Monitored topics</dt>
-                    <dd>{robotTopics.length}</dd>
-                  </div>
-                  <div>
-                    <dt>Total monitored topics</dt>
-                    <dd>
-                      {visibleTopics.length} / {expectedTopicCount ?? "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Source</dt>
-                    <dd>
-                      {selectedDataset?.file_format?.replaceAll("_", " ") ||
-                        "ROS bag"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Output</dt>
-                    <dd>
-                      {selectedRunMatches && snapshot.completion?.verified
-                        ? "Verified"
-                        : "Pending"}
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-              <div className="summary-cell incident-summary">
-                <span className="eyebrow">Active incidents</span>
-                <strong className="incident-count">
-                  {activeIncidents.length}{" "}
-                  <small>
-                    active ·{" "}
-                    {selectedRunMatches
-                      ? snapshot.anomalies.filter(
-                          (item) => item.status === "recovered",
-                        ).length
-                      : 0}{" "}
-                    resolved
-                  </small>
-                </strong>
-                <div className="primary-anomaly">
-                  {primaryAnomaly ? (
-                    <>
-                      <strong>
-                        {primaryAnomaly.condition_type.replaceAll("_", " ")}
-                      </strong>
-                      <code>{primaryAnomaly.topic || "Robot-wide"}</code>
-                    </>
-                  ) : (
-                    <>
-                      <strong>None active</strong>
-                      <span>
-                        {robotStatus === "healthy"
-                          ? "No open incidents"
-                          : "See robot and topic status"}
+              {Number.isFinite(missionDurationMs) && (
+                <section className="timeline-section">
+                  <div className="section-title compact">
+                    <div>
+                      <span className="eyebrow">
+                        Mission timeline{" "}
+                        <b>({formatTime(missionDurationMs)})</b>
                       </span>
-                    </>
-                  )}
-                </div>
-              </div>
-            </section>
+                    </div>
+                    <strong className="elapsed">
+                      {formatTime(
+                        selectedRunMatches ? snapshot.mission_progress_ms : 0,
+                      )}{" "}
+                      / {formatTime(missionDurationMs)}
+                    </strong>
+                  </div>
+                  <MissionTimeline
+                    incidents={selectedRunMatches ? snapshot.anomalies : []}
+                    startMs={snapshot.run_start_stream_ms}
+                    progressMs={
+                      selectedRunMatches ? snapshot.mission_progress_ms : 0
+                    }
+                    durationMs={missionDurationMs}
+                  />
+                </section>
+              )}
 
-            {(pipeline.unhealthy || pipeline.attention) && (
-              <p className="pipeline-notice">
-                <a
-                  href="#telemetry-pipeline"
+              <section
+                className="mission-summary"
+                aria-label="Operations status"
+              >
+                <div className="summary-cell robot-summary">
+                  <span className="eyebrow">
+                    Telemetry status
+                    {runStatus === "completed" ? " · end of run" : " · latest"}
+                  </span>
+                  <div className="summary-heading">
+                    <h2>
+                      {selectedRunMatches
+                        ? snapshot.robot_id ||
+                          snapshot.run?.robot_id ||
+                          "Unknown source"
+                        : "—"}
+                    </h2>
+                    <StatusPill status={robotStatus} />
+                  </div>
+                  <dl>
+                    <div>
+                      <dt>Monitored topics</dt>
+                      <dd>{robotTopics.length}</dd>
+                    </div>
+                    <div>
+                      <dt>Total monitored topics</dt>
+                      <dd>
+                        {visibleTopics.length} / {expectedTopicCount ?? "—"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Source</dt>
+                      <dd>
+                        {selectedDataset?.file_format?.replaceAll("_", " ") ||
+                          "ROS bag"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Output</dt>
+                      <dd>
+                        {selectedRunMatches && snapshot.completion?.verified
+                          ? "Verified"
+                          : "Pending"}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+                <div className="summary-cell incident-summary">
+                  <span className="eyebrow">Active incidents</span>
+                  <strong className="incident-count">
+                    {activeIncidents.length}{" "}
+                    <small>
+                      active ·{" "}
+                      {selectedRunMatches
+                        ? snapshot.anomalies.filter(
+                            (item) => item.status === "recovered",
+                          ).length
+                        : 0}{" "}
+                      resolved
+                    </small>
+                  </strong>
+                  <div className="primary-anomaly">
+                    {primaryAnomaly ? (
+                      <>
+                        <strong>
+                          {primaryAnomaly.condition_type.replaceAll("_", " ")}
+                        </strong>
+                        <code>{primaryAnomaly.topic || "Robot-wide"}</code>
+                      </>
+                    ) : (
+                      <>
+                        <strong>None active</strong>
+                        <span>
+                          {robotStatus === "healthy"
+                            ? "No open incidents"
+                            : "See robot and topic status"}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              {(pipeline.unhealthy || pipeline.attention) && (
+                <p className="pipeline-notice">
+                  <a
+                    href="#telemetry-pipeline"
+                    onClick={() => {
+                      document.getElementById("telemetry-pipeline").open = true;
+                    }}
+                  >
+                    Telemetry Pipeline:{" "}
+                    {pipeline.unhealthy
+                      ? "delivery needs attention"
+                      : "event to inspect"}{" "}
+                    · View evidence
+                  </a>
+                </p>
+              )}
+
+              <TopicHistory
+                completed={runStatus === "completed"}
+                live={viewingLive}
+                key={`${snapshot.run_id}-${selectedDatasetId}`}
+                topics={robotTopics}
+                signals={visibleSignals}
+                history={selectedRunMatches ? snapshot.topic_history || [] : []}
+                startMs={snapshot.run_start_stream_ms}
+                durationMs={
+                  viewingLive
+                    ? Math.max(
+                        missionDurationMs,
+                        snapshot.mission_progress_ms || 0,
+                      )
+                    : missionDurationMs
+                }
+                incidents={selectedRunMatches ? snapshot.anomalies : []}
+                unavailable={authorityUnavailable}
+              />
+
+              <TelemetryPipeline
+                key={`pipeline-${snapshot.run_id}-${selectedDatasetId}`}
+                topics={pipelineTopics}
+                signals={pipelineSignals}
+                incidents={pipelineIncidents}
+                startMs={snapshot.run_start_stream_ms}
+                unavailable={authorityUnavailable}
+                live={viewingLive}
+              />
+
+              <IncidentDetail
+                key={snapshot.run_id}
+                runId={selectedRunMatches ? snapshot.run_id : null}
+                history={snapshot.incident_history}
+                anomalies={snapshot.anomalies}
+                signals={snapshot.observed_signals}
+              />
+
+              <div className="investigation-entry">
+                <span>
+                  Review localization evidence attached to the selected dataset.
+                </span>
+                <button
                   onClick={() => {
-                    document.getElementById("telemetry-pipeline").open = true;
+                    setActiveView("localization");
+                    document.getElementById("view-localization").focus();
                   }}
                 >
-                  Telemetry Pipeline:{" "}
-                  {pipeline.unhealthy
-                    ? "delivery needs attention"
-                    : "event to inspect"}{" "}
-                  · View evidence
-                </a>
-              </p>
-            )}
+                  Open Localization Investigation
+                </button>
+              </div>
 
-            <TopicHistory
-              completed={runStatus === "completed"}
-              live={viewingLive}
-              key={`${snapshot.run_id}-${selectedDatasetId}`}
-              topics={robotTopics}
-              signals={visibleSignals}
-              history={selectedRunMatches ? snapshot.topic_history || [] : []}
-              startMs={snapshot.run_start_stream_ms}
-              durationMs={
-                viewingLive
-                  ? Math.max(
-                      missionDurationMs,
-                      snapshot.mission_progress_ms || 0,
-                    )
-                  : missionDurationMs
-              }
-              incidents={selectedRunMatches ? snapshot.anomalies : []}
-              unavailable={authorityUnavailable}
-            />
-
-            <TelemetryPipeline
-              key={`pipeline-${snapshot.run_id}-${selectedDatasetId}`}
-              topics={pipelineTopics}
-              signals={pipelineSignals}
-              incidents={pipelineIncidents}
-              startMs={snapshot.run_start_stream_ms}
-              unavailable={authorityUnavailable}
-              live={viewingLive}
-            />
-
-            <IncidentDetail
-              key={snapshot.run_id}
-              runId={selectedRunMatches ? snapshot.run_id : null}
-              history={snapshot.incident_history}
-              anomalies={snapshot.anomalies}
-              signals={snapshot.observed_signals}
-            />
-
-            <div className="investigation-entry">
-              <span>
-                Review localization failures in the separate evaluation
-                recording.
-              </span>
-              <button
-                onClick={() => {
-                  setActiveView("localization");
-                  document.getElementById("view-localization").focus();
-                }}
-              >
-                Open Localization Investigation
-              </button>
-            </div>
-
-            <details className="operations-detail">
-              <summary>
-                <span>
-                  <span className="eyebrow">Operational detail</span>
-                  <strong>Throughput and incident log</strong>
-                </span>
-                <span>Expand</span>
-              </summary>
-              <div className="operations-grid">
-                <article>
-                  <div className="section-head">
-                    <div>
-                      <span className="eyebrow">Rate monitor</span>
-                      <h2>Observed throughput</h2>
+              <details className="operations-detail">
+                <summary>
+                  <span>
+                    <span className="eyebrow">Operational detail</span>
+                    <strong>Throughput and incident log</strong>
+                  </span>
+                  <span>Expand</span>
+                </summary>
+                <div className="operations-grid">
+                  <article>
+                    <div className="section-head">
+                      <div>
+                        <span className="eyebrow">Rate monitor</span>
+                        <h2>Observed throughput</h2>
+                      </div>
+                      <span className="legend">Target band</span>
                     </div>
-                    <span className="legend">Target band</span>
-                  </div>
-                  <RateBars topics={visibleTopics} />
-                </article>
-                <article className="incidents">
-                  <div className="section-head">
-                    <div>
-                      <span className="eyebrow">Incident timeline</span>
-                      <h2>Detection log</h2>
+                    <RateBars topics={visibleTopics} />
+                  </article>
+                  <article className="incidents">
+                    <div className="section-head">
+                      <div>
+                        <span className="eyebrow">Incident timeline</span>
+                        <h2>Detection log</h2>
+                      </div>
+                      <strong>{snapshot.incident_history.length}</strong>
                     </div>
-                    <strong>{snapshot.incident_history.length}</strong>
-                  </div>
-                  <ol>
-                    {snapshot.incident_history
-                      .slice(-8)
-                      .reverse()
-                      .map((incident) => (
-                        <li key={`${incident.anomaly_id}-${incident.revision}`}>
-                          <span className={`incident-dot ${incident.status}`} />
-                          <div>
-                            <strong>
-                              {incident.condition_type.replaceAll("_", " ")}
-                            </strong>
-                            <span>
-                              {incident.topic
-                                ? topicLabel(incident.topic)
-                                : "Robot-wide"}{" "}
-                              · revision {incident.revision}
-                            </span>
-                            {formatEvidence(incident.evidence) && (
-                              <span>{formatEvidence(incident.evidence)}</span>
-                            )}
-                          </div>
-                          <StatusPill
-                            status={
-                              incident.status === "active"
-                                ? "error"
-                                : "recovered"
-                            }
-                          />
+                    <ol>
+                      {snapshot.incident_history
+                        .slice(-8)
+                        .reverse()
+                        .map((incident) => (
+                          <li
+                            key={`${incident.anomaly_id}-${incident.revision}`}
+                          >
+                            <span
+                              className={`incident-dot ${incident.status}`}
+                            />
+                            <div>
+                              <strong>
+                                {incident.condition_type.replaceAll("_", " ")}
+                              </strong>
+                              <span>
+                                {incident.topic
+                                  ? topicLabel(incident.topic)
+                                  : "Robot-wide"}{" "}
+                                · revision {incident.revision}
+                              </span>
+                              {formatEvidence(incident.evidence) && (
+                                <span>{formatEvidence(incident.evidence)}</span>
+                              )}
+                            </div>
+                            <StatusPill
+                              status={
+                                incident.status === "active"
+                                  ? "error"
+                                  : "recovered"
+                              }
+                            />
+                          </li>
+                        ))}
+                      {!snapshot.incident_history.length && (
+                        <li className="empty-state">
+                          No incidents yet. Run the camera dropout scenario to
+                          exercise event-time recovery.
                         </li>
-                      ))}
-                    {!snapshot.incident_history.length && (
-                      <li className="empty-state">
-                        No incidents yet. Run the camera dropout scenario to
-                        exercise event-time recovery.
-                      </li>
-                    )}
-                  </ol>
-                </article>
-              </div>
-            </details>
+                      )}
+                    </ol>
+                  </article>
+                </div>
+              </details>
 
-            <details className="technical">
-              <summary>
-                <span>
-                  <span className="eyebrow">Technical details</span>
-                  <strong>Pipeline state & durability</strong>
-                </span>
-                <span>Expand</span>
-              </summary>
-              <div className="technical-grid">
-                <div>
-                  <h3>Event-time policy</h3>
-                  <p>
-                    2 s out-of-orderness · 5 s allowed lateness · 3 s idle
-                    partitions
-                  </p>
+              <details className="technical">
+                <summary>
+                  <span>
+                    <span className="eyebrow">Technical details</span>
+                    <strong>Pipeline state & durability</strong>
+                  </span>
+                  <span>Expand</span>
+                </summary>
+                <div className="technical-grid">
+                  <div>
+                    <h3>Event-time policy</h3>
+                    <p>
+                      2 s out-of-orderness · 5 s allowed lateness · 3 s idle
+                      partitions
+                    </p>
+                  </div>
+                  <div>
+                    <h3>Durability</h3>
+                    <p>
+                      5 s checkpoints · exactly-once Kafka sinks · SQLite offset
+                      projection
+                    </p>
+                  </div>
+                  <div>
+                    <h3>Mission output</h3>
+                    <p>
+                      {selectedRunMatches
+                        ? snapshot.completion?.summary_file_count || 0
+                        : 0}{" "}
+                      / {expectedTopicCount ?? "—"} topic summaries
+                      independently verified
+                    </p>
+                  </div>
+                  <div>
+                    <h3>Runtime</h3>
+                    <p>
+                      {flink.status === "available"
+                        ? "Flink job available"
+                        : "Flink unavailable · metrics unknown"}{" "}
+                      ·{" "}
+                      <a
+                        href="http://localhost:8081"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Open dashboard ↗
+                      </a>
+                    </p>
+                  </div>
+                  <div>
+                    <h3>Streaming authority</h3>
+                    <p>
+                      Source lag {flink.consumer_lag ?? "unknown"} · projection
+                      lag {flink.projection_lag ?? "unknown"} · watermark{" "}
+                      {flink.watermark_ms ?? "unknown"} · checkpoint{" "}
+                      {flink.checkpoints?.status?.toLowerCase() ?? "unknown"} #
+                      {flink.checkpoints?.id ?? "unknown"} (
+                      {formatDurationMs(flink.checkpoints?.age_ms)} old) ·
+                      restarts {flink.restarts ?? "unknown"}
+                    </p>
+                  </div>
+                  <div>
+                    <h3>Event counters</h3>
+                    <p>
+                      Processed {flink.events_processed ?? "unknown"} · accepted
+                      late {flink.accepted_late_events ?? "unknown"} · duplicate{" "}
+                      {flink.duplicate_events ?? "unknown"} · too late{" "}
+                      {flink.too_late_events ?? "unknown"} · operator in/out{" "}
+                      {flink.records_in ?? "unknown"}/
+                      {flink.records_out ?? "unknown"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3>Durability</h3>
-                  <p>
-                    5 s checkpoints · exactly-once Kafka sinks · SQLite offset
-                    projection
-                  </p>
+                <div className="offsets">
+                  <code>
+                    {snapshot.consumer_offsets
+                      .map(
+                        (item) =>
+                          `${item.topic}[${item.partition}]=${item.next_offset}`,
+                      )
+                      .join("  ·  ") || "Waiting for Kafka offsets"}
+                  </code>
                 </div>
-                <div>
-                  <h3>Mission output</h3>
-                  <p>
-                    {selectedRunMatches
-                      ? snapshot.completion?.summary_file_count || 0
-                      : 0}{" "}
-                    / {expectedTopicCount ?? "—"} topic summaries independently
-                    verified
-                  </p>
-                </div>
-                <div>
-                  <h3>Runtime</h3>
-                  <p>
-                    {flink.status === "available"
-                      ? "Flink job available"
-                      : "Flink unavailable · metrics unknown"}{" "}
-                    ·{" "}
-                    <a
-                      href="http://localhost:8081"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Open dashboard ↗
-                    </a>
-                  </p>
-                </div>
-                <div>
-                  <h3>Streaming authority</h3>
-                  <p>
-                    Source lag {flink.consumer_lag ?? "unknown"} · projection
-                    lag {flink.projection_lag ?? "unknown"} · watermark{" "}
-                    {flink.watermark_ms ?? "unknown"} · checkpoint{" "}
-                    {flink.checkpoints?.status?.toLowerCase() ?? "unknown"} #
-                    {flink.checkpoints?.id ?? "unknown"} (
-                    {formatDurationMs(flink.checkpoints?.age_ms)} old) ·
-                    restarts {flink.restarts ?? "unknown"}
-                  </p>
-                </div>
-                <div>
-                  <h3>Event counters</h3>
-                  <p>
-                    Processed {flink.events_processed ?? "unknown"} · accepted
-                    late {flink.accepted_late_events ?? "unknown"} · duplicate{" "}
-                    {flink.duplicate_events ?? "unknown"} · too late{" "}
-                    {flink.too_late_events ?? "unknown"} · operator in/out{" "}
-                    {flink.records_in ?? "unknown"}/
-                    {flink.records_out ?? "unknown"}
-                  </p>
-                </div>
-              </div>
-              <div className="offsets">
-                <code>
-                  {snapshot.consumer_offsets
-                    .map(
-                      (item) =>
-                        `${item.topic}[${item.partition}]=${item.next_offset}`,
-                    )
-                    .join("  ·  ") || "Waiting for Kafka offsets"}
-                </code>
-              </div>
-            </details>
-          </div>
+              </details>
+            </div>
+          )}
         </div>
       </section>
       <section
@@ -1371,20 +1506,54 @@ export default function App() {
         aria-labelledby="view-localization"
         hidden={activeView !== "localization"}
       >
-        <LocalizationInvestigation
-          standalone
-          active={activeView === "localization"}
-          evaluation={localization}
-          apiUrl={API_URL}
-          overview={
-            <LocalizationTrajectory points={localization.trajectory || []} />
-          }
-        />
+        {capability(selectedDataset, "localization") !== "ready" ? (
+          <AnalysisUnavailable dataset={selectedDataset} view="localization" />
+        ) : (
+          <LocalizationInvestigation
+            key={selectedDatasetId}
+            standalone
+            active={activeView === "localization"}
+            evaluation={
+              localization.dataset_id === selectedDatasetId
+                ? localization
+                : {
+                    ...EMPTY_LOCALIZATION,
+                    detail:
+                      localization.detail || "Loading selected evaluation…",
+                  }
+            }
+            apiUrl={API_URL}
+            overview={
+              <LocalizationTrajectory
+                points={
+                  localization.dataset_id === selectedDatasetId
+                    ? localization.trajectory || []
+                    : []
+                }
+              />
+            }
+          />
+        )}
       </section>
-      <footer>
-        <span>ROS Workbench</span>
-        <span>Kafka → Flink DataStream → FastAPI → React</span>
-      </footer>
+      <section
+        id="panel-recordings"
+        role="tabpanel"
+        aria-labelledby="view-recordings"
+        hidden={activeView !== "recordings"}
+      >
+        {["ready", "limited"].includes(
+          capability(selectedDataset, "recordings"),
+        ) ? (
+          <RecordingInvestigation
+            key={selectedDatasetId}
+            datasetId={selectedDatasetId}
+            apiUrl={API_URL}
+            active={activeView === "recordings"}
+          />
+        ) : (
+          <AnalysisUnavailable dataset={selectedDataset} view="recordings" />
+        )}
+      </section>
     </main>
   );
 }

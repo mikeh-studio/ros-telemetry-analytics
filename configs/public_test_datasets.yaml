@@ -114,6 +114,7 @@ datasets:
       - Use command/odometry response, front/rear LaserScan integrity, TF continuity, and ground-truth trajectory as separate evidence lanes.
 
   openloris_scene_cafe1_1_2:
+    catalog_visible: false
     public_robotics_suite: true
     workflow: multimodal_synchronization_and_lifelong_slam
     source_page: https://lifelong-robotic-vision.github.io/dataset/scene.html
@@ -135,6 +136,7 @@ datasets:
       - The upstream project documents historical duplicate odometry and calibration issues; preserve the original bag and record any repair as a derived copy.
 
   arco_ros2_trajectory_1:
+    catalog_visible: false
     public_robotics_suite: true
     workflow: ros2_point_cloud_radar_and_custom_type_coverage
     source_page: https://robotics.upo.es/datasets/ArcoDataset/main.html

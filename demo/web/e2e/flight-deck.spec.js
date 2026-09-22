@@ -16,7 +16,7 @@ test("completed recorded mission is operationally trustworthy", async ({
     page.getByRole("heading", { name: "ROS Workbench", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("Recorded replay", { exact: true }),
+    page.getByRole("tab", { name: "Telemetry Health", exact: true }),
   ).toBeVisible();
 
   await page.locator(".stack-disclosure summary").click();
@@ -46,7 +46,8 @@ test("completed recorded mission is operationally trustworthy", async ({
   await expect(mission.locator(".status-pill")).toHaveText("completed", {
     timeout: 30_000,
   });
-  await expect(page.getByRole("combobox", { name: "Dataset" })).toHaveValue(
+  await expect(page.getByRole("combobox", { name: "Dataset" })).toHaveAttribute(
+    "value",
     snapshot.dataset_id,
   );
   const elapsed = formatTime(snapshot.mission_duration_ms);
@@ -146,9 +147,8 @@ test("state flow never leaves stale health behind", async ({ page }) => {
 
   await page.goto("/");
   await expect(
-    page.getByRole("button", { name: "Start mission" }),
+    page.getByRole("button", { name: "Start replay" }),
   ).toBeDisabled();
-  await page.locator(".operations-detail summary").click();
   health = {
     status: "ready",
     services: {
@@ -159,9 +159,9 @@ test("state flow never leaves stale health behind", async ({ page }) => {
       replayer: "ready",
     },
   };
-  await expect(page.getByRole("button", { name: "Start mission" })).toBeEnabled(
-    { timeout: 5000 },
-  );
+  await expect(page.getByRole("button", { name: "Start replay" })).toBeEnabled({
+    timeout: 5000,
+  });
 
   const base = {
     run_id: "run-state-flow",
@@ -199,6 +199,8 @@ test("state flow never leaves stale health behind", async ({ page }) => {
   await expect(page.locator(".monitor-heading .status-pill")).toHaveText(
     "paused",
   );
+
+  await page.locator(".operations-detail summary").click();
 
   const active = {
     anomaly_id: "incident-1",
@@ -265,9 +267,15 @@ test("mobile controls and readiness remain usable", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: "Replay again" }),
   ).toBeVisible();
-  await expect(page.getByRole("combobox", { name: "Scenario" })).toBeVisible();
+  await expect(
+    page.getByRole("combobox", { name: "Fault injection" }),
+  ).toBeVisible();
   await expect(page.locator(".topic-history-table tbody tr")).toHaveCount(
     robotTopicCount,
   );
-  await expect(page.locator("main")).toHaveCSS("width", "390px");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
 });

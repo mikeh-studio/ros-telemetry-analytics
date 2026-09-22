@@ -1,5 +1,7 @@
 # ROS Telemetry Analytics
 
+**Recording investigations:** [review the seven-recording audit, three explainable cases, and local setup](docs/recording-investigations.md).
+
 Investigate robot telemetry from recorded missions and live ROS 2 topics.
 Trace sensor dropouts and recovery in ROS Workbench, evaluate localization
 failures, and inspect the evidence behind each result.

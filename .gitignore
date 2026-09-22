@@ -26,3 +26,5 @@ demo/web/dist/
 demo/web/playwright-report/
 demo/web/test-results/
 streaming/flink-job/target/
+
+data/investigations/

@@ -12,7 +12,11 @@ from demo.api.app import app
 
 
 def test_public_api_matches_the_flight_deck_contract() -> None:
-    routes = {(method, route.path) for route in app.routes for method in route.methods or set()}
+    routes = {
+        (method.upper(), path)
+        for path, methods in app.openapi()["paths"].items()
+        for method in methods
+    }
     expected = {
         ("GET", "/api/health"),
         ("GET", "/api/runs/current"),
@@ -24,6 +28,9 @@ def test_public_api_matches_the_flight_deck_contract() -> None:
         ("POST", "/api/replay/restart"),
         ("POST", "/api/scenarios/camera-dropout"),
         ("GET", "/api/datasets"),
+        ("GET", "/api/investigations"),
+        ("GET", "/api/investigations/{dataset_id}"),
+        ("GET", "/api/investigations/{dataset_id}/interval"),
         ("POST", "/api/datasets/upload"),
         ("GET", "/api/flink/summary"),
         ("GET", "/api/localization/evaluation"),
@@ -394,3 +401,57 @@ def test_flink_summary_exposes_curated_runtime_authorities(monkeypatch) -> None:
     assert payload["duplicate_events"] == 1
     assert payload["too_late_events"] == 0
     assert payload["projection_lag"] is None
+
+
+def test_workbench_catalog_separates_evaluation_from_replay(tmp_path, monkeypatch):
+    from demo.common.datasets import ReplayDataset
+
+    monkeypatch.setattr(api_module, "ROOT", tmp_path)
+    monkeypatch.setattr(
+        api_module.localization_investigation,
+        "metadata",
+        lambda _: {
+            "status": "available",
+            "evaluation_id": "version1",
+            "dataset": "tuhh_robot_localization_failure_prediction_v1",
+            "runs": [{"run_id": "one"}],
+            "recordings": ["one.parquet"],
+            "duration_ms": 123,
+        },
+    )
+    upload = ReplayDataset(
+        "upload:a.bag",
+        "A",
+        "Uploaded",
+        "user_upload",
+        "rosbag1",
+        tmp_path / "a.bag",
+        "ready",
+        uploaded=True,
+    )
+    result = api_module.workbench_catalog([upload], [])
+    assert result[0]["capabilities"] == {
+        "health": "ready",
+        "recordings": "not_prepared",
+        "localization": "unsupported",
+    }
+    assert result[1]["dataset_id"] == "localization:version1"
+    assert result[1]["selectable"] is False
+    assert result[1]["capabilities"]["localization"] == "ready"
+    assert len(result[1]["runs"]) == 1
+    assert "path" not in result[0]
+
+
+def test_selected_localization_rejects_other_dataset_and_obsolete_version(monkeypatch):
+    monkeypatch.setattr(
+        api_module.localization_investigation,
+        "metadata",
+        lambda _: {
+            "status": "available",
+            "evaluation_id": "current",
+        },
+    )
+    for dataset_id in ("tum_vi_room4_512", "localization:old"):
+        with pytest.raises(HTTPException) as error:
+            asyncio.run(api_module.localization_evaluation(dataset_id))
+        assert error.value.status_code == 409

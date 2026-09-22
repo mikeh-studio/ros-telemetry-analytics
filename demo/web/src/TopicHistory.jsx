@@ -1,3 +1,4 @@
+import { CaretRightIcon, CircleIcon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { topicDescription } from "./TopicInfo";
 import {
@@ -83,7 +84,7 @@ export default function TopicHistory({
   }, [topics.length]);
   const [cursor, setCursor] = useState(null);
   const [selected, setSelected] = useState(null);
-  const duration = Math.max(1, durationMs || 90000);
+  const duration = Math.max(1, durationMs || 1);
   const rows = useMemo(
     () =>
       topics.map((metric) => ({
@@ -102,6 +103,9 @@ export default function TopicHistory({
   const selectedSample = selectedRow?.samples.find(
     (sample) => cursor != null && Math.abs(sample.t - cursor) < 500,
   );
+  const inspectedMetric =
+    cursor == null ? selectedRow?.metric : selectedSample?.item;
+  const inspectedGap = inspectedMetric?.payload?.max_inter_message_gap_s;
   const selectedIncidents = incidents.filter(
     (incident) => incident.topic === selectedRow?.metric.topic,
   );
@@ -114,7 +118,10 @@ export default function TopicHistory({
       <div className="section-title compact">
         <h2>Monitored Topics</h2>
         <span>
-          {live ? "Live session" : "Recorded windows"} · 00:00–{time(duration)}
+          {live ? "Live session" : "Recorded windows"} ·{" "}
+          {Number.isFinite(durationMs)
+            ? `00:00–${time(duration)}`
+            : "Duration not measured"}
         </span>
       </div>
       <details className="history-inspector">
@@ -126,6 +133,7 @@ export default function TopicHistory({
             <input
               type="range"
               min="0"
+              disabled={!Number.isFinite(durationMs)}
               max={duration}
               step="1000"
               value={cursor ?? duration}
@@ -155,10 +163,11 @@ export default function TopicHistory({
             <tr>
               <th scope="col">Topic</th>
               <th scope="col">{completed ? "End state" : "Latest health"}</th>
-              <th scope="col">Rate history / update</th>
-              <th scope="col">Observed</th>
-              <th scope="col">Expected</th>
-              <th scope="col">Window max gap</th>
+              <th scope="col">Rate history</th>
+              <th scope="col">Rate</th>
+              <th scope="col">
+                <span className="sr-only">Inspect</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -242,6 +251,7 @@ export default function TopicHistory({
                     <span
                       className={`status-pill ${unavailable ? "warn" : ["healthy", "ok"].includes(status) ? "ok" : ["observed", "waiting", "starting"].includes(status) ? "idle" : "warn"}`}
                     >
+                      <CircleIcon size={9} weight="fill" aria-hidden="true" />{" "}
                       {unavailable ? "unavailable" : status}
                     </span>
                     {activeIncident && (
@@ -415,18 +425,20 @@ export default function TopicHistory({
                               : `At ${time(cursor)}`
                             : "No sample"}
                     </span>
+                    <span className="lane-expected">
+                      {eventDriven
+                        ? "No fixed rate"
+                        : `Expected ${rate(expected)}`}
+                    </span>
                   </td>
-                  <td data-label="Expected">
-                    {eventDriven ? "No fixed rate" : rate(expected)}
-                  </td>
-                  <td data-label="Window max gap">
-                    {eventDriven
-                      ? "—"
-                      : Number.isFinite(
-                            atCursor?.payload?.max_inter_message_gap_s,
-                          )
-                        ? `${Number(atCursor.payload.max_inter_message_gap_s.toFixed(3))} s`
-                        : "—"}
+                  <td className="lane-inspect">
+                    <button
+                      className="topic-inspect"
+                      aria-label={`Inspect ${label(metric.topic)}`}
+                      onClick={() => setSelected(metric.topic)}
+                    >
+                      <CaretRightIcon size={20} aria-hidden="true" />
+                    </button>
                   </td>
                 </tr>
               );
@@ -442,6 +454,16 @@ export default function TopicHistory({
           <summary>Inspect topic · {label(selectedRow.metric.topic)}</summary>
           <div aria-live="polite">
             <p>{topicDescription(selectedRow.metric.topic)}</p>
+            {!isEventDriven(selectedRow.metric) && (
+              <p>
+                Window max gap:{" "}
+                {Number.isFinite(inspectedGap)
+                  ? `${Number(inspectedGap.toFixed(3))} s`
+                  : "—"}
+                . Rate charts use 10 s windows with a 1 s slide. Dashed line:
+                expected; hollow dots: partial windows.
+              </p>
+            )}
             <p>
               {isEventDriven(selectedRow.metric)
                 ? `Last observed update: ${signalTime(latestObservation(signals, selectedRow.metric.topic, selectedRow.metric.robot_id)?.stream_timestamp_ms, startMs)}. No fixed-rate expectation; silence alone is not a rate fault.`
