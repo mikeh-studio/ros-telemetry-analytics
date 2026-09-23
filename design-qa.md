@@ -1,18 +1,42 @@
-# Workbench UI validation
-
-Scope: shared recording context, tab availability, recording menu and monitored topics.
-
-- Original Barlow Condensed / IBM Plex Mono fonts and monochrome design retained.
-- Menu and trigger measured 440 CSS px with matching edges and an 8 px gap.
-- Topic names and inspection arrows have no boxes; long paths remain within their rows.
-- Rates retain recorded data, per-topic axes and partial-window semantics. Gap details are available on inspection; unknown windows must not show the latest gap as a substitute.
-- Browser checks covered recording selection, Escape dismissal, source inspection and no document overflow at 947 and 625 CSS px. The narrow capture had a compositor scaling artifact; DOM geometry supplemented that check.
-- Unit tests cover keyboard navigation, outside dismissal, dataset isolation and stale responses. Browser error log was empty.
-
-Evidence: [recording menu](artifacts/workbench-review/recording-picker.png), [topic rows](artifacts/workbench-review/topics.png). Captures are 929 × 1009 pixels at a 947 × 1029 CSS viewport and show TUM VI Room 4 after replay. The menu capture includes the existing inverted hover state.
-
-Earlier P2 issue: generic button rules restored topic boxes and pushed inspection arrows out of bounds. Corrected specificity and recaptured both regions. The selected mock and both captures were reviewed together; the existing header, tabs and replay controls remain between the scoped regions. Charts keep real scales rather than decorative mock sparklines.
-
-Follow-up: a shared chart time axis could reduce repetition. Full accessibility certification and the clean-stack CI browser suite are separate checks.
+# Recording header and replay layout QA
 
 final result: passed
+
+Scope: implement the selected first design from the latest three-option set.
+
+## Visual evidence
+
+- Source: `artifacts/workbench-review/option-one-target.png` (1774 × 887).
+- Normalized source: `artifacts/workbench-review/option-one-target-normalized.jpg` (1440 × 720).
+- Browser implementation: `artifacts/workbench-review/option-one-desktop-full.jpg` (1776 × 2754), with the reviewed header/replay crop in `option-one-desktop.jpg` (1440 × 720).
+- Responsive view: `artifacts/workbench-review/option-one-mobile.jpg` (320 × 1100 crop).
+- Measurements: `artifacts/workbench-review/option-one-responsive.json`.
+- State: built-in Warehouse Run 17, completed, Telemetry selected, details closed, 1× speed.
+- Desktop CSS viewport: 1440 × 900. Browser reports devicePixelRatio 0.8; viewport-only captures clipped the right side. Full-page capture included the entire content width and was normalized to 1440px for comparison. The scrollbar reduces the raw content width slightly. Mobile used a 320px CSS viewport and was normalized to 320px wide.
+
+The normalized target and implementation were opened together in the same comparison input. The header and replay region are readable at this size; a separate close-up was unnecessary. The mobile capture was inspected alongside them.
+
+## Comparison history
+
+1. Initial implementation: control grouping was correct, but the toolbar was noticeably narrower than the chosen image. Increased the fault selector, segmented speed control and primary action widths, and made both field labels uppercase. No behavior changes.
+2. Recaptured the final implementation and repeated the paired comparison. No remaining actionable P0/P1/P2 differences in the scoped regions.
+
+## Required fidelity surfaces
+
+- Typography: existing Barlow Condensed and IBM Plex Mono retained. Action labels remain on one line inside their buttons. Long recording names wrap on phones.
+- Spacing: header uses available width; description and facts share the desktop row. Tabs remain equal and compact, with a full-width divider. Replay begins 40px below that divider. Controls align at desktop sizes and wrap on phones.
+- Colors: black surface, off-white filled primary action, muted gray text/rules and green completion state match the selected direction.
+- Assets: existing Phosphor icons retained; no raster imagery is needed for these components.
+- Content: real dataset names, descriptions, durations and topic counts remain data-driven. The mock's manually inserted description line break is intentionally not hard-coded.
+
+Minor retained differences: the existing rule above the tabs remains, and tabs use the existing compact 220px desktop width instead of the mock's slightly wider rendering. These do not change the selected grouping or responsive behavior.
+
+## Validation
+
+- Browser assertions passed at 320, 390, approximately 768 and 1024, 1440 and 1920 CSS pixels. No horizontal overflow; equal tab widths; 44px control heights; action labels fully inside button borders; 40px separation from tabs. Wide header/picker growth was measured.
+- Checked completed, running and paused controls, including Pause, Resume and Restart label containment at 320px. Started the demo, paused, resumed and observed completion.
+- Opened/closed recording details and picker, dismissed the menu with Escape, and selected TUM VI Room 4 to check the toolbar without fault injection.
+- Browser console error log was empty at the final interaction check.
+- 63 frontend unit tests and production build passed. The automated browser regression was extended to include text containment and header growth; the full CLI browser suite is left to PR CI. Interactive checks used the in-app browser.
+
+No open design questions. Full accessibility certification and every recording/state combination are outside this focused validation.

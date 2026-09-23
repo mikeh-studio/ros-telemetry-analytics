@@ -1,15 +1,18 @@
 /* Replay controls own their layout; legacy mission setup rules do not apply. */
 .workbench-theme .replay-controls {
-  --replay-control-height: 48px;
+  --replay-control-height: 44px;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 20px;
+  gap: 20px 16px;
 }
 .workbench-theme .replay-controls .replay-title {
-  flex: 1 1 120px;
+  flex: 0 0 100%;
   margin: 0;
-  line-height: var(--replay-control-height);
+  font:
+    600 24px/1.25 "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.02em;
 }
 .replay-settings,
 .replay-actions {
@@ -21,7 +24,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 12px;
+  gap: 16px;
 }
 .replay-fields > label {
   display: grid;
@@ -31,6 +34,7 @@
 }
 .replay-fields > label,
 .replay-rate legend {
+  text-transform: uppercase;
   color: var(--muted);
   font:
     12px/1.5 "IBM Plex Mono",
@@ -60,7 +64,7 @@
   height: 1px;
 }
 .workbench-theme .replay-controls select,
-.workbench-theme .replay-controls .transport-action button,
+.workbench-theme .replay-controls .replay-action button,
 .replay-rate-options span {
   box-sizing: border-box;
   height: var(--replay-control-height);
@@ -72,7 +76,7 @@
   color: var(--white);
 }
 .workbench-theme .replay-controls select {
-  width: 184px;
+  width: 280px;
   max-width: 100%;
   padding: 8px 12px;
   font:
@@ -82,7 +86,7 @@
 .replay-rate-options span {
   display: grid;
   place-items: center;
-  min-width: 72px;
+  min-width: 88px;
   padding: 8px 16px;
   color: var(--muted);
   font:
@@ -107,11 +111,20 @@
 .workbench-theme .replay-controls select:disabled {
   opacity: 0.5;
 }
-.workbench-theme .replay-controls .transport-action button {
-  min-width: 150px;
+.workbench-theme .replay-controls .replay-action button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: auto;
+  min-width: 196px;
+  max-width: 100%;
   padding: 8px 20px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   font:
-    400 20px/1.5 "Barlow Condensed",
+    600 20px/1.2 "Barlow Condensed",
     sans-serif;
 }
 .workbench-theme .replay-controls button:hover:not(:disabled) {
@@ -128,4 +141,26 @@
     flex-basis: 100%;
     line-height: 1.5;
   }
+}
+
+/* Text actions have their own sizing, independent of the old icon transport. */
+.replay-action {
+  flex: 0 0 auto;
+}
+.workbench-theme .replay-controls .replay-action button.primary {
+  background: var(--white);
+  color: #000;
+  border-color: var(--white);
+}
+.replay-action button.primary svg {
+  display: none;
+}
+.replay-action button svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+.workbench-theme .replay-controls .replay-action button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

@@ -7,7 +7,8 @@
   --muted: #b0b6bd;
   --accent: #f0f0fa;
   --white: #f0f0fa;
-  max-width: 1536px;
+  width: 100%;
+  max-width: none;
   padding: 24px 44px 48px;
   margin: 0 auto;
 }
@@ -67,7 +68,7 @@
 }
 .dataset-toolbar {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: flex-start;
   gap: 24px;
 }
@@ -121,8 +122,31 @@
   color: #fff;
 }
 .recording-about {
-  align-self: end;
+  flex: none;
   margin-bottom: 4px;
+}
+.dataset-overview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px 32px;
+  margin-top: 24px;
+}
+.dataset-overview .dataset-purpose {
+  flex: 1 1 560px;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+}
+.dataset-overview .dataset-facts {
+  flex: 0 1 auto;
+  margin-left: auto;
+}
+@media (max-width: 1100px) {
+  .dataset-overview .dataset-facts {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
 }
 .dataset-purpose {
   font:
@@ -167,7 +191,7 @@
 }
 .workbench-theme .analysis-workspace {
   display: block;
-  padding-top: 28px;
+  padding-top: 40px;
 }
 .workbench-theme .analysis-workspace .launch-bar {
   display: flex;
@@ -488,7 +512,8 @@
     padding: 26px 0;
   }
   .dataset-toolbar {
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
     gap: 10px;
   }
   .workbench-theme button.recording-about {
@@ -654,13 +679,13 @@
 /* Equal-width tabs form a compact strip anchored to the left. */
 .workbench-theme .workspace-tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 220px));
   align-items: stretch;
   justify-content: flex-start;
   gap: 0;
   margin: 0;
   min-width: 0;
-  width: min(100%, 660px);
+  width: 100%;
   overflow: visible;
   border-bottom: 1px solid var(--border);
   scrollbar-width: thin;
@@ -767,7 +792,8 @@
 /* Recording menu and quiet topic rows. */
 .recording-menu {
   position: relative;
-  width: min(380px, 100%);
+  flex: 1 1 0;
+  width: 100%;
   min-width: 0;
 }
 .workbench-theme button.recording-trigger {

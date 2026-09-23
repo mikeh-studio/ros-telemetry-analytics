@@ -19,14 +19,14 @@ Validated locally on 2026-09-22 against the implementation in this PR.
 
 ## Automated checks
 
-| Check | Result |
-| --- | --- |
-| Ruff lint and formatting | Passed |
-| Python suite | 276 passed; 91.06% package coverage |
-| Frontend unit/interaction suite | 63 passed |
-| Production frontend build | Passed |
-| Python wheel and source distribution build | Passed |
-| Docker Compose configuration | Passed |
+| Check                                      | Result                              |
+| ------------------------------------------ | ----------------------------------- |
+| Ruff lint and formatting                   | Passed                              |
+| Python suite                               | 276 passed; 91.06% package coverage |
+| Frontend unit/interaction suite            | 63 passed                           |
+| Production frontend build                  | Passed                              |
+| Python wheel and source distribution build | Passed                              |
+| Docker Compose configuration               | Passed                              |
 
 The frontend suite includes selection/reset behavior, evidence navigation,
 pagination, rebuild completion/failure, cancellation, and callback replacement.
@@ -68,14 +68,23 @@ no physical-robot validation or causal ground truth. Rebuild jobs assume the
 single-worker local API; uploads still require separate registration/preparation
 for offline explanations.
 
-## Replay alignment follow-up
+## Recording header and replay layout
 
-The initial overflow scan missed vertical misalignment: the fault selector's
-visible label and legacy control heights shifted the speed and replay buttons.
-The replay strip now uses its own scoped stylesheet and class names, a shared
-48px control height, visible speed labeling, and bottom-aligned wrapping groups.
-Browser measurements confirm identical control edges at 1250px and no overflow
-at 320px, including the disabled starting state. A browser regression in
-`flight-deck.spec.js` checks control heights, desktop alignment, and mobile bounds;
-its automated execution is part of the PR CI gate. The 63 frontend tests and
-production build pass locally.
+The selected design uses the available header width, with recording metadata on
+the right at desktop sizes. Tabs retain equal widths in a compact left-aligned
+group; their divider spans the content area. Replay settings and actions sit
+beneath the heading with 44px controls and a 40px gap below the tabs.
+
+The previous checks measured button boxes but missed their overflowing text.
+The replay action now has a dedicated class, intrinsic width and a single-line
+label, removing the inherited 42px icon-button width. The recording picker also
+no longer has a fixed 380px width.
+
+Browser checks passed at 320, 390, approximately 768 and 1024, 1440, and 1920 CSS
+pixels: no horizontal overflow, equal tab widths, action text inside its button,
+and aligned desktop controls. Start, pause and resume were exercised on the
+built-in recording. All 63 frontend tests and the production build passed.
+The equivalent automated browser regression was extended; its execution remains
+a PR CI gate. See [design QA](../design-qa.md) for comparison and capture details.
+
+![Approved recording header and replay layout](../artifacts/workbench-review/option-one-desktop.jpg)

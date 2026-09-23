@@ -91,33 +91,35 @@ export default function DatasetContext({
         </button>
       </div>
       {notice && <p role="status">{notice}</p>}
-      <p className="dataset-purpose">
-        {selected?.purpose ||
-          selected?.description ||
-          "Choose a dataset to inspect its available evidence."}
-      </p>
-      <div className="dataset-facts">
-        {(selected?.source === "user_upload" ||
-          selected?.source === "built_in") && (
+      <div className="dataset-overview">
+        <p className="dataset-purpose">
+          {selected?.purpose ||
+            selected?.description ||
+            "Choose a dataset to inspect its available evidence."}
+        </p>
+        <div className="dataset-facts">
+          {(selected?.source === "user_upload" ||
+            selected?.source === "built_in") && (
+            <span>
+              {selected.source === "user_upload"
+                ? "User upload"
+                : "Controlled synthetic demo"}
+            </span>
+          )}
           <span>
-            {selected.source === "user_upload"
-              ? "User upload"
-              : "Controlled synthetic demo"}
+            {Number.isFinite(selected?.mission_duration_ms)
+              ? `${(selected.mission_duration_ms / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} s`
+              : "Duration not measured"}
           </span>
-        )}
-        <span>
-          {Number.isFinite(selected?.mission_duration_ms)
-            ? `${(selected.mission_duration_ms / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} s`
-            : "Duration not measured"}
-        </span>
-        {(coverage.length > 0 || selected?.topic_count != null) && (
-          <span>{coverage.length || selected.topic_count} topics</span>
-        )}
-        {selected?.runs && (
-          <span>
-            {selected.runs.length} prepared run(s) · independent run clocks
-          </span>
-        )}
+          {(coverage.length > 0 || selected?.topic_count != null) && (
+            <span>{coverage.length || selected.topic_count} topics</span>
+          )}
+          {selected?.runs && (
+            <span>
+              {selected.runs.length} prepared run(s) · independent run clocks
+            </span>
+          )}
+        </div>
       </div>
       {signalTypes.length > 0 && (
         <p className="dataset-signals">

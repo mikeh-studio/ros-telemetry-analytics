@@ -282,7 +282,7 @@ function TransportAction({
   primary = false,
 }) {
   return (
-    <div className="transport-action">
+    <div className="replay-action">
       <button
         className={primary ? "primary" : ""}
         type="button"
