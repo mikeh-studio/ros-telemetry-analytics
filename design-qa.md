@@ -9,12 +9,11 @@ Scope: implement the selected first design from the latest three-option set.
 - Source: `artifacts/workbench-review/option-one-target.png` (1774 × 887).
 - Normalized source: `artifacts/workbench-review/option-one-target-normalized.jpg` (1440 × 720).
 - Browser implementation: `artifacts/workbench-review/option-one-desktop-full.jpg` (1776 × 2754), with the reviewed header/replay crop in `option-one-desktop.jpg` (1440 × 720).
-- Responsive view: `artifacts/workbench-review/option-one-mobile.jpg` (320 × 1100 crop).
 - Measurements: `artifacts/workbench-review/option-one-responsive.json`.
 - State: built-in Warehouse Run 17, completed, Telemetry selected, details closed, 1× speed.
-- Desktop CSS viewport: 1440 × 900. Browser reports devicePixelRatio 0.8; viewport-only captures clipped the right side. Full-page capture included the entire content width and was normalized to 1440px for comparison. The scrollbar reduces the raw content width slightly. Mobile used a 320px CSS viewport and was normalized to 320px wide.
+- Desktop CSS viewport: 1440 × 900. Browser reports devicePixelRatio 0.8; viewport-only captures clipped the right side. Full-page capture included the entire content width and was normalized to 1440px for comparison. The scrollbar reduces the raw content width slightly.
 
-The normalized target and implementation were opened together in the same comparison input. The header and replay region are readable at this size; a separate close-up was unnecessary. The mobile capture was inspected alongside them.
+The normalized target and implementation were opened together in the same comparison input. The header and replay region are readable at this size; a separate close-up was unnecessary. Responsive checks are recorded in the measurements file; mobile screenshots are omitted from the documentation.
 
 ## Comparison history
 

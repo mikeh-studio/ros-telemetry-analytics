@@ -15,9 +15,7 @@ and understand what remains uncertain.
 The goal is to help you decide **where to investigate next**, with the evidence
 and its limits visible. A warning does not establish a physical root cause.
 
-![ROS Workbench recording analysis with detected incidents](artifacts/screenshots/recording-analysis.jpg)
-
-*LILocBench Dynamics 0: select a recorded delivery gap or command/odometry disagreement.*
+<img src="artifacts/workbench-review/option-one-desktop.jpg" alt="ROS Workbench desktop recording selector and replay controls" width="800">
 
 ## Try it locally
 
@@ -38,10 +36,6 @@ incident to see observations, possible explanations, uncertainty, and next check
 **Rebuild evidence** updates an installed, registered recording directly from the
 page. Uploads do not yet receive this prepared analysis automatically.
 
-![Recorded incident explanation with measured evidence and explicit uncertainty](artifacts/screenshots/recording-explanation.jpg)
-
-*Command/odometry disagreement is an observation to investigate, not proof of a stalled robot.*
-
 ## Analyze bags without the web app
 
 Python 3.11+ on macOS or Linux; no ROS runtime, CUDA, or simulator required:
@@ -58,13 +52,13 @@ ROS 1 bags, ROS 2 bag directories, `.db3`, and `.mcap` files.
 
 ## Guides
 
-| Use case | Guide |
-| --- | --- |
-| Replay recordings and inspect topic delivery | [ROS Workbench](docs/flight-deck.md) |
-| Investigate incidents without replay | [Recording analysis](docs/recording-investigations.md) |
-| Configure batch checks and inspect output | [Bag analysis](docs/bag-analysis.md) |
-| Evaluate localization detection | [Localization evaluation](docs/localization-evaluation.md) |
-| Connect live ROS 2 topics | [Optional gateway and simulation](docs/live-ros2.md) |
+| Use case                                        | Guide                                                                                           |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Replay recordings and inspect topic delivery    | [ROS Workbench](docs/flight-deck.md)                                                            |
+| Investigate incidents without replay            | [Recording analysis](docs/recording-investigations.md)                                          |
+| Configure batch checks and inspect output       | [Bag analysis](docs/bag-analysis.md)                                                            |
+| Evaluate localization detection                 | [Localization evaluation](docs/localization-evaluation.md)                                      |
+| Connect live ROS 2 topics                       | [Optional gateway and simulation](docs/live-ros2.md)                                            |
 | Understand implementation and validation limits | [Architecture](docs/architecture.md) · [Reliability case study](docs/reliability-case-study.md) |
 
 **Status: Alpha.** Intended for engineering triage and dataset QA, not safety-critical

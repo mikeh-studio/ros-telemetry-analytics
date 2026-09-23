@@ -41,15 +41,9 @@ built-in replay. Phone (320px), tablet (800px), and desktop (1600px) layout chec
 found no remaining overflow in the expanded panels inspected. This is a focused
 layout and interaction review, not an exhaustive accessibility audit.
 
-Fresh screenshots below use the offline local preview and LILocBench Dynamics 0
-at the browser’s normal narrow width. Telemetry services are not started in this
-preview. The captures show recorded observations, not confirmed physical faults.
-The final preview also opened the exact odometry angular-velocity plot from its
-evidence link with no browser errors.
-
-![Recording analysis and incident list](../artifacts/screenshots/recording-analysis.jpg)
-
-![Selected command and odometry explanation](../artifacts/screenshots/recording-explanation.jpg)
+The offline local preview was checked with LILocBench Dynamics 0, including
+opening the exact odometry angular-velocity plot from its evidence link with no
+browser errors. Telemetry services were not started in that preview.
 
 All seven recordings were rebuilt successfully from the final source. The
 [final preparation check](../examples/recording_incidents_pr_validation.json)
@@ -87,7 +81,7 @@ built-in recording. All 63 frontend tests and the production build passed.
 The equivalent automated browser regression was extended; its execution remains
 a PR CI gate. See [design QA](../design-qa.md) for comparison and capture details.
 
-![Approved recording header and replay layout](../artifacts/workbench-review/option-one-desktop.jpg)
+See the [desktop overview](../artifacts/workbench-review/option-one-desktop.jpg).
 
 ## Compose smoke startup regression
 
@@ -102,4 +96,8 @@ failures. A browser regression deliberately holds readiness until after the
 snapshot. Existing fault expansion and manual-collapse assertions remain intact.
 The signal buttons use exact accessible-name selectors to distinguish selection
 from inspection actions. Locally, 67 frontend tests, the production build and all
-three signal-group browser tests pass. The full clean-stack checks run in CI.
+three signal-group browser tests pass.
+
+[CI run 35820888711](https://github.com/mikeh-studio/ros-telemetry-analytics/actions/runs/35820888711)
+passed all jobs on commit `391c9a9`, including the full Compose replay, oracle,
+dropout, and browser checks.
