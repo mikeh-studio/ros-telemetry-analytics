@@ -88,3 +88,18 @@ The equivalent automated browser regression was extended; its execution remains
 a PR CI gate. See [design QA](../design-qa.md) for comparison and capture details.
 
 ![Approved recording header and replay layout](../artifacts/workbench-review/option-one-desktop.jpg)
+
+## Compose smoke startup regression
+
+The failed Nav2 browser check exposed a startup ordering issue: a snapshot could
+arrive before readiness, causing the pipeline fault panel to open for an unknown
+initial connection state. Readiness now distinguishes pending initialization from
+a confirmed failure. Health stays unconfirmed while loading; real readiness
+failures, SSE errors and gateway faults still open the panel.
+
+Four unit cases cover both initial response orders and explicit readiness/network
+failures. A browser regression deliberately holds readiness until after the
+snapshot. Existing fault expansion and manual-collapse assertions remain intact.
+The signal buttons use exact accessible-name selectors to distinguish selection
+from inspection actions. Locally, 67 frontend tests, the production build and all
+three signal-group browser tests pass. The full clean-stack checks run in CI.

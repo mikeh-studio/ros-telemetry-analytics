@@ -39,7 +39,7 @@ const base = {
   run_start_stream_ms: 1000,
 };
 
-async function openFixture(page, snapshot = base) {
+async function openFixture(page, snapshot = base, readinessGate) {
   await page.addInitScript(() => {
     window.EventSource = class {
       constructor() {
@@ -55,8 +55,9 @@ async function openFixture(page, snapshot = base) {
     window.emitSnapshot = (payload) =>
       window.events.listeners.snapshot({ data: JSON.stringify(payload) });
   });
-  await page.route("**/api/**", (route) => {
+  await page.route("**/api/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/health") && readinessGate) await readinessGate;
     const json = path.endsWith("/health")
       ? {
           status: "ready",
@@ -95,7 +96,9 @@ test("Nav2 robot signals and event evidence stay separate on desktop and mobile"
   const amcl = robot.locator("tr").filter({ hasText: "/amcl_pose" });
   await expect(amcl).toContainText("No fixed rate");
   await expect(amcl).not.toContainText("0 Hz");
-  await robot.getByRole("button", { name: "Map localization" }).click();
+  await robot
+    .getByRole("button", { name: "Map localization", exact: true })
+    .click();
   await expect(
     robot.getByText(/This is an estimate, not ground truth/),
   ).toBeVisible();
@@ -151,7 +154,9 @@ test("Nav2 robot signals and event evidence stay separate on desktop and mobile"
     fullPage: true,
   });
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(robot.getByRole("button", { name: "Lidar" })).toBeVisible();
+  await expect(
+    robot.getByRole("button", { name: "Lidar", exact: true }),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -189,4 +194,27 @@ test("recorded demo keeps all four robot signals and no fabricated gateway strea
   await expect(page.locator(".telemetry-pipeline")).toContainText(
     "No gateway streams in this recording",
   );
+});
+
+test("initial readiness arriving after the snapshot does not expand a healthy pipeline", async ({
+  page,
+}) => {
+  let releaseReadiness;
+  const readinessGate = new Promise((resolve) => {
+    releaseReadiness = resolve;
+  });
+  try {
+    await openFixture(page, base, readinessGate);
+    const pipeline = page.locator(".telemetry-pipeline");
+    await expect(pipeline).toContainText("Checking connection");
+    await expect(pipeline).not.toHaveAttribute("open");
+    await expect(
+      page.getByRole("region", { name: "Operations status" }),
+    ).not.toContainText("healthy");
+    releaseReadiness();
+    await expect(pipeline).toContainText("Monitoring");
+    await expect(pipeline).not.toHaveAttribute("open");
+  } finally {
+    releaseReadiness();
+  }
 });

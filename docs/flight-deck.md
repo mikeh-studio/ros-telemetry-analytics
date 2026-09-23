@@ -50,7 +50,9 @@ instead of a rate target. Delivery health does not establish sensor accuracy.
 
 Gateway streams live in a separate, collapsible **Telemetry Pipeline** section.
 Delivery faults open it automatically and display a notice above the robot
-signals. Gateway events show observed time, type, affected topic, severity when
+signals. Initial connection/readiness checks keep health unconfirmed without
+opening the fault panel; confirmed service failures and disconnections still
+open it immediately. Gateway events show observed time, type, affected topic, severity when
 reported, and available attributes; silence is not treated as a rate fault.
 Event evidence uses the existing sampled projection (first accepted observation
 per topic per second, retaining up to 180 samples per topic), so it is not a

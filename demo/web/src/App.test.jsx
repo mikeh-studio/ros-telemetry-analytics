@@ -782,6 +782,121 @@ describe("ROS Workbench", () => {
     );
   });
 
+  it.each(["readiness", "connection"])(
+    "keeps a healthy pipeline collapsed while initial %s is pending",
+    async (delayed) => {
+      let resolveHealth;
+      fetch.mockImplementation((url) =>
+        url.includes("/api/health")
+          ? new Promise((resolve) => {
+              resolveHealth = resolve;
+            })
+          : new Promise(() => {}),
+      );
+      const { container } = render(<App />);
+      const events = FakeEventSource.instances[0];
+      const healthy = {
+        run_id: "startup-run",
+        run: { payload: { status: "running" } },
+        robot_health: { payload: { status: "healthy" } },
+        topics: [
+          {
+            topic: "/_telemetry/gateway_health",
+            payload: { health_status: "healthy" },
+          },
+        ],
+        anomalies: [],
+        incident_history: [],
+        completion: {},
+        consumer_offsets: [],
+        mission_progress_ms: 0,
+      };
+      const readiness = () =>
+        resolveHealth({
+          ok: true,
+          json: async () => ({
+            status: "ready",
+            services: {
+              kafka: "ready",
+              flink: "ready",
+              flink_job: "ready",
+              projection_api: "ready",
+              replayer: "ready",
+            },
+          }),
+        });
+      await act(async () => {
+        events.emit("snapshot", healthy);
+        if (delayed === "readiness") events.onopen();
+        else readiness();
+      });
+      const panel = container.querySelector(".telemetry-pipeline");
+      expect(panel).not.toHaveAttribute("open");
+      expect(
+        within(panel).getByText("Checking connection"),
+      ).toBeInTheDocument();
+      expect(
+        within(
+          screen.getByRole("region", { name: "Operations status" }),
+        ).queryByText("healthy"),
+      ).not.toBeInTheDocument();
+      await act(async () => {
+        if (delayed === "readiness") readiness();
+        else events.onopen();
+      });
+      expect(within(panel).getByText("Monitoring")).toBeInTheDocument();
+      expect(panel).not.toHaveAttribute("open");
+      await act(async () => events.onerror());
+      expect(panel).toHaveAttribute("open");
+      expect(
+        within(panel.querySelector("summary")).getByText("Unavailable"),
+      ).toBeInTheDocument();
+    },
+  );
+
+  it.each(["response", "network"])(
+    "opens the pipeline for an initial readiness %s failure",
+    async (failure) => {
+      let settleHealth;
+      fetch.mockImplementation((url) =>
+        url.includes("/api/health")
+          ? new Promise((resolve, reject) => {
+              settleHealth = () =>
+                failure === "network"
+                  ? reject(new Error("offline"))
+                  : resolve({
+                      ok: true,
+                      json: async () => ({ status: "starting", services: {} }),
+                    });
+            })
+          : new Promise(() => {}),
+      );
+      const { container } = render(<App />);
+      const events = FakeEventSource.instances[0];
+      await act(async () => {
+        events.onopen();
+        events.emit("snapshot", {
+          run_id: "startup-failed",
+          run: { payload: { status: "running" } },
+          robot_health: { payload: { status: "healthy" } },
+          topics: [],
+          anomalies: [],
+          incident_history: [],
+          completion: {},
+          consumer_offsets: [],
+          mission_progress_ms: 0,
+        });
+      });
+      const panel = container.querySelector(".telemetry-pipeline");
+      expect(panel).not.toHaveAttribute("open");
+      await act(async () => settleHealth());
+      expect(panel).toHaveAttribute("open");
+      expect(
+        within(panel.querySelector("summary")).getByText("Unavailable"),
+      ).toBeInTheDocument();
+    },
+  );
+
   it("does not preserve healthy state when a streaming authority is unavailable", async () => {
     fetch.mockImplementation((url) =>
       Promise.resolve({

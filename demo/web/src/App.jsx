@@ -418,6 +418,7 @@ export default function App() {
   const [awaitingSnapshot, setAwaitingSnapshot] = useState(false);
   const [flink, setFlink] = useState({ status: "unknown" });
   const [readiness, setReadiness] = useState(EMPTY_READINESS);
+  const [readinessLoaded, setReadinessLoaded] = useState(false);
   const [localization, setLocalization] = useState(EMPTY_LOCALIZATION);
   const [datasetCatalog, setDatasetCatalog] = useState(EMPTY_DATASETS);
   const [selectedDatasetId, setSelectedDatasetId] = useState(() =>
@@ -596,8 +597,14 @@ export default function App() {
     const load = () =>
       fetch(`${API_URL}/api/health`)
         .then((response) => response.json())
-        .then(setReadiness)
-        .catch(() => setReadiness(EMPTY_READINESS));
+        .then((result) => {
+          setReadiness(result);
+          setReadinessLoaded(true);
+        })
+        .catch(() => {
+          setReadiness(EMPTY_READINESS);
+          setReadinessLoaded(true);
+        });
     load();
     const interval = window.setInterval(load, 2000);
     return () => window.clearInterval(interval);
@@ -653,28 +660,38 @@ export default function App() {
   const selectedRunMatches =
     !snapshot.dataset_id || snapshot.dataset_id === selectedDatasetId;
   const viewingLive = selectedRunMatches && Boolean(liveDataset);
+  const servicesReady = ["kafka", "flink", "flink_job", "projection_api"].every(
+    (name) => readiness.services?.[name] === "ready",
+  );
   const streamingAuthoritiesReady =
-    connected &&
-    !awaitingSnapshot &&
-    ["kafka", "flink", "flink_job", "projection_api"].every(
-      (name) => readiness.services?.[name] === "ready",
-    );
+    connected && !awaitingSnapshot && servicesReady;
   const authorityUnavailable =
     selectedRunMatches &&
     Boolean(snapshot.run_id) &&
     !streamingAuthoritiesReady;
-  const runStatus = authorityUnavailable
-    ? "unavailable"
-    : !selectedRunMatches
-      ? "ready"
-      : snapshot.completion?.verified
-        ? "completed"
-        : snapshot.run?.payload?.status || "ready";
-  const robotStatus = authorityUnavailable
-    ? "unavailable"
-    : selectedRunMatches
-      ? snapshot.robot_health?.payload?.status || "waiting"
-      : "waiting";
+  // Initial requests can finish in either order. Unknown readiness is not a fault.
+  // Explicit service failures and SSE errors still surface immediately.
+  const authorityPending =
+    authorityUnavailable &&
+    !awaitingSnapshot &&
+    !(readinessLoaded && !servicesReady) &&
+    (!readinessLoaded || !connected);
+  const runStatus = authorityPending
+    ? "loading"
+    : authorityUnavailable
+      ? "unavailable"
+      : !selectedRunMatches
+        ? "ready"
+        : snapshot.completion?.verified
+          ? "completed"
+          : snapshot.run?.payload?.status || "ready";
+  const robotStatus = authorityPending
+    ? "unknown"
+    : authorityUnavailable
+      ? "unavailable"
+      : selectedRunMatches
+        ? snapshot.robot_health?.payload?.status || "waiting"
+        : "waiting";
   const visibleTopics = selectedRunMatches ? snapshot.topics : [];
   const robotTopics = visibleTopics.filter(
     (metric) => !isPipelineTopic(metric.topic),
@@ -698,7 +715,7 @@ export default function App() {
     topics: pipelineTopics,
     signals: pipelineSignals,
     incidents: pipelineIncidents,
-    unavailable: authorityUnavailable,
+    unavailable: authorityUnavailable && !authorityPending,
   });
   const primaryAnomaly = selectedRunMatches
     ? snapshot.robot_health?.payload?.primary_anomaly
@@ -1315,7 +1332,8 @@ export default function App() {
                 signals={pipelineSignals}
                 incidents={pipelineIncidents}
                 startMs={snapshot.run_start_stream_ms}
-                unavailable={authorityUnavailable}
+                unavailable={authorityUnavailable && !authorityPending}
+                pending={authorityPending}
                 live={viewingLive}
               />
 
