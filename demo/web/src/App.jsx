@@ -952,15 +952,12 @@ export default function App() {
         hidden={activeView !== "health"}
       >
         <div className="analysis-workspace">
-          <section
-            className="mission-overview launch-bar"
-            aria-label="Replay controls"
-          >
+          <section className="replay-controls" aria-label="Replay controls">
             <h2 className="replay-title">
               {viewingLive ? "Live ROS 2" : "Replay"}
             </h2>
-            <div className="mission-controls">
-              <div className="selector-grid">
+            <div className="replay-settings">
+              <div className="replay-fields">
                 {selectedDataset?.supports_camera_dropout && (
                   <label>
                     Fault injection
@@ -980,11 +977,11 @@ export default function App() {
                   </label>
                 )}
                 <fieldset
-                  className="replay-speed"
+                  className="replay-rate"
                   disabled={viewingLive || busy || datasetLocked}
                 >
                   <legend>Replay speed</legend>
-                  <div className="speed-options">
+                  <div className="replay-rate-options">
                     {[1, 5].map((speed) => (
                       <label key={speed}>
                         <input
@@ -1005,8 +1002,8 @@ export default function App() {
                 </fieldset>
               </div>
             </div>
-            <div className="launch-actions">
-              <div className="transport-controls">
+            <div className="replay-actions">
+              <div className="replay-buttons">
                 <TransportAction
                   label={
                     runStatus === "completed" ? "Replay again" : "Start replay"

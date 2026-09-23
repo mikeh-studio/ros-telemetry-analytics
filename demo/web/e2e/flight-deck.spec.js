@@ -279,3 +279,43 @@ test("mobile controls and readiness remain usable", async ({ page }) => {
     ),
   ).toBe(true);
 });
+
+test("replay controls share a height and align when fault injection is available", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+  const replay = page.getByRole("region", { name: "Replay controls" });
+  await expect(
+    replay.getByRole("combobox", { name: "Fault injection" }),
+  ).toBeVisible();
+  const controls = replay.locator("select, .replay-rate-options span, button");
+  const boxes = await controls.evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const { top, bottom, height } = node.getBoundingClientRect();
+      return { top, bottom, height };
+    }),
+  );
+  expect(boxes.length).toBeGreaterThanOrEqual(4);
+  for (const box of boxes) {
+    expect(Math.abs(box.height - 48)).toBeLessThan(1);
+    expect(Math.abs(box.bottom - boxes[0].bottom)).toBeLessThan(1);
+  }
+  await page.setViewportSize({ width: 320, height: 800 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+  const mobile = await controls.evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const r = node.getBoundingClientRect();
+      return { left: r.left, right: r.right, height: r.height };
+    }),
+  );
+  for (const box of mobile) {
+    expect(box.left).toBeGreaterThanOrEqual(0);
+    expect(box.right).toBeLessThanOrEqual(320);
+    expect(Math.abs(box.height - 48)).toBeLessThan(1);
+  }
+});

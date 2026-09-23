@@ -67,3 +67,15 @@ run in PR CI. Local browser checks do not replace those gates. This change adds
 no physical-robot validation or causal ground truth. Rebuild jobs assume the
 single-worker local API; uploads still require separate registration/preparation
 for offline explanations.
+
+## Replay alignment follow-up
+
+The initial overflow scan missed vertical misalignment: the fault selector's
+visible label and legacy control heights shifted the speed and replay buttons.
+The replay strip now uses its own scoped stylesheet and class names, a shared
+48px control height, visible speed labeling, and bottom-aligned wrapping groups.
+Browser measurements confirm identical control edges at 1250px and no overflow
+at 320px, including the disabled starting state. A browser regression in
+`flight-deck.spec.js` checks control heights, desktop alignment, and mobile bounds;
+its automated execution is part of the PR CI gate. The 63 frontend tests and
+production build pass locally.

@@ -7,6 +7,7 @@ import "@fontsource/ibm-plex-mono/latin-600.css";
 import App from "./App";
 import "./styles.css";
 import "./Workbench.css";
+import "./ReplayControls.css";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
