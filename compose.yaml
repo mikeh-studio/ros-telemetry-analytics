@@ -184,7 +184,7 @@ services:
       - dataset-uploads:/app/data/uploads
       - demo-output:/app/data/demo-output:ro
       - ./data/evaluations:/app/data/evaluations:ro
-      - ./data/investigations:/app/data/investigations:ro
+      - ./data/investigations:/app/data/investigations
       - ./data/raw/public_datasets:/app/data/raw/public_datasets:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8000/healthz >/dev/null"]

@@ -11,6 +11,7 @@ import polars as pl
 
 from ros_telemetry_analytics.config import DomainAnalyticsConfig
 from ros_telemetry_analytics.domain import DOMAIN_RECORD_PATHS
+from ros_telemetry_analytics.incident_grouping import event_key
 
 METRIC_SCHEMA = {
     "bag_id": pl.Utf8,
@@ -152,6 +153,7 @@ def _event(
     threshold: float | int | None,
     unit: str,
     detail: str,
+    provenance: dict[str, Any] | None = None,
 ) -> None:
     rows.append(
         {
@@ -161,6 +163,7 @@ def _event(
             "start_timestamp_ns": int(start_timestamp_ns),
             "end_timestamp_ns": int(end_timestamp_ns),
             "severity": severity,
+            "_provenance": provenance,
             "event_type": event_type,
             "observed_value": float(observed_value) if observed_value is not None else None,
             "threshold": float(threshold) if threshold is not None else None,
@@ -446,6 +449,7 @@ def _analyze_commands(
 
         tracking_errors: list[float] = []
         unresponsive_samples: list[tuple[int, float]] = []
+        unresponsive_matches: list[dict] = []
         for row, commanded_speed in zip(rows, command_speeds, strict=True):
             index = bisect.bisect_left(odometry_times, row["timestamp_ns"])
             candidates = [
@@ -469,6 +473,20 @@ def _analyze_commands(
                 and observed_speed <= config.stationary_speed_threshold_mps
             ):
                 unresponsive_samples.append((row["timestamp_ns"], commanded_speed))
+                observed = odometry_rows[match]
+                unresponsive_matches.append(
+                    {
+                        "timestamp_ns": str(row["timestamp_ns"]),
+                        "command_sequence": row["sequence"],
+                        "odometry_sequence": observed["sequence"],
+                        "odometry_timestamp_ns": str(observed["timestamp_ns"]),
+                        "offset_ns": str(observed["timestamp_ns"] - row["timestamp_ns"]),
+                        "commanded_speed": commanded_speed,
+                        "observed_speed": observed_speed,
+                        "command_frame": row.get("frame_id", ""),
+                        "odometry_frame": observed.get("child_frame_id", ""),
+                    }
+                )
 
         transition_indices = [
             index
@@ -630,6 +648,21 @@ def _analyze_commands(
                 config.command_motion_threshold_mps,
                 "m/s",
                 f"{count} motion commands matched stationary odometry.",
+                provenance={
+                    "kind": "motion",
+                    "sample_count": count,
+                    "odometry_topic": odometry_rows[0]["topic"],
+                    "odometry_topic_count": len(odometry_partitions),
+                    "selection_policy": "topic with most records; first partition breaks ties",
+                    "matching_policy": "nearest recorded timestamp; earlier sample breaks ties",
+                    "matching_window_ns": str(config.command_response_window_ns),
+                    "command_threshold_mps": config.command_motion_threshold_mps,
+                    "stationary_threshold_mps": config.stationary_speed_threshold_mps,
+                    "speed_definition": "Euclidean magnitude of linear x/y/z",
+                    "matches": [
+                        m for m in unresponsive_matches if start <= int(m["timestamp_ns"]) <= end
+                    ],
+                },
             )
 
 
@@ -889,6 +922,34 @@ def _analyze_diagnostics(
                 )
 
 
+def _image_evidence(
+    rows: list[dict], start: int, end: int, field: str, threshold: float, comparator: str
+) -> dict:
+    interval = [r for r in rows if start <= r["timestamp_ns"] <= end]
+    finite = [r for r in interval if r[field] is not None and math.isfinite(r[field])]
+    failures = [
+        r for r in finite if (r[field] < threshold if comparator == "lt" else r[field] > threshold)
+    ]
+    return {
+        "kind": "image",
+        "field": field,
+        "comparator": comparator,
+        "threshold": threshold,
+        "sample_count": len(failures),
+        "analyzed_count": len(interval),
+        "finite_count": len(finite),
+        "samples": [
+            {
+                "sequence": r["sequence"],
+                "timestamp_ns": str(r["timestamp_ns"]),
+                "value": r[field],
+                "frame": r.get("frame_id", ""),
+            }
+            for r in failures
+        ],
+    }
+
+
 def _analyze_images(
     frame: pl.DataFrame,
     config: DomainAnalyticsConfig,
@@ -985,6 +1046,9 @@ def _analyze_images(
                     config.image_dark_warn_mean,
                     "mean intensity",
                     f"{count} frames were below the configured mean-intensity threshold.",
+                    provenance=_image_evidence(
+                        rows, start, end, "mean_intensity", config.image_dark_warn_mean, "lt"
+                    ),
                 )
             bright_samples = [
                 (row["timestamp_ns"], row["mean_intensity"])
@@ -1008,6 +1072,9 @@ def _analyze_images(
                     config.image_bright_warn_mean,
                     "mean intensity",
                     f"{count} frames exceeded the configured mean-intensity threshold.",
+                    provenance=_image_evidence(
+                        rows, start, end, "mean_intensity", config.image_bright_warn_mean, "gt"
+                    ),
                 )
         if sharpness_values:
             minimum_sharpness = min(sharpness_values)
@@ -1043,6 +1110,9 @@ def _analyze_images(
                     config.image_sharpness_warn,
                     "score",
                     f"{count} frames were below the configured sharpness threshold.",
+                    provenance=_image_evidence(
+                        rows, start, end, "sharpness_score", config.image_sharpness_warn, "lt"
+                    ),
                 )
         if depth_values:
             _metric(
@@ -1390,6 +1460,18 @@ def run_domain_analysis(
         if records["extraction_errors"].height:
             _analyze_extraction_errors(records["extraction_errors"], metric_rows, event_rows)
 
+    provenance_rows = [
+        {
+            "event_key": event_key(row),
+            "evidence_json": json.dumps(
+                row.pop("_provenance", None), sort_keys=True, allow_nan=False
+            ),
+        }
+        for row in event_rows
+    ]
+    pl.DataFrame(
+        provenance_rows, schema={"event_key": pl.Utf8, "evidence_json": pl.Utf8}
+    ).write_parquet(output_dir / "anomaly_event_evidence.parquet", compression="zstd")
     metrics = (
         pl.DataFrame(metric_rows, schema=METRIC_SCHEMA).sort(["domain", "topic", "metric"])
         if metric_rows

@@ -115,40 +115,42 @@ export default function TopicHistory({
       className="topic-workspace"
       aria-label="Monitored Topics"
     >
-      <div className="section-title compact">
-        <h2>Monitored Topics</h2>
-        <span>
-          {live ? "Live session" : "Recorded windows"} ·{" "}
-          {Number.isFinite(durationMs)
-            ? `00:00–${time(duration)}`
-            : "Duration not measured"}
-        </span>
-      </div>
-      <details className="history-inspector">
-        <summary>Inspect time</summary>
-        <div className="history-controls">
-          <label>
-            Inspect mission time{" "}
-            <span>{cursor == null ? "Latest values" : time(cursor)}</span>
-            <input
-              type="range"
-              min="0"
-              disabled={!Number.isFinite(durationMs)}
-              max={duration}
-              step="1000"
-              value={cursor ?? duration}
-              onChange={(event) => setCursor(Number(event.target.value))}
-            />
-          </label>
-          <button
-            className="add-data-button"
-            onClick={() => setCursor(null)}
-            disabled={cursor == null}
-          >
-            Latest
-          </button>
+      <div className="topic-workspace-header">
+        <div className="section-title compact">
+          <h2>Monitored Topics</h2>
+          <span>
+            {live ? "Live session" : "Recorded windows"} ·{" "}
+            {Number.isFinite(durationMs)
+              ? `00:00–${time(duration)}`
+              : "Duration not measured"}
+          </span>
         </div>
-      </details>
+        <details className="history-inspector">
+          <summary>Inspect time</summary>
+          <div className="history-controls">
+            <label>
+              Inspect mission time{" "}
+              <span>{cursor == null ? "Latest values" : time(cursor)}</span>
+              <input
+                type="range"
+                min="0"
+                disabled={!Number.isFinite(durationMs)}
+                max={duration}
+                step="1000"
+                value={cursor ?? duration}
+                onChange={(event) => setCursor(Number(event.target.value))}
+              />
+            </label>
+            <button
+              className="add-data-button"
+              onClick={() => setCursor(null)}
+              disabled={cursor == null}
+            >
+              Latest
+            </button>
+          </div>
+        </details>
+      </div>
       <p className="history-caption">
         Delivery health shows which topic data became unreliable. Rate charts:
         10 s windows, 1 s slide; dashed line: expected; hollow dots: partial

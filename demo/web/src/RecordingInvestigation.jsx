@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+import RecordingIncidentList from "./RecordingIncidentList";
+import RecordingIncidentExplanation from "./RecordingIncidentExplanation";
+import { useCallback, useEffect, useState } from "react";
+import EvidencePreparation from "./EvidencePreparation";
 import "./RecordingInvestigation.css";
 
 async function get(url, signal) {
@@ -139,7 +142,7 @@ function Plot({ series, start, end, cursor, events, topicHealth, onCursor }) {
   );
 }
 
-function Preview({ item }) {
+function Preview({ item, incident }) {
   const extent = Math.max(
     1,
     ...(item.points || []).flatMap((p) => p.map(Math.abs)),
@@ -188,12 +191,24 @@ function Preview({ item }) {
             `Every ${item.sample_stride} beam(s); invalid returns omitted`}
         </span>
         <code>{item.timestamp_ns} ns</code>
+        {incident && (
+          <span>
+            {item.t >= incident.start_s && item.t <= incident.end_s
+              ? "Inside incident interval"
+              : "Context outside incident interval"}
+          </span>
+        )}
       </figcaption>
     </figure>
   );
 }
 
-export default function RecordingInvestigation({ apiUrl, active, datasetId }) {
+export default function RecordingInvestigation({
+  apiUrl,
+  active,
+  datasetId,
+  onEvidenceRebuilt,
+}) {
   const selected = datasetId;
   const [detail, setDetail] = useState(null);
   const [data, setData] = useState(null);
@@ -204,6 +219,29 @@ export default function RecordingInvestigation({ apiUrl, active, datasetId }) {
   const [caseId, setCaseId] = useState("");
   const [plots, setPlots] = useState([]);
   const [refresh, setRefresh] = useState(0);
+  const evidenceRebuilt = useCallback(() => {
+    setRefresh((n) => n + 1);
+    onEvidenceRebuilt?.();
+  }, [onEvidenceRebuilt]);
+  const [incidentId, setIncidentId] = useState("");
+  const [incident, setIncident] = useState(null);
+  const [memberOffset, setMemberOffset] = useState(0);
+  const [evidenceTarget, setEvidenceTarget] = useState(null);
+
+  function clearIncident() {
+    setIncidentId("");
+    setIncident(null);
+    setMemberOffset(0);
+    setEvidenceTarget(null);
+  }
+  function selectIncident(id) {
+    setError("");
+    setCaseId("");
+    setIncident(null);
+    setIncidentId(id);
+    setMemberOffset(0);
+    setEvidenceTarget(null);
+  }
 
   useEffect(() => {
     setDetail(null);
@@ -211,6 +249,7 @@ export default function RecordingInvestigation({ apiUrl, active, datasetId }) {
     setWindow(null);
     setError("");
     setCaseId("");
+    clearIncident();
     if (!active || !selected) return;
     const controller = new AbortController();
     get(
@@ -232,18 +271,72 @@ export default function RecordingInvestigation({ apiUrl, active, datasetId }) {
   }, [selected, apiUrl, active, refresh]);
 
   useEffect(() => {
+    if (!incidentId || !detail || detail.dataset_id !== selected || !active)
+      return;
+    const controller = new AbortController();
+    setIncident(null);
+    const query = new URLSearchParams({
+      analysis_id: detail.analysis_id,
+      member_offset: memberOffset,
+    });
+    get(
+      `${apiUrl}/api/investigations/${encodeURIComponent(selected)}/incidents/${encodeURIComponent(incidentId)}?${query}`,
+      controller.signal,
+    )
+      .then((body) => {
+        if (
+          controller.signal.aborted ||
+          body.analysis_id !== detail.analysis_id ||
+          body.incident_id !== incidentId
+        )
+          return;
+        setIncident(body);
+        setWindow([body.display_start_s, body.display_end_s]);
+        setDraft([body.display_start_s, body.display_end_s]);
+        setCursor(body.focus_s);
+      })
+      .catch((reason) => {
+        if (!controller.signal.aborted) setError(reason.message);
+      });
+    return () => controller.abort();
+  }, [incidentId, memberOffset, detail, selected, active, apiUrl]);
+
+  useEffect(() => {
     setData(null);
-    if (!detail || !window || !active) return;
+    if (!detail || detail.dataset_id !== selected || !window || !active) return;
     const controller = new AbortController();
     const query = new URLSearchParams({
       analysis_id: detail.analysis_id,
       start_s: window[0],
       end_s: window[1],
     });
-    get(
-      `${apiUrl}/api/investigations/${encodeURIComponent(selected)}/interval?${query}`,
-      controller.signal,
-    )
+    if (evidenceTarget?.field) {
+      query.set("topic", evidenceTarget.topic);
+      query.set("field", evidenceTarget.field);
+    }
+    const intervalUrl = `${apiUrl}/api/investigations/${encodeURIComponent(selected)}/interval`;
+    const loadInterval = async () => {
+      const requests = [get(`${intervalUrl}?${query}`, controller.signal)];
+      if (!evidenceTarget?.field) {
+        for (const hint of (incident?.plot_hints || []).slice(0, 3)) {
+          const specific = new URLSearchParams(query);
+          specific.set("topic", hint.topic);
+          specific.set("field", hint.field);
+          requests.push(get(`${intervalUrl}?${specific}`, controller.signal));
+        }
+      }
+      const [body, ...targeted] = await Promise.all(requests);
+      if (targeted.some((item) => item.analysis_id !== detail.analysis_id)) {
+        throw new Error("Analysis changed; refresh the recording");
+      }
+      const key = (s) => JSON.stringify([s.topic, s.field, s.frame]);
+      const series = new Map(body.series.map((s) => [key(s), s]));
+      targeted
+        .flatMap((item) => item.series)
+        .forEach((s) => series.set(key(s), s));
+      return { ...body, series: [...series.values()] };
+    };
+    loadInterval()
       .then((body) => {
         if (
           controller.signal.aborted ||
@@ -257,6 +350,21 @@ export default function RecordingInvestigation({ apiUrl, active, datasetId }) {
           (selected.startsWith("liloc")
             ? ["valid_range_fraction", "linear_x", "inter_message_gap_ms"]
             : ["mean_intensity", "sharpness_score", "inter_message_gap_ms"]);
+        if (evidenceTarget?.field) {
+          setPlots(body.series.length ? [0] : []);
+          return;
+        }
+        if (incident?.plot_hints?.length) {
+          const selectedPlots = incident.plot_hints
+            .map((hint) =>
+              body.series.findIndex(
+                (s) => s.topic === hint.topic && s.field === hint.field,
+              ),
+            )
+            .filter((i) => i >= 0);
+          setPlots(selectedPlots.slice(0, 3));
+          return;
+        }
         setPlots(
           desired.map((field, i) => {
             const topic = study?.topics?.[i];
@@ -271,10 +379,20 @@ export default function RecordingInvestigation({ apiUrl, active, datasetId }) {
         if (!controller.signal.aborted) setError(reason.message);
       });
     return () => controller.abort();
-  }, [detail, window, selected, apiUrl, active, caseId]);
+  }, [
+    detail,
+    window,
+    selected,
+    apiUrl,
+    active,
+    caseId,
+    incident,
+    evidenceTarget,
+  ]);
 
   const study = detail?.cases.find((c) => c.id === caseId);
   function chooseCase(id) {
+    clearIncident();
     setError("");
     setCaseId(id);
     const item = detail.cases.find((c) => c.id === id);
@@ -293,54 +411,111 @@ export default function RecordingInvestigation({ apiUrl, active, datasetId }) {
     <div className="recording-investigation">
       <div className="recording-heading">
         <div>
-          <p className="eyebrow">RECORDED EVIDENCE</p>
-          <h2>Small questions. Inspectable answers.</h2>
+          <h2>Recording analysis</h2>
           <p>
-            Explore recorded signals and source samples without starting a
-            replay.
+            Select an incident or choose a time range to inspect signals and
+            source samples.
           </p>
         </div>
-        <button onClick={() => setRefresh((n) => n + 1)}>
-          Refresh evidence
-        </button>
+        {active && selected && (
+          <EvidencePreparation
+            key={`${apiUrl}:${selected}`}
+            apiUrl={apiUrl}
+            datasetId={selected}
+            onComplete={evidenceRebuilt}
+          />
+        )}
       </div>
       {error && (
         <p role="alert" className="recording-error">
-          {error}. Prepare evidence with{" "}
-          <code>python scripts/prepare_investigations.py</code>, then refresh.
+          {error}.
+          {/evidence|analysis changed|source|not prepared/i.test(error) &&
+            " Use Rebuild evidence to analyze this recording again."}
         </p>
+      )}
+      {selected && !detail && !error && (
+        <p role="status">Loading recording evidence…</p>
       )}
       {!selected && !error && (
         <p>
-          No prepared recordings. Fetch the comparison pack and prepare evidence
-          using the repository guide.
+          Select a recording above to inspect its signals and detected
+          incidents.
         </p>
       )}
-      {detail && (
+      {detail && detail.dataset_id === selected && (
         <>
           <div className="recording-summary">
-            <span>Real recording · {number(detail.duration_s)} s</span>
+            <span>Duration · {number(detail.duration_s)} s</span>
             <span>{number(detail.message_count)} messages</span>
             <span>
               {detail.verified_previews}/{detail.preview_count} previews
-              reconciled
+              verified
             </span>
             <span>{detail.extraction_errors} extraction errors</span>
           </div>
-          <p>
-            {detail.purpose}. {detail.interpretation}
+          {typeof detail.incident_count === "number" && (
+            <>
+              <RecordingIncidentList
+                key={`${selected}:${detail.analysis_id}`}
+                apiUrl={apiUrl}
+                datasetId={selected}
+                analysisId={detail.analysis_id}
+                selectedId={incidentId}
+                onSelect={selectIncident}
+              />
+              {incidentId && !incident && !error && (
+                <p role="status">Loading incident explanation…</p>
+              )}
+              <RecordingIncidentExplanation
+                incident={incident}
+                onMembers={setMemberOffset}
+                onInspect={(ref) => {
+                  setEvidenceTarget(ref);
+                  const time =
+                    Number(
+                      BigInt(ref.start_timestamp_ns) - BigInt(detail.origin_ns),
+                    ) / 1e9;
+                  setCursor(Math.max(window[0], Math.min(window[1], time)));
+                }}
+              />
+              {evidenceTarget && (
+                <div className="recording-evidence-focus" role="status">
+                  Inspecting {evidenceTarget.topic} ·{" "}
+                  {evidenceTarget.field || "original event"}
+                  <button onClick={() => setEvidenceTarget(null)}>
+                    Show incident signals
+                  </button>
+                  {!evidenceTarget.field && (
+                    <pre>
+                      {JSON.stringify(evidenceTarget.parameters, null, 2)}
+                    </pre>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+          <h3>Signals and samples</h3>
+          <p className="recording-muted">
+            {incidentId
+              ? "The time range includes the selected incident and surrounding context."
+              : "Choose a time range to compare signals and inspect saved samples."}
           </p>
-          <label className="recording-select">
-            Investigation
-            <select value={caseId} onChange={(e) => chooseCase(e.target.value)}>
-              <option value="">Explore recording / nominal intervals</option>
-              {detail.cases.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.question}
-                </option>
-              ))}
-            </select>
-          </label>
+          {detail.cases.length > 0 && (
+            <label className="recording-select">
+              Reviewed examples
+              <select
+                value={caseId}
+                onChange={(e) => chooseCase(e.target.value)}
+              >
+                <option value="">Choose a reviewed example (optional)</option>
+                {detail.cases.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.question}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {study && (
             <article className="recording-case">
               <h3>{study.question}</h3>
@@ -367,6 +542,7 @@ export default function RecordingInvestigation({ apiUrl, active, datasetId }) {
               ) {
                 setError("");
                 setCaseId("");
+                clearIncident();
                 setWindow([...draft]);
                 setCursor(draft[0]);
               } else setError("Choose an interval inside the recording");
@@ -401,7 +577,7 @@ export default function RecordingInvestigation({ apiUrl, active, datasetId }) {
           {data && window ? (
             <>
               <label className="recording-cursor">
-                Shared recorded-time cursor · {number(cursor)} s
+                Selected time · {number(cursor)} s
                 <input
                   aria-label="Recorded time cursor"
                   type="range"
@@ -413,9 +589,7 @@ export default function RecordingInvestigation({ apiUrl, active, datasetId }) {
                 />
               </label>
               <details className="recording-availability">
-                <summary>
-                  Topic availability · reference streams labeled
-                </summary>
+                <summary>Topic availability</summary>
                 {data.series
                   .filter((s) => s.domain === "timing")
                   .map((s) => (
@@ -450,10 +624,22 @@ export default function RecordingInvestigation({ apiUrl, active, datasetId }) {
                 </p>
               </details>
               <p className="recording-muted">
-                Min–max bars and mean dots in 240 time buckets; empty buckets
-                stay blank. Amber bands mark recorded events; dashed lines show
-                matching configured thresholds. Click a plot or move the cursor.
+                Click a plot or move the time slider to inspect that point in
+                the recording.
               </p>
+              <details>
+                <summary>How to read the plots</summary>
+                <p className="recording-muted">
+                  Min–max bars and mean dots in 240 time buckets; empty buckets
+                  stay blank. Amber bands mark recorded events; dashed lines
+                  show matching configured thresholds.
+                </p>
+              </details>
+              {evidenceTarget?.field && !data.series.length && (
+                <p>
+                  No finite samples for this signal in the selected interval.
+                </p>
+              )}
               <div className="recording-plots">
                 {plots.map(
                   (index, slot) =>
@@ -492,20 +678,21 @@ export default function RecordingInvestigation({ apiUrl, active, datasetId }) {
                     ),
                 )}
               </div>
-              <h3>Source samples near the cursor</h3>
+              <h3>Samples near the selected time</h3>
               <p className="recording-muted">
-                {data.preview_policy} The six nearest available samples are
-                shown at their actual times.
+                Up to six saved samples closest to the selected time are shown
+                at their recorded timestamps. These are selected previews, not
+                every frame.
               </p>
               <div className="recording-previews">
                 {nearest.map((item) => (
-                  <Preview key={item.id} item={item} />
+                  <Preview key={item.id} item={item} incident={incident} />
                 ))}
               </div>
               {!nearest.length && (
                 <p>
-                  No cached source samples in this interval. Broaden the
-                  interval to inspect the prepared controls.
+                  No saved image or scan samples match this view. Choose another
+                  signal or a wider time range.
                 </p>
               )}
               <details>
@@ -554,7 +741,11 @@ export default function RecordingInvestigation({ apiUrl, active, datasetId }) {
             !error && <p role="status">Loading recorded signals…</p>
           )}
           <details>
-            <summary>Coverage and provenance</summary>
+            <summary>Analysis coverage and source details</summary>
+            <p>{detail.interpretation}</p>
+            {data?.preview_policy && (
+              <p>Preview sampling: {data.preview_policy}</p>
+            )}
             <p>
               <a href={detail.source} target="_blank" rel="noreferrer">
                 Original dataset source
@@ -580,12 +771,20 @@ export default function RecordingInvestigation({ apiUrl, active, datasetId }) {
                 </thead>
                 <tbody>
                   {detail.coverage.map((row) => (
-                    <tr key={row.topic}>
+                    <tr key={`${row.topic}:${row.message_type}`}>
                       <td>
                         {row.topic}
                         {detail.reference_topics.includes(row.topic)
                           ? " (reference context)"
                           : ""}
+                        {row.message_type && (
+                          <>
+                            <br />
+                            <small className="recording-muted">
+                              {row.message_type}
+                            </small>
+                          </>
+                        )}
                       </td>
                       <td>
                         {row.analysis_status}

@@ -282,7 +282,7 @@ function TransportAction({
   primary = false,
 }) {
   return (
-    <div className="transport-action">
+    <div className="replay-action">
       <button
         className={primary ? "primary" : ""}
         type="button"
@@ -418,6 +418,7 @@ export default function App() {
   const [awaitingSnapshot, setAwaitingSnapshot] = useState(false);
   const [flink, setFlink] = useState({ status: "unknown" });
   const [readiness, setReadiness] = useState(EMPTY_READINESS);
+  const [readinessLoaded, setReadinessLoaded] = useState(false);
   const [localization, setLocalization] = useState(EMPTY_LOCALIZATION);
   const [datasetCatalog, setDatasetCatalog] = useState(EMPTY_DATASETS);
   const [selectedDatasetId, setSelectedDatasetId] = useState(() =>
@@ -493,6 +494,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    loadDatasets().catch((reason) => setCatalogNotice(reason.message));
+  }, [loadDatasets]);
+
+  const refreshEvidenceCatalog = useCallback(() => {
     loadDatasets().catch((reason) => setCatalogNotice(reason.message));
   }, [loadDatasets]);
 
@@ -592,8 +597,14 @@ export default function App() {
     const load = () =>
       fetch(`${API_URL}/api/health`)
         .then((response) => response.json())
-        .then(setReadiness)
-        .catch(() => setReadiness(EMPTY_READINESS));
+        .then((result) => {
+          setReadiness(result);
+          setReadinessLoaded(true);
+        })
+        .catch(() => {
+          setReadiness(EMPTY_READINESS);
+          setReadinessLoaded(true);
+        });
     load();
     const interval = window.setInterval(load, 2000);
     return () => window.clearInterval(interval);
@@ -649,28 +660,38 @@ export default function App() {
   const selectedRunMatches =
     !snapshot.dataset_id || snapshot.dataset_id === selectedDatasetId;
   const viewingLive = selectedRunMatches && Boolean(liveDataset);
+  const servicesReady = ["kafka", "flink", "flink_job", "projection_api"].every(
+    (name) => readiness.services?.[name] === "ready",
+  );
   const streamingAuthoritiesReady =
-    connected &&
-    !awaitingSnapshot &&
-    ["kafka", "flink", "flink_job", "projection_api"].every(
-      (name) => readiness.services?.[name] === "ready",
-    );
+    connected && !awaitingSnapshot && servicesReady;
   const authorityUnavailable =
     selectedRunMatches &&
     Boolean(snapshot.run_id) &&
     !streamingAuthoritiesReady;
-  const runStatus = authorityUnavailable
-    ? "unavailable"
-    : !selectedRunMatches
-      ? "ready"
-      : snapshot.completion?.verified
-        ? "completed"
-        : snapshot.run?.payload?.status || "ready";
-  const robotStatus = authorityUnavailable
-    ? "unavailable"
-    : selectedRunMatches
-      ? snapshot.robot_health?.payload?.status || "waiting"
-      : "waiting";
+  // Initial requests can finish in either order. Unknown readiness is not a fault.
+  // Explicit service failures and SSE errors still surface immediately.
+  const authorityPending =
+    authorityUnavailable &&
+    !awaitingSnapshot &&
+    !(readinessLoaded && !servicesReady) &&
+    (!readinessLoaded || !connected);
+  const runStatus = authorityPending
+    ? "loading"
+    : authorityUnavailable
+      ? "unavailable"
+      : !selectedRunMatches
+        ? "ready"
+        : snapshot.completion?.verified
+          ? "completed"
+          : snapshot.run?.payload?.status || "ready";
+  const robotStatus = authorityPending
+    ? "unknown"
+    : authorityUnavailable
+      ? "unavailable"
+      : selectedRunMatches
+        ? snapshot.robot_health?.payload?.status || "waiting"
+        : "waiting";
   const visibleTopics = selectedRunMatches ? snapshot.topics : [];
   const robotTopics = visibleTopics.filter(
     (metric) => !isPipelineTopic(metric.topic),
@@ -694,7 +715,7 @@ export default function App() {
     topics: pipelineTopics,
     signals: pipelineSignals,
     incidents: pipelineIncidents,
-    unavailable: authorityUnavailable,
+    unavailable: authorityUnavailable && !authorityPending,
   });
   const primaryAnomaly = selectedRunMatches
     ? snapshot.robot_health?.payload?.primary_anomaly
@@ -893,9 +914,9 @@ export default function App() {
         aria-label="ROS Workbench views"
       >
         {[
-          ["health", "Telemetry Health", PulseIcon],
-          ["recordings", "Recording Investigation", RecordIcon],
-          ["localization", "Localization Investigation", NavigationArrowIcon],
+          ["health", "Telemetry", PulseIcon],
+          ["recordings", "Recording", RecordIcon],
+          ["localization", "Localization", NavigationArrowIcon],
         ].map(([id, label, Icon], index) => (
           <button
             key={id}
@@ -948,15 +969,12 @@ export default function App() {
         hidden={activeView !== "health"}
       >
         <div className="analysis-workspace">
-          <section
-            className="mission-overview launch-bar"
-            aria-label="Replay controls"
-          >
+          <section className="replay-controls" aria-label="Replay controls">
             <h2 className="replay-title">
               {viewingLive ? "Live ROS 2" : "Replay"}
             </h2>
-            <div className="mission-controls">
-              <div className="selector-grid">
+            <div className="replay-settings">
+              <div className="replay-fields">
                 {selectedDataset?.supports_camera_dropout && (
                   <label>
                     Fault injection
@@ -976,11 +994,11 @@ export default function App() {
                   </label>
                 )}
                 <fieldset
-                  className="replay-speed"
+                  className="replay-rate"
                   disabled={viewingLive || busy || datasetLocked}
                 >
                   <legend>Replay speed</legend>
-                  <div className="speed-options">
+                  <div className="replay-rate-options">
                     {[1, 5].map((speed) => (
                       <label key={speed}>
                         <input
@@ -1001,8 +1019,8 @@ export default function App() {
                 </fieldset>
               </div>
             </div>
-            <div className="launch-actions">
-              <div className="transport-controls">
+            <div className="replay-actions">
+              <div className="replay-buttons">
                 <TransportAction
                   label={
                     runStatus === "completed" ? "Replay again" : "Start replay"
@@ -1314,7 +1332,8 @@ export default function App() {
                 signals={pipelineSignals}
                 incidents={pipelineIncidents}
                 startMs={snapshot.run_start_stream_ms}
-                unavailable={authorityUnavailable}
+                unavailable={authorityUnavailable && !authorityPending}
+                pending={authorityPending}
                 live={viewingLive}
               />
 
@@ -1336,7 +1355,7 @@ export default function App() {
                     document.getElementById("view-localization").focus();
                   }}
                 >
-                  Open Localization Investigation
+                  Open Localization
                 </button>
               </div>
 
@@ -1541,7 +1560,7 @@ export default function App() {
         aria-labelledby="view-recordings"
         hidden={activeView !== "recordings"}
       >
-        {["ready", "limited"].includes(
+        {["ready", "limited", "stale", "not_analyzed"].includes(
           capability(selectedDataset, "recordings"),
         ) ? (
           <RecordingInvestigation
@@ -1549,6 +1568,7 @@ export default function App() {
             datasetId={selectedDatasetId}
             apiUrl={API_URL}
             active={activeView === "recordings"}
+            onEvidenceRebuilt={refreshEvidenceCatalog}
           />
         ) : (
           <AnalysisUnavailable dataset={selectedDataset} view="recordings" />

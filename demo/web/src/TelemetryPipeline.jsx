@@ -90,6 +90,7 @@ export default function TelemetryPipeline({
   incidents = [],
   startMs,
   unavailable,
+  pending = false,
   live,
 }) {
   const panel = useRef(null);
@@ -112,11 +113,13 @@ export default function TelemetryPipeline({
       ? "Needs attention"
       : attention
         ? "Event to inspect"
-        : rows.length
-          ? "Monitoring"
-          : live
-            ? "Awaiting gateway evidence"
-            : "No gateway streams in this recording";
+        : pending
+          ? "Checking connection"
+          : rows.length
+            ? "Monitoring"
+            : live
+              ? "Awaiting gateway evidence"
+              : "No gateway streams in this recording";
 
   return (
     <details

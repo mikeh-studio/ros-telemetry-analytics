@@ -1,0 +1,4 @@
+# Overrides for the packaged, reviewed explanation catalog. No detector thresholds.
+schema_version: 1
+max_group_span_s: 10
+context_padding_s: 2

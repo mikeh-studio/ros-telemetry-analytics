@@ -16,7 +16,7 @@ test("completed recorded mission is operationally trustworthy", async ({
     page.getByRole("heading", { name: "ROS Workbench", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("tab", { name: "Telemetry Health", exact: true }),
+    page.getByRole("tab", { name: "Telemetry", exact: true }),
   ).toBeVisible();
 
   await page.locator(".stack-disclosure summary").click();
@@ -278,4 +278,98 @@ test("mobile controls and readiness remain usable", async ({ page }) => {
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+});
+
+test("replay controls share a height and align when fault injection is available", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+  const replay = page.getByRole("region", { name: "Replay controls" });
+  await expect(
+    replay.getByRole("combobox", { name: "Fault injection" }),
+  ).toBeVisible();
+  const controls = replay.locator("select, .replay-rate-options span, button");
+  const boxes = await controls.evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const { top, bottom, height } = node.getBoundingClientRect();
+      return { top, bottom, height };
+    }),
+  );
+  expect(boxes.length).toBeGreaterThanOrEqual(4);
+  for (const box of boxes) {
+    expect(Math.abs(box.height - 44)).toBeLessThan(1);
+    expect(Math.abs(box.bottom - boxes[0].bottom)).toBeLessThan(1);
+  }
+  await page.setViewportSize({ width: 320, height: 800 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+  const mobile = await controls.evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const r = node.getBoundingClientRect();
+      return { left: r.left, right: r.right, height: r.height };
+    }),
+  );
+  for (const box of mobile) {
+    expect(box.left).toBeGreaterThanOrEqual(0);
+    expect(box.right).toBeLessThanOrEqual(320);
+    expect(Math.abs(box.height - 44)).toBeLessThan(1);
+  }
+});
+
+test("recording header grows while replay labels stay inside their buttons", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("combobox", { name: "Dataset", exact: true }),
+  ).toBeVisible();
+  let previousPickerWidth = 0;
+  for (const width of [320, 390, 768, 1024, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const layout = await page.evaluate(() => {
+      const bounds = (node) => {
+        const { left, right, top, bottom, width, height } =
+          node.getBoundingClientRect();
+        return { left, right, top, bottom, width, height };
+      };
+      const tabs = document.querySelector(".workspace-tabs");
+      const replay = document.querySelector(".replay-controls");
+      return {
+        overflow: document.documentElement.scrollWidth > innerWidth,
+        picker: bounds(document.querySelector(".recording-trigger")),
+        toolbar: bounds(document.querySelector(".dataset-toolbar")),
+        about: bounds(document.querySelector(".recording-about")),
+        tabWidths: [...tabs.querySelectorAll("button")].map(
+          (node) => bounds(node).width,
+        ),
+        gap: bounds(replay).top - bounds(tabs).bottom,
+        buttons: [...replay.querySelectorAll("button")].map((button) => ({
+          box: bounds(button),
+          text: bounds(button.querySelector("span")),
+          lineHeight: parseFloat(getComputedStyle(button).lineHeight),
+        })),
+      };
+    });
+    expect(layout.overflow).toBe(false);
+    expect(layout.gap).toBeGreaterThanOrEqual(32);
+    expect(
+      Math.max(...layout.tabWidths) - Math.min(...layout.tabWidths),
+    ).toBeLessThan(1);
+    expect(layout.picker.width).toBeGreaterThan(previousPickerWidth);
+    previousPickerWidth = layout.picker.width;
+    expect(Math.abs(layout.about.right - layout.toolbar.right)).toBeLessThan(1);
+    for (const { box, text, lineHeight } of layout.buttons) {
+      expect(box.left).toBeGreaterThanOrEqual(0);
+      expect(box.right).toBeLessThanOrEqual(width);
+      expect(text.left - box.left).toBeGreaterThanOrEqual(12);
+      expect(box.right - text.right).toBeGreaterThanOrEqual(12);
+      expect(text.top).toBeGreaterThan(box.top);
+      expect(text.bottom).toBeLessThan(box.bottom);
+      expect(text.height).toBeLessThanOrEqual(lineHeight + 1);
+    }
+  }
 });

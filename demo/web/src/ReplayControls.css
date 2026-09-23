@@ -1,0 +1,166 @@
+/* Replay controls own their layout; legacy mission setup rules do not apply. */
+.workbench-theme .replay-controls {
+  --replay-control-height: 44px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 20px 16px;
+}
+.workbench-theme .replay-controls .replay-title {
+  flex: 0 0 100%;
+  margin: 0;
+  font:
+    600 24px/1.25 "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.02em;
+}
+.replay-settings,
+.replay-actions {
+  min-width: 0;
+  max-width: 100%;
+}
+.replay-fields,
+.replay-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+}
+.replay-fields > label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+.replay-fields > label,
+.replay-rate legend {
+  text-transform: uppercase;
+  color: var(--muted);
+  font:
+    12px/1.5 "IBM Plex Mono",
+    monospace;
+}
+.replay-rate {
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  border: 0;
+}
+.replay-rate legend {
+  padding: 0;
+  margin-bottom: 8px;
+}
+.replay-rate-options {
+  display: flex;
+}
+.replay-rate-options label {
+  position: relative;
+  cursor: pointer;
+}
+.replay-rate-options input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.workbench-theme .replay-controls select,
+.workbench-theme .replay-controls .replay-action button,
+.replay-rate-options span {
+  box-sizing: border-box;
+  height: var(--replay-control-height);
+  min-height: var(--replay-control-height);
+  margin: 0;
+  border: 1px solid #a7acb1;
+  border-radius: 2px;
+  background: #080808;
+  color: var(--white);
+}
+.workbench-theme .replay-controls select {
+  width: 280px;
+  max-width: 100%;
+  padding: 8px 12px;
+  font:
+    14px/1.5 "IBM Plex Mono",
+    monospace;
+}
+.replay-rate-options span {
+  display: grid;
+  place-items: center;
+  min-width: 88px;
+  padding: 8px 16px;
+  color: var(--muted);
+  font:
+    14px/1.5 "IBM Plex Mono",
+    monospace;
+}
+.replay-rate-options label + label span {
+  border-left: 0;
+}
+.replay-rate-options input:checked + span {
+  background: #171717;
+  color: var(--white);
+  box-shadow: inset 0 0 0 1px var(--white);
+}
+.replay-rate-options input:focus-visible + span,
+.workbench-theme .replay-controls select:focus-visible {
+  outline: 2px solid var(--white);
+  outline-offset: 3px;
+}
+.replay-rate-options input:disabled + span,
+.workbench-theme .replay-controls button:disabled,
+.workbench-theme .replay-controls select:disabled {
+  opacity: 0.5;
+}
+.workbench-theme .replay-controls .replay-action button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: auto;
+  min-width: 196px;
+  max-width: 100%;
+  padding: 8px 20px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font:
+    600 20px/1.2 "Barlow Condensed",
+    sans-serif;
+}
+.workbench-theme .replay-controls button:hover:not(:disabled) {
+  background: var(--white);
+  color: #000;
+}
+.replay-controls > .selector-note,
+.replay-controls > .error-message {
+  flex-basis: 100%;
+  margin: 0;
+}
+@media (max-width: 650px) {
+  .workbench-theme .replay-controls .replay-title {
+    flex-basis: 100%;
+    line-height: 1.5;
+  }
+}
+
+/* Text actions have their own sizing, independent of the old icon transport. */
+.replay-action {
+  flex: 0 0 auto;
+}
+.workbench-theme .replay-controls .replay-action button.primary {
+  background: var(--white);
+  color: #000;
+  border-color: var(--white);
+}
+.replay-action button.primary svg {
+  display: none;
+}
+.replay-action button svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+.workbench-theme .replay-controls .replay-action button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

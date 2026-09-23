@@ -242,6 +242,9 @@ is an explicit reset, not autonomous relocalization. This diagnostic is not wire
 into production stream alerts and has not been evaluated on moving real robots.
 Reported detection offsets use reception timestamps, not post-run execution time.
 
+The [retained localization fault results](../examples/nav2_localization_fault_results.json)
+record the development and evaluation runs for this controlled disturbance.
+
 ## Unified reliability suite
 
 ```bash

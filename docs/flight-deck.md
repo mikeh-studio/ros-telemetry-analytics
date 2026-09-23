@@ -8,6 +8,12 @@ revisions into SQLite through FastAPI, and presents the results in a responsive
 React operations console. It includes the deterministic 90-second MCAP mission
 for `robot-17`, installed public validation datasets, and user uploads.
 
+Select a recording once, then use **Telemetry**, **Recording**, or **Localization**.
+Telemetry covers replay delivery; Recording provides offline incident explanations
+and source evidence; Localization shows prepared detector evaluation results.
+Availability is shown separately for each tab. See the
+[recording guide](recording-investigations.md) for preparation and the **Rebuild evidence** flow.
+
 Start the stack:
 
 ```bash
@@ -44,7 +50,9 @@ instead of a rate target. Delivery health does not establish sensor accuracy.
 
 Gateway streams live in a separate, collapsible **Telemetry Pipeline** section.
 Delivery faults open it automatically and display a notice above the robot
-signals. Gateway events show observed time, type, affected topic, severity when
+signals. Initial connection/readiness checks keep health unconfirmed without
+opening the fault panel; confirmed service failures and disconnections still
+open it immediately. Gateway events show observed time, type, affected topic, severity when
 reported, and available attributes; silence is not treated as a rate fault.
 Event evidence uses the existing sampled projection (first accepted observation
 per topic per second, retaining up to 180 samples per topic), so it is not a
@@ -97,8 +105,8 @@ a live ROS/Kafka/Flink end-to-end run.
 
 ## Localization investigation
 
-Choose the **Localization Investigation** tab beside **Telemetry Health** to inspect
-the separate saved evaluation. Telemetry Health also includes a direct entry point.
+Choose the **Localization** tab to inspect the separate saved evaluation.
+**Telemetry** also includes a direct entry point.
 Switching tabs preserves the selected event, filter, and playback cursor, and
 pauses investigation playback when leaving it. The tab controls support
 Left/Right arrows and Home/End for keyboard navigation.

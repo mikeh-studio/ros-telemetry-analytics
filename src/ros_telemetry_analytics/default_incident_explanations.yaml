@@ -1,0 +1,30 @@
+schema_version: 1
+catalog_version: recording-explanations-v1
+max_group_span_s: 10
+context_padding_s: 2
+families:
+  image_content:
+    title: Image content warning
+    possibilities: [Lighting or exposure changes, Scene texture or motion, Lens obstruction]
+    limits: Image features do not distinguish these possibilities or establish camera malfunction or localization impact. Low sharpness is not automatically blur.
+    next_check: Inspect source images and compare another camera or exposure metadata if available.
+  recorded_gap:
+    title: Recorded delivery gap
+    possibilities: [Publisher interruption, Recording or transport interruption]
+    limits: Recorded receive timestamps do not establish packet loss, acquisition order, hardware synchronization, or physical sensor failure.
+    next_check: Inspect publisher and acquisition records for the affected interval.
+  reference_gap:
+    title: Reference coverage gap
+    possibilities: [Reference acquisition interruption, Recording or transport interruption]
+    limits: This is an evaluation reference coverage limitation, not evidence of camera or IMU failure. The cause is not established.
+    next_check: Check whether the estimator evaluation can use this reference interval; inspect reference acquisition records.
+  motion_disagreement:
+    title: Command and odometry disagreement
+    possibilities: [Controller response or turning transition, Sampling alignment, Actual low translational motion]
+    limits: Nearest recorded-time matching may use an odometry sample before the command. It is not a forward response-latency measurement. Unstamped command frames and odometry child frames do not establish equivalent axes. Wheel slip, stalled hardware, and localization loss are not established.
+    next_check: Inspect angular motion and subsequent odometry response; collect controller feedback if it is absent.
+  unsupported:
+    title: Detector warning
+    possibilities: []
+    limits: No supported explanation is available for this event type. The warning does not establish a physical cause.
+    next_check: Inspect the original detector evidence and its configuration.

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import base64
+import json
 import os
 import struct
+import subprocess
+import sys
 import zlib
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
@@ -182,3 +186,33 @@ def test_missing_source_and_recipe_changes(prepared):
         evidence.load_bundle(root, output, "test")
     source.unlink()
     assert evidence.build_bundle(root, "test", output)["status"] == "not_installed"
+
+
+def test_isolated_worker_publishes_loadable_recording(prepared):
+    root, output, old, _ = prepared
+    process = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "demo.api.evidence_worker",
+            "--root",
+            str(root),
+            "--output",
+            str(output),
+            "--dataset",
+            "test",
+        ],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert process.returncode == 0, process.stderr
+    result = json.loads(process.stdout.splitlines()[-1])
+    assert result["status"] == "completed"
+    directory, metadata = evidence.load_bundle(root, output, "test")
+    assert metadata["analysis_id"] != old["analysis_id"]
+    assert metadata["message_count"] == 5
+    assert evidence.interval(directory, metadata, 0, 4)["previews"]
+    assert (output / "test" / old["analysis_id"]).exists()
+    assert not list((output / "test").glob(".rebuild-*"))

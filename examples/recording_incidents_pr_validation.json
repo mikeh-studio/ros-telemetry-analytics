@@ -1,0 +1,89 @@
+{
+  "created_at": "2026-09-23T02:14:45.756076+00:00",
+  "scope": "Final PR preparation, schema and detector parity against the initial explanation validation; no physical-fault ground truth",
+  "datasets": [
+    {
+      "dataset_id": "tum_rgbd_freiburg1_xyz",
+      "analysis_id": "659bc02c30c94d79899c33d031254349",
+      "source_sha256": "27bb3db41ddaa7228a8b39191f6b8a112ddf7bca3eed862cd753384696ba8d7e",
+      "message_count": 25626,
+      "event_count": 0,
+      "incident_count": 0,
+      "schema_valid": true,
+      "domain_detector_events_unchanged": true,
+      "verified_previews": 12
+    },
+    {
+      "dataset_id": "tum_vi_room4_512",
+      "analysis_id": "86ab2ba23aa74ff99b0ec43de23c07c4",
+      "source_sha256": "8027451a7390efd51098a10949b91dae7c183d9daf1a09ab058e8169c55ecf9e",
+      "message_count": 39743,
+      "event_count": 63,
+      "incident_count": 54,
+      "schema_valid": true,
+      "domain_detector_events_unchanged": true,
+      "verified_previews": 18
+    },
+    {
+      "dataset_id": "lilocbench_dynamics_0",
+      "analysis_id": "b47eaf445c4d4742a8090bbce5e082ed",
+      "source_sha256": "df4abb923df1bb1ff46326abab8667188f4bc17e7ae12ea16905e9d632470c58",
+      "message_count": 30577,
+      "event_count": 3,
+      "incident_count": 3,
+      "schema_valid": true,
+      "domain_detector_events_unchanged": true,
+      "verified_previews": 18
+    },
+    {
+      "dataset_id": "lilocbench_static_0",
+      "analysis_id": "07ee38b3d11f402bbc0f9ef278fa8ab0",
+      "source_sha256": "5579090b35a48cf24a66fb1118899052218d2089f9b956788d5abee76e01f4ce",
+      "message_count": 110812,
+      "event_count": 3,
+      "incident_count": 3,
+      "schema_valid": true,
+      "domain_detector_events_unchanged": true,
+      "verified_previews": 12
+    },
+    {
+      "dataset_id": "lilocbench_lt_changes_0",
+      "analysis_id": "b40158e723bf48d28cf7243efe58c195",
+      "source_sha256": "638f9ee912302bb252a32aeb146fb96337fb5ac7c09556e58aa462b7cb5ca830",
+      "message_count": 85117,
+      "event_count": 5,
+      "incident_count": 5,
+      "schema_valid": true,
+      "domain_detector_events_unchanged": true,
+      "verified_previews": 12
+    },
+    {
+      "dataset_id": "tum_rgbd_sitting_xyz",
+      "analysis_id": "2a4c652206364d1baee5b683b3980d4e",
+      "source_sha256": "7c052d123d2a9ab03d54608afa962e2ca37d030df6d4360d6b92d0d55929e136",
+      "message_count": 15227,
+      "event_count": 120,
+      "incident_count": 120,
+      "schema_valid": true,
+      "domain_detector_events_unchanged": true,
+      "verified_previews": 12
+    },
+    {
+      "dataset_id": "tum_rgbd_walking_xyz",
+      "analysis_id": "6f80e98453d942d3becf0479bf9b2500",
+      "source_sha256": "9c4de34d24c709388451c2f34bcc5e7ef37167f1cf7bc08e0ead55945a53fbc0",
+      "message_count": 10341,
+      "event_count": 76,
+      "incident_count": 76,
+      "schema_valid": true,
+      "domain_detector_events_unchanged": true,
+      "verified_previews": 12
+    }
+  ],
+  "totals": {
+    "message_count": 317443,
+    "event_count": 270,
+    "incident_count": 261,
+    "verified_previews": 96
+  }
+}
