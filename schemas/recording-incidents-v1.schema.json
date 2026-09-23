@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Recording incidents v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "dataset_id",
+    "analysis_id",
+    "source_sha256",
+    "recipe_signature",
+    "grouping_version",
+    "catalog_version",
+    "catalog_signature",
+    "event_count",
+    "incidents"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "dataset_id": {
+      "type": "string"
+    },
+    "analysis_id": {
+      "type": "string"
+    },
+    "source_sha256": {
+      "type": "string"
+    },
+    "recipe_signature": {
+      "type": "string"
+    },
+    "grouping_version": {
+      "type": "string"
+    },
+    "catalog_version": {
+      "type": "string"
+    },
+    "catalog_signature": {
+      "type": "string"
+    },
+    "event_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "incidents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "incident_id",
+          "family",
+          "member_event_ids",
+          "member_count",
+          "observations",
+          "evidence",
+          "limits",
+          "next_checks",
+          "possibilities",
+          "explanation_status",
+          "start_timestamp_ns",
+          "end_timestamp_ns"
+        ],
+        "properties": {
+          "incident_id": {
+            "type": "string"
+          },
+          "family": {
+            "enum": [
+              "image_content",
+              "recorded_gap",
+              "reference_gap",
+              "motion_disagreement",
+              "unsupported"
+            ]
+          },
+          "member_event_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "member_count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "observations": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "rule_id",
+                "text",
+                "evidence_refs",
+                "parameters"
+              ],
+              "properties": {
+                "rule_id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "evidence_refs": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "parameters": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "kind",
+                "topic",
+                "clock",
+                "availability",
+                "parameters",
+                "start_timestamp_ns",
+                "end_timestamp_ns"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "topic": {
+                  "type": "string"
+                },
+                "clock": {
+                  "const": "recorded_receive"
+                },
+                "availability": {
+                  "enum": [
+                    "available",
+                    "partial",
+                    "unavailable",
+                    "not_applicable"
+                  ]
+                },
+                "parameters": {
+                  "type": "object"
+                },
+                "start_timestamp_ns": {
+                  "type": "string",
+                  "pattern": "^-?[0-9]+$"
+                },
+                "end_timestamp_ns": {
+                  "type": "string",
+                  "pattern": "^-?[0-9]+$"
+                }
+              }
+            }
+          },
+          "limits": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "next_checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "text",
+                "availability",
+                "reason",
+                "evidence_refs"
+              ]
+            }
+          },
+          "possibilities": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "text",
+                "status",
+                "evidence_refs"
+              ],
+              "properties": {
+                "status": {
+                  "const": "untested"
+                }
+              }
+            }
+          },
+          "explanation_status": {
+            "enum": [
+              "supported",
+              "unsupported",
+              "insufficient_evidence"
+            ]
+          },
+          "start_timestamp_ns": {
+            "type": "string",
+            "pattern": "^-?[0-9]+$"
+          },
+          "end_timestamp_ns": {
+            "type": "string",
+            "pattern": "^-?[0-9]+$"
+          }
+        }
+      }
+    }
+  }
+}

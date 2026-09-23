@@ -103,7 +103,7 @@ class PipelineConfig:
 def analytics_fingerprint(config: AnalyticsConfig) -> str:
     """Return a stable cache key for every setting that affects analytics output."""
     payload = {
-        "analysis_engine_version": 4,
+        "analysis_engine_version": 5,
         "config": asdict(config),
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")

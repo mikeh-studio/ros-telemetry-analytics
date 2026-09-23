@@ -1,10 +1,82 @@
 # Recording investigations and dataset audit
 
-Implemented from the [reviewed plan](dataset-evaluation-and-workbench-plan.md). Seven real recordings are prepared locally, including all four additions. The **Recording Investigation** tab works without a replay. It provides versioned evidence, interval selection, three aligned plots with a shared recorded-time cursor, bounded image/scan previews, event details, and topic coverage.
+Implemented from the [reviewed plan](dataset-evaluation-and-workbench-plan.md). Seven real recordings are prepared locally, including all four additions. The **Recording** tab works without a replay. It provides versioned evidence, interval selection, three aligned plots with a shared recorded-time cursor, bounded image/scan previews, event details, and topic coverage.
+
+## Generated incident explanations
+
+Choose a prepared recording, then select an entry under **Detected incidents**.
+The explanation shows measured observations, linked evidence, untested possible
+explanations, explicit limitations, and next checks. Select an **Inspect** button
+to focus the corresponding signal or original detector evidence. The source
+previews identify whether they fall inside the incident or provide surrounding
+context. Moving the cursor does not change the explanation.
+
+Explanations run entirely offline using deterministic rules. Supported families
+are image brightness/sharpness, recorded delivery gaps (including separately
+labeled reference coverage), and command/odometry disagreement. Other detector
+types remain visible with a factual fallback. No warnings means no configured
+warnings were detected, not that the recording is known to be healthy.
+
+Only compatible same-topic image warnings that overlap the original seed can
+merge, with a ten-second maximum combined span. Other detector episodes remain
+separate. Configured counterpart streams can appear as inspection context;
+grouping and temporal overlap do not establish a common cause. Motion explanations
+retain the actual odometry selection, nearest-sample offsets, both speed
+thresholds, and frame limitations.
+
+**Reviewed examples** remain separate human-authored case notes. Selecting
+a reviewed case or manually submitting a new interval clears the selected
+generated explanation. Uploads still need separate offline preparation; live
+incident explanation and automatic baseline comparison are not part of this release.
+
+Click **Rebuild evidence** after upgrading: old bundles are stale by
+design when analysis or explanation rules change. New UUID directories preserve
+earlier evidence. The packaged catalog is
+`src/ros_telemetry_analytics/default_incident_explanations.yaml`, with validated
+repository overrides in `configs/incident_explanations.yaml`. These rules do not
+change the detector thresholds in analysis profiles.
+
+Each prepared bundle adds `events.parquet`, `event_evidence.parquet`, and
+`incidents.json`. Complete event membership is retained before any UI limits.
+Incident summaries and original warnings are paginated; the panel exposes exact
+counts, rule versions, source identity, and bounded source-sample examples.
+Source and incident artifact digests are checked before cached explanations are served.
+
+Read-only endpoints, all requiring the exact `analysis_id`:
+
+- `GET /api/investigations/{dataset_id}/incidents?analysis_id=...&offset=0&limit=50`
+  lists incident summaries (maximum 100 per page). Optional `start_s`/`end_s`
+  filter overlapping incidents without regrouping them.
+- `GET /api/investigations/{dataset_id}/incidents/{incident_id}?analysis_id=...&member_offset=0&member_limit=50`
+  returns the explanation and a page of original warnings (maximum 100 per page).
+- The existing interval route accepts `topic` and `field` to retrieve a specific
+  supporting signal before the display-series limit is applied.
+
+The [2026-09-22 validation snapshot](../examples/incident_explanation_validation_20260922_b031c10089ab4ed3b7477ac75cf8011c.json)
+records 317,443 messages across seven recordings, 270 warnings represented as
+261 incidents, unchanged domain-detector outputs against previous preparations,
+and three source-backed case checks. Freiburg 1 XYZ had no configured warnings;
+unsupported/missing-evidence behavior is covered with synthetic tests rather than
+invented real-data examples. That snapshot predates the final UI cleanup; it is retained as dated source-evidence
+validation. See the [PR validation record](pr-recording-explanations-validation.md)
+for the final code checks and refreshed screenshots. These checks do not establish
+physical root causes or production-fleet readiness.
+
+The synthetic browser flow needs no downloaded recordings. To additionally run
+the local prepared-data check, set `RECORDING_INCIDENTS_LIVE=1`,
+`RECORDING_INCIDENTS_API` to the local API URL, and `FLIGHT_DECK_BASE_URL` to the
+frontend URL, then run:
+
+```bash
+npm --prefix demo/web run test:e2e -- recording-incidents.spec.js
+```
+
+See the [implementation plan](incident-explanation-plan.md) for contract and
+grouping decisions.
 
 ## Review now
 
-Open ROS Workbench, choose **Recording Investigation**, then select:
+Open ROS Workbench, choose **Recording**, then select:
 
 1. **TUM VI · Room 4 → Can image usefulness fall while frame delivery stays steady?** The 100.8–105 s window shows dark/low-texture image content with steady frame delivery. Inspect the six source images and compare a nominal interval near the start.
 2. **TUM VI · Room 4 → Is this delivery warning on a sensor or on reference tracking?** The 44–47 s window shows a 483.334 ms reference-pose gap alongside continuing camera/IMU delivery. This limits evaluation coverage; it does not establish sensor failure.
@@ -26,7 +98,7 @@ The download command fetches only the four comparison bags and three LILocBench 
 
 To prepare one recording: append its registered ID, for example `tum_vi_room4_512`. Preparation publishes a new UUID directory and updates `latest.json` only after successful extraction and source checks. Previous evidence remains intact. To update only reviewed annotation text after editing the YAML, run `.venv/bin/python scripts/curate_investigations.py`.
 
-With Docker, use the existing Compose workflow. The API now mounts `data/investigations` read-only. For offline review without Kafka/Flink:
+With Docker, use the existing Compose workflow. The API mounts `data/investigations` writable for explicit rebuilds; original recordings remain read-only. For offline review without Kafka/Flink:
 
 ```bash
 .venv/bin/python -m uvicorn demo.api.app:app --host 127.0.0.1 --port 8000 --lifespan off
@@ -34,7 +106,7 @@ With Docker, use the existing Compose workflow. The API now mounts `data/investi
 npm --prefix demo/web run dev -- --host 127.0.0.1
 ```
 
-Open `http://localhost:3000` and choose Recording Investigation. `--lifespan off` skips streaming-consumer startup: Telemetry Health will correctly show unavailable stack services. Stop these local servers before starting Compose on the same ports.
+Open `http://localhost:3000` and choose Recording. `--lifespan off` skips streaming-consumer startup: Telemetry will correctly show unavailable stack services. Stop these local servers before starting Compose on the same ports.
 
 ## Audit results
 
@@ -54,3 +126,17 @@ Select the recording once above all three tabs. Availability separates dataset s
 - Reviewed cases and nominal intervals use the same recorded-time axis independently of replay speed. This phase does not synchronize the offline cursor with a running replay.
 
 Local validation: Python coverage tests, frontend interaction tests, production build, lint and Compose configuration. The Docker stack was started and all five readiness services reported ready; TUM VI Room 4 completed replay data was inspected in the browser. This does not replace CI's clean-stack replay/oracle/dropout smoke test. Named-volume inventory remains separate from the historical host audit.
+
+## Rebuild evidence from the page
+
+Select a registered, installed recording and click **Rebuild evidence**. The button starts background analysis, shows the current stage, and reloads results automatically on success. Reopening the page reconnects to a running job. Failures leave previous bundles intact and allow retry. There is no terminal step for this flow.
+
+`POST /api/investigations/{dataset_id}/preparation` starts a job (202); `GET` on the same path reports idle, running, completed, or failed. Repeated requests for the running recording reuse its job; another recording receives 409 until the worker is free. Unknown IDs return 404 and missing sources return 409. Reviewed cases are attached after analysis; an annotation failure is reported separately from successfully rebuilt evidence.
+
+This local job manager uses one API process and keeps job status in memory. An API restart interrupts unfinished jobs; retry from the page. Run the Compose API with its default single worker. The CLI remains available for preparing multiple recordings.
+
+## Recording tab wording
+
+The tab opens with **Recording analysis** and a task instruction: select an incident or choose a time range to inspect signals and source samples. **Detected incidents** are grouped rule-based warnings, not confirmed failures. **Reviewed examples** are optional saved intervals with human-reviewed notes. **Signals and samples** identifies the shared time-range controls and plots.
+
+Evidence status describes explanation support, not confidence in a cause: **Evidence available**, **Limited evidence**, or **Explanation unavailable**. Measurements, possible explanations, uncertainty, and next checks remain separate. Chart aggregation and source identifiers remain available under **How to read the plots** and **Analysis coverage and source details**.

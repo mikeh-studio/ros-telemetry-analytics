@@ -1,66 +1,25 @@
 # ROS Telemetry Analytics
 
-**Recording investigations:** [review the seven-recording audit, three explainable cases, and local setup](docs/recording-investigations.md).
+Find suspicious intervals in robot recordings, inspect the supporting evidence,
+and understand what remains uncertain.
 
-Investigate robot telemetry from recorded missions and live ROS 2 topics.
-Trace sensor dropouts and recovery in ROS Workbench, evaluate localization
-failures, and inspect the evidence behind each result.
+**ROS Workbench** brings three workflows into one local interface:
 
-- **Analyze recordings:** turn ROS 1 and ROS 2 bags into sensor-health reports,
-  anomaly events, and inspectable Parquet and JSON evidence.
-- **Replay missions:** choose a dataset or upload a recording, replay it through
-  Kafka and Flink, and inspect topic health in a React operations console.
-- **Evaluate localization:** score an AMCL failure detector against published
-  ground-truth trajectories and failure labels.
-- **Observe live ROS 2:** send selected topics through a durable gateway into
-  the same pipeline, with a headless Nav2/AMCL simulation and repeatable scan-silence evaluation.
+- **Telemetry:** replay a mission to see when topic delivery drops, gaps, or recovers.
+- **Recording:** select a detected incident, inspect measurements and source samples,
+  and follow suggested next checks. Explanations use deterministic rules—no LLM,
+  API key, or replay required for prepared recordings.
+- **Localization:** compare an AMCL failure detector with published reference
+  trajectories and labels to understand missed events and false alarms.
 
-The Python analysis runs locally on macOS and Linux without ROS, CUDA, or a
-simulator. ROS Workbench runs with Docker Compose. Recorded replay is the default;
-the optional [live ROS 2 gateway and simulation](docs/live-ros2.md) have separate
-runtime requirements. Local validation includes Nav2 integration, three concurrent
-robot streams, and process recovery. The [reliability roadmap](docs/reliability-roadmap.md)
-records the remaining validation gates and limits.
-The [reliability case study](docs/reliability-case-study.md) connects the experiments,
-failed assumptions, implementation changes, and remaining limitations.
+The goal is to help you decide **where to investigate next**, with the evidence
+and its limits visible. A warning does not establish a physical root cause.
 
-> **Status:** Alpha. Supports engineering triage and dataset QA, not
-> safety-critical control or certification.
+![ROS Workbench recording analysis with detected incidents](artifacts/screenshots/recording-analysis.jpg)
 
-![ROS Workbench showing the completed warehouse camera-dropout replay and recorded topic-rate history](artifacts/screenshots/flight-deck.png)
+*LILocBench Dynamics 0: select a recorded delivery gap or command/odometry disagreement.*
 
-*Built-in warehouse recording after camera-dropout replay. Rate history uses
-recorded windows; this screenshot is replay evidence, not a live robot feed.*
-
-## Recent updates
-
-- **Mission review:** dataset selection and Add data lead into replay controls,
-  compact stack readiness, a mission timeline, and health and incident outcomes.
-  Topic descriptions explain each stream. Sparklines show actual message-rate
-  windows, expected rates, gaps, and partial windows; a shared cursor inspects
-  a timestamp without seeking playback.
-- **Incident evidence:** inspect opening and recovery revisions, detector
-  evidence, and available sampled signals. Live position observations are
-  grouped by topic and coordinate frame rather than presented as ground truth.
-- **Live integration and recovery:** an optional ROS 2 gateway persists pending
-  observations with stable retry IDs and explicit overflow counts. Local tests
-  cover Nav2/AMCL, QoS mismatch, duplicate and delayed delivery, edge recovery,
-  three concurrent robot streams, and API and Flink worker restarts.
-- **Localization study:** 21 simulation runs use 15 development runs and six
-  held-out runs. The 0.36 m candidate raises held-out macro sample recall from
-  **36.2% to 45.5%**, while precision falls from **92.4% to 85.7%** and false
-  alarms increase. The default stays at 0.40 m. Read the
-  [study](examples/localization_study.md) and
-  [reliability case study](docs/reliability-case-study.md) for results and limits.
-
-![Incident explanation for the recovered camera gap, including timing and detector revisions](artifacts/screenshots/flight-deck-incident.png)
-
-*The same recorded camera-dropout run: observed failure, recovery, and supporting
-revisions. Missing telemetry alone does not establish a physical root cause.*
-
-## Try the ROS Workbench
-
-Clone the repository and start the stack with Docker Compose:
+## Try it locally
 
 ```bash
 git clone https://github.com/mikeh-studio/ros-telemetry-analytics.git
@@ -68,18 +27,24 @@ cd ros-telemetry-analytics
 docker compose up --build
 ```
 
-Open [localhost:3000](http://localhost:3000), select a dataset, and start a 1x
-or 5x replay. The built-in warehouse mission includes a camera-dropout scenario
-at 1x speed for inspecting gaps, late arrivals, and recovery.
+Open [localhost:3000](http://localhost:3000). Start with the built-in warehouse
+mission in **Telemetry**, choose 1× or 5× speed, and start replay. The optional
+camera-dropout scenario runs at 1× and demonstrates detection and recovery.
+You can also upload a `.bag`, `.mcap`, or `.db3` recording for replay.
 
-You can also upload a `.bag`, `.mcap`, or `.db3` recording. Public datasets
-can be replayed once installed; unavailable archives remain visible but
-disabled. See the [ROS Workbench guide](docs/flight-deck.md) for dataset
-behavior, service endpoints, and checkpoint-recovery checks.
+For **Recording** analysis, install and prepare the public recordings using the
+[recording guide](docs/recording-investigations.md#reproduce-locally). Select an
+incident to see observations, possible explanations, uncertainty, and next checks.
+**Rebuild evidence** updates an installed, registered recording directly from the
+page. Uploads do not yet receive this prepared analysis automatically.
 
-## Analyze recordings
+![Recorded incident explanation with measured evidence and explicit uncertainty](artifacts/screenshots/recording-explanation.jpg)
 
-From the repository root, using Python 3.11+:
+*Command/odometry disagreement is an observation to investigate, not proof of a stalled robot.*
+
+## Analyze bags without the web app
+
+Python 3.11+ on macOS or Linux; no ROS runtime, CUDA, or simulator required:
 
 ```bash
 make setup
@@ -87,49 +52,25 @@ make setup
 make analyze
 ```
 
-Supported inputs include ROS 1 `.bag`, ROS 2 bag directories, and standalone
-`.db3` and `.mcap` files. Start with `data/bronze/latest_report.md` for the run
-summary; each recording also gets a report and structured evidence under
-`data/bronze/bags/<bag-id>/`.
+Start with `data/bronze/latest_report.md`. Each recording also gets a report and
+structured Parquet/JSON evidence in `data/bronze/bags/<bag-id>/`. Inputs include
+ROS 1 bags, ROS 2 bag directories, `.db3`, and `.mcap` files.
 
-Checks cover message rates, gaps, topic-pair timing, and selected payload
-features from odometry, IMU, TF, diagnostics, and images. Timing checks use
-recorded receive timestamps and do not establish hardware synchronization.
+## Guides
 
-See the [analysis guide](docs/bag-analysis.md) for custom input paths, output
-schemas, thresholds, and reliability guarantees. Browse example
-[sensor-health](examples/sample_report.md) and
-[domain-analysis](examples/sample_domain_report.md) reports.
-
-## Evaluate localization
-
-The localization evaluator measures an observable-only AMCL detector against
-published failure labels, keeping ground truth separate from detector inputs.
-It produces sample and event metrics plus inspectable result files.
-
-See the [evaluation guide](docs/localization-evaluation.md) for the command,
-dataset setup, and baseline results, or read the
-[sample evaluation](examples/sample_localization_eval.md).
-
-A [21-run follow-up study](examples/localization_study.md) compares detector
-changes on separate development and evaluation environments, with explicit
-recall, precision, and false-alarm tradeoffs.
-
-## Repository layout
-
-| Path | Contents |
+| Use case | Guide |
 | --- | --- |
-| `src/ros_telemetry_analytics/` | Python ingestion, analysis, and CLI |
-| `demo/` | ROS Workbench API/UI, replayer, ROS 2 gateway, and simulation |
-| `streaming/flink-job/` | Java event-time processing and tests |
-| `configs/` | Analysis rules, replay settings, and dataset manifests |
-| `schemas/` | Versioned streaming JSON contracts |
-| `tests/` | Python tests and fixtures |
-| `scripts/` | Stack smoke, recovery, and batch-comparison checks |
-| `docs/` | Usage guides, architecture, and design review |
-| `examples/` | Committed sample reports |
-| `artifacts/` | Design and UI review evidence |
-| `data/` | Local recordings and generated analysis outputs |
+| Replay recordings and inspect topic delivery | [ROS Workbench](docs/flight-deck.md) |
+| Investigate incidents without replay | [Recording analysis](docs/recording-investigations.md) |
+| Configure batch checks and inspect output | [Bag analysis](docs/bag-analysis.md) |
+| Evaluate localization detection | [Localization evaluation](docs/localization-evaluation.md) |
+| Connect live ROS 2 topics | [Optional gateway and simulation](docs/live-ros2.md) |
+| Understand implementation and validation limits | [Architecture](docs/architecture.md) · [Reliability case study](docs/reliability-case-study.md) |
+
+**Status: Alpha.** Intended for engineering triage and dataset QA, not safety-critical
+control or certification. Timing checks use recorded receive timestamps; they do
+not establish hardware synchronization or sensor accuracy. Live ROS 2 integration
+has separate runtime requirements and [validation gates](docs/reliability-roadmap.md).
 
 ## Development
 
@@ -138,17 +79,16 @@ make setup
 make format
 make lint
 make test
+npm --prefix demo/web ci
+npm --prefix demo/web test
+npm --prefix demo/web run build
 ```
 
-See [architecture](docs/architecture.md) for the batch and streaming data flows,
-[validation datasets](docs/validation-data.md) for optional public recordings,
-and [contributing](CONTRIBUTING.md) for test expectations. Historical UI review
-notes live in [design QA](docs/design-qa.md) and the
-[UI audit](artifacts/ui-audit/ui-review.md).
-
+See [contributing](CONTRIBUTING.md) for test expectations and
+[validation datasets](docs/validation-data.md) for optional public recordings.
 Report vulnerabilities through [SECURITY.md](SECURITY.md).
 
 ## License
 
-[MIT](LICENSE) for source code. ROS recordings and other third-party inputs
-retain their own licenses.
+[MIT](LICENSE) for source code. Recordings and other third-party inputs retain
+their own licenses.

@@ -20,6 +20,7 @@ import numpy as np
 import polars as pl
 import yaml
 
+from ros_telemetry_analytics import incident_explanations as explanations
 from ros_telemetry_analytics.config import load_pipeline_config
 from ros_telemetry_analytics.discovery import discover_bags
 from ros_telemetry_analytics.domain import _image_statistics
@@ -83,6 +84,7 @@ def specs(root: Path) -> dict:
 def recipe_signature(root: Path, spec: dict) -> str:
     digest = hashlib.sha256(json.dumps(spec, sort_keys=True).encode())
     digest.update((root / spec["profile"]).read_bytes())
+    digest.update(json.dumps(explanations.catalog(root), sort_keys=True).encode())
     # Include the analysis implementation, so old bundles never masquerade as new output.
     for path in sorted(Path(__file__).parent.glob("*.py")):
         digest.update(path.name.encode())
@@ -407,7 +409,25 @@ def build_bundle(root: Path, dataset_id: str, output: Path) -> dict:
             "Recorded observations and configured warnings; not confirmed physical failures."
         ),
     }
+    document = explanations.build_incidents(
+        root, destination, metadata, event_records(destination, metadata)
+    )
+    write_json(destination / "incidents.json", document)
+    metadata["incident_artifacts"] = {
+        name: sha256(destination / name) for name in explanations.ARTIFACTS
+    }
+    metadata["incident_count"] = len(document["incidents"])
+    metadata["explanation_version"] = document["catalog_version"]
+    metadata["explanation_status_counts"] = {
+        status: sum(i["explanation_status"] == status for i in document["incidents"])
+        for status in ("supported", "unsupported", "insufficient_evidence")
+    }
     write_json(destination / "previews.json", preview)
+    if recipe != recipe_signature(root, spec):
+        raise ValueError("Analysis recipe changed while preparing incidents")
+    (current,) = discover_bags([source_path])
+    if current.fingerprint != source.fingerprint:
+        raise ValueError("Source changed while preparing incidents")
     write_json(destination / "metadata.json", metadata)
     # A dataset pointer publishes only after all of its artifacts are available.
     write_json(output / dataset_id / "latest.json", {"analysis_id": analysis_id})
@@ -448,6 +468,16 @@ def load_bundle(
         != metadata["source_sha256"]
     ):
         raise ValueError("Source bytes changed; prepare this recording again")
+    if set(metadata.get("incident_artifacts", {})) != set(explanations.ARTIFACTS):
+        raise ValueError("Incident evidence is not prepared; prepare this recording again")
+    for name, expected in metadata["incident_artifacts"].items():
+        artifact = directory / name
+        stat = artifact.stat()
+        actual = checked_digest(
+            str(artifact), stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns, stat.st_ino
+        )
+        if actual != expected:
+            raise ValueError("Incident artifact changed; prepare this recording again")
     return directory, metadata
 
 
@@ -477,6 +507,8 @@ def collection(root: Path, output: Path) -> dict:
 
 
 def event_records(directory: Path, metadata: dict) -> list[dict]:
+    if (directory / "events.parquet").exists():
+        return rows(directory / "events.parquet")
     analysis = directory / metadata["analysis_path"]
     events = rows(analysis / "anomaly_events.parquet")
     index = pl.read_parquet(analysis / "message_index.parquet")
@@ -575,7 +607,12 @@ def bounded_points(
 
 
 def interval(
-    directory: Path, metadata: dict, start_s: float, end_s: float, topic: str | None = None
+    directory: Path,
+    metadata: dict,
+    start_s: float,
+    end_s: float,
+    topic: str | None = None,
+    field: str | None = None,
 ) -> dict:
     duration = metadata["duration_s"]
     if not (
@@ -592,6 +629,12 @@ def interval(
     topics = {row["topic"] for row in metadata["coverage"]}
     if topic is not None and topic not in topics:
         raise ValueError("Unknown topic")
+    allowed_fields = {name for fields in FIELDS.values() for name in fields} | {
+        "inter_message_gap_ms"
+    }
+    if field is not None and field not in allowed_fields:
+        raise ValueError("Unknown signal field")
+    selected_field = field
     series = []
     for domain, fields in FIELDS.items():
         frame = pl.read_parquet(analysis / f"domain_records/{domain}.parquet")
@@ -653,6 +696,8 @@ def interval(
         and (topic is None or e["topic"] == topic)
     ]
     preview = json.loads((directory / "previews.json").read_text())
+    if selected_field is not None:
+        series = [s for s in series if s["field"] == selected_field]
     return {
         "analysis_id": metadata["analysis_id"],
         "start_s": start_s,
@@ -672,4 +717,102 @@ def interval(
         "preview_policy": (
             "Fixed source samples around feature minima and temporal controls; not every frame."
         ),
+    }
+
+
+@lru_cache(maxsize=16)
+def _incident_document(directory: str, metadata_json: str, artifact_digest: str) -> dict:
+    metadata = json.loads(metadata_json)
+    path = Path(directory)
+    document = json.loads((path / "incidents.json").read_text())
+    explanations.validate(document, rows(path / "events.parquet"), metadata)
+    return document
+
+
+def incident_document(directory: Path, metadata: dict) -> dict:
+    # Call only after load_bundle has verified source, recipe and artifact digests.
+    return _incident_document(
+        str(directory),
+        json.dumps(metadata, sort_keys=True),
+        metadata["incident_artifacts"]["incidents.json"],
+    )
+
+
+def incident_list(
+    directory: Path,
+    metadata: dict,
+    offset: int = 0,
+    limit: int = 50,
+    start_s: float | None = None,
+    end_s: float | None = None,
+) -> dict:
+    if offset < 0 or not 1 <= limit <= 100:
+        raise ValueError("Invalid incident pagination")
+    if (start_s is None) != (end_s is None):
+        raise ValueError("Both interval bounds are required")
+    if start_s is not None and not (
+        math.isfinite(start_s)
+        and math.isfinite(end_s)
+        and 0 <= start_s < end_s <= metadata["duration_s"]
+    ):
+        raise ValueError("Invalid incident interval")
+    document = incident_document(directory, metadata)
+    incidents = [
+        i
+        for i in document["incidents"]
+        if start_s is None or (i["end_s"] >= start_s and i["start_s"] <= end_s)
+    ]
+    keys = {
+        "incident_id",
+        "title",
+        "family",
+        "topics",
+        "start_s",
+        "end_s",
+        "member_count",
+        "explanation_status",
+        "severity",
+    }
+    page = [{k: v for k, v in i.items() if k in keys} for i in incidents[offset : offset + limit]]
+    return {
+        "analysis_id": metadata["analysis_id"],
+        "incidents": page,
+        "total_count": len(incidents),
+        "returned_count": len(page),
+        "offset": offset,
+        "next_offset": offset + limit if offset + limit < len(incidents) else None,
+    }
+
+
+def incident_detail(
+    directory: Path,
+    metadata: dict,
+    incident_id: str,
+    member_offset: int = 0,
+    member_limit: int = 50,
+) -> dict:
+    if member_offset < 0 or not 1 <= member_limit <= 100:
+        raise ValueError("Invalid member pagination")
+    document = incident_document(directory, metadata)
+    incident = next((i for i in document["incidents"] if i["incident_id"] == incident_id), None)
+    if incident is None:
+        raise KeyError("Unknown recording incident")
+    all_ids = incident["member_event_ids"]
+    ids = set(all_ids[member_offset : member_offset + member_limit])
+    refs = [e for e in incident["evidence"] if e.get("event_id") in ids or "event_id" not in e]
+    ref_ids = {e["id"] for e in refs}
+    return {
+        **{k: v for k, v in document.items() if k != "incidents"},
+        **{
+            k: v
+            for k, v in incident.items()
+            if k not in {"member_event_ids", "observations", "evidence"}
+        },
+        "evidence": refs,
+        "observations": [o for o in incident["observations"] if set(o["evidence_refs"]) <= ref_ids],
+        "member_events": [e for e in rows(directory / "events.parquet") if e["event_id"] in ids],
+        "member_offset": member_offset,
+        "next_member_offset": member_offset + member_limit
+        if member_offset + member_limit < len(all_ids)
+        else None,
     }

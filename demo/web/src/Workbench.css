@@ -68,12 +68,14 @@
 .dataset-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 28px;
+  justify-content: flex-start;
+  gap: 24px;
 }
 .recording-label {
+  display: block;
+  margin-bottom: 8px;
   color: var(--muted);
-  font-size: 18px;
+  font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -126,7 +128,8 @@
   font:
     400 17px/1.6 "IBM Plex Mono",
     monospace;
-  margin: 15px 0 8px;
+  margin: 20px 0 16px;
+  max-width: 80ch;
   color: var(--muted);
 }
 .dataset-facts {
@@ -187,16 +190,26 @@
   border: 0;
   padding: 0;
   flex: none;
+  min-width: 0;
+  max-width: 100%;
 }
 .workbench-theme .launch-bar .selector-grid {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 16px;
 }
 .workbench-theme .launch-bar .selector-grid > label {
+  min-width: 0;
+  max-width: 100%;
   font:
     12px/1.5 "IBM Plex Mono",
     monospace;
+}
+.workbench-theme .launch-bar .selector-grid select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 .workbench-theme .replay-speed {
   padding: 0;
@@ -404,6 +417,29 @@
   padding: 14px 0;
   border-radius: 0;
 }
+.workbench-theme .recording-incident-explanation details {
+  margin: 24px 0 0;
+  padding: 20px 24px;
+  background: transparent;
+  border-color: #334047;
+  border-radius: 4px;
+}
+.workbench-theme .recording-incident-explanation details[open] > summary {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #334047;
+}
+.workbench-theme .recording-incident-explanation details > p {
+  margin: 12px 0;
+}
+@media (max-width: 650px) {
+  .workbench-theme .recording-incident-explanation details {
+    padding: 16px;
+  }
+  .recording-incident-options button {
+    padding: 16px;
+  }
+}
 .workbench-theme .investigation-cases button[aria-pressed="true"] {
   background: #191919;
   border-color: var(--white);
@@ -557,10 +593,22 @@
   flex-basis: 100%;
 }
 .workbench-theme .dataset-purpose {
-  font-size: 18px;
+  font-size: 14px;
 }
 .workbench-theme .dataset-facts {
-  font-size: 14px;
+  font-size: 12px;
+}
+.dataset-signals {
+  margin-top: 12px;
+  color: var(--muted);
+  font:
+    400 12px/1.7 "IBM Plex Mono",
+    monospace;
+  overflow-wrap: anywhere;
+}
+.dataset-signals > span {
+  color: var(--white);
+  margin-right: 12px;
 }
 @media (max-width: 650px) {
   .workbench-theme .command-header .title-lockup h1 {
@@ -603,28 +651,30 @@
   }
 }
 
-/* Content-sized tabs keep the visible gaps between titles equal. */
+/* Equal-width tabs form a compact strip anchored to the left. */
 .workbench-theme .workspace-tabs {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: stretch;
   justify-content: flex-start;
-  gap: 40px;
+  gap: 0;
   margin: 0;
   min-width: 0;
-  width: 100%;
-  overflow-x: auto;
+  width: min(100%, 660px);
+  overflow: visible;
   border-bottom: 1px solid var(--border);
   scrollbar-width: thin;
 }
 .workbench-theme .workspace-tabs button {
   display: grid;
-  grid-template-rows: 1.25em 18px;
+  grid-template-rows: 1.25em minmax(18px, auto);
   flex: 0 0 auto;
   align-content: start;
   justify-items: start;
   gap: 6px;
-  width: max-content;
-  padding: 20px 0 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 20px 12px 12px;
   border: 0;
   border-bottom: 3px solid transparent;
   background: transparent;
@@ -660,6 +710,9 @@
 }
 .workbench-theme .tab-availability {
   padding-left: 28px;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
   color: var(--muted);
   font:
     400 12px/18px "IBM Plex Mono",
@@ -668,25 +721,31 @@
   letter-spacing: 0;
 }
 @media (max-width: 1000px) {
-  .workbench-theme .workspace-tabs {
-    gap: 32px;
-  }
   .workbench-theme .workspace-tabs button {
     font-size: 20px;
   }
 }
 @media (max-width: 650px) {
   .workbench-theme .workspace-tabs {
-    gap: 24px;
+    gap: 0;
   }
   .workbench-theme .workspace-tabs button {
     font-size: 16px;
-    padding: 18px 0 12px;
-    grid-template-rows: 1.25em 16px;
+    padding: 18px 4px 12px;
+    grid-template-rows: 1.25em minmax(32px, auto);
   }
   .workbench-theme .tab-availability {
+    padding-left: 22px;
     font-size: 10px;
     line-height: 16px;
+  }
+}
+@media (max-width: 480px) {
+  .workbench-theme .workspace-tabs .tab-icon {
+    display: none;
+  }
+  .workbench-theme .tab-availability {
+    padding-left: 0;
   }
 }
 @media (max-width: 360px) {
@@ -703,15 +762,12 @@
     width: 16px;
     height: 16px;
   }
-  .workbench-theme .tab-availability {
-    padding-left: 22px;
-  }
 }
 
 /* Recording menu and quiet topic rows. */
 .recording-menu {
   position: relative;
-  width: min(440px, 100%);
+  width: min(380px, 100%);
   min-width: 0;
 }
 .workbench-theme button.recording-trigger {
@@ -721,10 +777,10 @@
   gap: 20px;
   width: 100%;
   padding: 12px 16px;
-  min-height: 56px;
+  min-height: 48px;
   text-align: left;
   font:
-    600 32px/1.15 "Barlow Condensed",
+    600 26px/1.2 "Barlow Condensed",
     sans-serif;
   letter-spacing: 0;
   text-transform: none;

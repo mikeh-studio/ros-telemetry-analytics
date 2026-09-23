@@ -2,6 +2,7 @@
   max-width: 1250px;
   margin: 24px auto;
   color: var(--white, #f0f0fa);
+  overflow-wrap: anywhere;
 }
 .recording-heading {
   display: flex;
@@ -220,4 +221,146 @@
 }
 .recording-preview svg text {
   fill: #a3b6bc;
+}
+
+.recording-incident-list,
+.recording-incident-explanation {
+  margin: 2rem 0;
+  padding: clamp(20px, 3vw, 32px);
+  border: 1px solid #3b4b50;
+  border-radius: 6px;
+  background: #121b1f;
+}
+.recording-incident-heading,
+.recording-incident-pagination {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.recording-incident-heading {
+  justify-content: space-between;
+}
+.recording-incident-heading h3 {
+  margin: 0;
+}
+.recording-incident-list > p {
+  margin: 16px 0 24px;
+  max-width: 85ch;
+}
+.recording-incident-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 16px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding: 3px;
+}
+.recording-incident-options button {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 12px;
+  padding: 20px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  border-color: #465257;
+  background: #10181c;
+}
+.recording-incident-options button strong {
+  line-height: 1.5;
+}
+.recording-incident-options button small {
+  margin-top: auto;
+  padding-top: 4px;
+}
+.recording-incident-pagination {
+  margin-top: 24px;
+}
+.recording-incident-options button.is-selected {
+  border-color: #63c4bd;
+  background: #203335;
+}
+.recording-incident-options small {
+  color: #adbfc5;
+}
+.recording-explanation-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.5rem;
+}
+.recording-incident-explanation h4 {
+  margin: 28px 0 12px;
+}
+.recording-incident-explanation > h3 {
+  margin: 8px 0 12px;
+}
+.recording-incident-explanation p + p {
+  margin-top: 12px;
+}
+.recording-incident-explanation p + .recording-evidence-link {
+  margin-top: 12px;
+}
+.recording-incident-explanation > div + div {
+  margin-top: 20px;
+}
+.recording-incident-explanation li {
+  margin-bottom: 0.6rem;
+}
+.recording-evidence-link {
+  margin: 0.2rem 0.5rem 0.4rem 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: left;
+  font-size: 0.8rem;
+}
+.recording-evidence-record {
+  padding: 24px 0;
+  border-bottom: 1px solid #334047;
+  overflow-wrap: anywhere;
+}
+.recording-evidence-record:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.recording-evidence-record > strong {
+  display: block;
+  margin-bottom: 12px;
+}
+.recording-evidence-record pre {
+  margin: 16px 0;
+}
+.recording-incident-explanation pre,
+.recording-evidence-focus pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.75rem;
+}
+.recording-incident-explanation code {
+  overflow-wrap: anywhere;
+}
+.recording-evidence-focus {
+  border-left: 2px solid #63c4bd;
+  padding: 0.8rem;
+}
+.recording-evidence-focus button {
+  margin-left: 1rem;
+}
+@media (max-width: 700px) {
+  .recording-explanation-columns {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
+.evidence-preparation {
+  flex: 0 1 auto;
+  width: 22rem;
+  max-width: 100%;
+  min-width: 0;
+}
+.evidence-preparation p {
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
 }

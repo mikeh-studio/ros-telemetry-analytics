@@ -29,7 +29,7 @@ def test_read_only_api_identity_and_interval_errors(tmp_path: Path, monkeypatch)
     monkeypatch.setattr(evidence, "public_metadata", lambda *args: dict(metadata))
     monkeypatch.setattr(evidence, "rows", lambda path: [])
 
-    def interval(directory, metadata, start, end, topic):
+    def interval(directory, metadata, start, end, topic, field=None):
         if end <= start:
             raise ValueError("Invalid interval")
         return {"analysis_id": metadata["analysis_id"], "series": []}

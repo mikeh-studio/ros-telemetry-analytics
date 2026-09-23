@@ -75,21 +75,21 @@ describe("ROS Workbench", () => {
 
   it("switches workspace tabs with keyboard controls and pointer input", () => {
     render(<App />);
-    const health = screen.getByRole("tab", { name: "Telemetry Health" });
+    const health = screen.getByRole("tab", { name: "Telemetry" });
     const investigation = screen.getByRole("tab", {
-      name: "Localization Investigation",
+      name: "Localization",
     });
     expect(health).toHaveAttribute("aria-selected", "true");
     fireEvent.keyDown(health, { key: "ArrowRight" });
     const recordings = screen.getByRole("tab", {
-      name: "Recording Investigation",
+      name: "Recording",
     });
     expect(recordings).toHaveFocus();
     fireEvent.keyDown(recordings, { key: "ArrowRight" });
     expect(investigation).toHaveFocus();
     expect(investigation).toHaveAttribute("aria-selected", "true");
     expect(
-      screen.getByRole("tabpanel", { name: "Localization Investigation" }),
+      screen.getByRole("tabpanel", { name: "Localization" }),
     ).toBeVisible();
     expect(
       screen.queryByRole("region", { name: "Monitored Topics" }),
@@ -142,13 +142,13 @@ describe("ROS Workbench", () => {
       screen.queryByRole("heading", { name: "Monitor" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("tab", { name: "Telemetry Health" }),
+      screen.getByRole("tab", { name: "Telemetry" }),
     ).toHaveAccessibleDescription("Services not ready");
     expect(
-      screen.getByRole("tab", { name: "Recording Investigation" }),
+      screen.getByRole("tab", { name: "Recording" }),
     ).toHaveAccessibleDescription("Ready");
     expect(
-      screen.getByRole("tab", { name: "Localization Investigation" }),
+      screen.getByRole("tab", { name: "Localization" }),
     ).toHaveAccessibleDescription("Analysis not prepared");
     expect(screen.getAllByText("Replay services are not ready.")).toHaveLength(
       1,
@@ -162,9 +162,10 @@ describe("ROS Workbench", () => {
     ).toBeVisible();
     fireEvent.click(about);
     fireEvent.click(inspect);
-    expect(
-      screen.getByRole("tab", { name: "Recording Investigation" }),
-    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Recording" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     expect(screen.getByLabelText("Dataset")).toHaveValue("walking");
     expect(
       screen.getByRole("button", { name: "Upload recording" }),
@@ -302,7 +303,7 @@ describe("ROS Workbench", () => {
       ).toBeEnabled(),
     );
     expect(
-      screen.getByRole("tab", { name: "Telemetry Health" }),
+      screen.getByRole("tab", { name: "Telemetry" }),
     ).toHaveAccessibleDescription("Ready");
     expect(screen.getByText("Camera dropout")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Connection details"));
@@ -705,9 +706,7 @@ describe("ROS Workbench", () => {
       await waitFor(() =>
         expect(screen.getByText("0.856")).toBeInTheDocument(),
       );
-      fireEvent.click(
-        screen.getByRole("tab", { name: "Localization Investigation" }),
-      );
+      fireEvent.click(screen.getByRole("tab", { name: "Localization" }));
       await waitFor(() =>
         expect(
           screen.getByRole("img", {
@@ -984,11 +983,7 @@ describe("ROS Workbench", () => {
     await waitFor(() =>
       expect(screen.getByLabelText("Dataset")).toHaveValue("recording-a"),
     );
-    for (const name of [
-      "Recording Investigation",
-      "Localization Investigation",
-      "Telemetry Health",
-    ]) {
+    for (const name of ["Recording", "Localization", "Telemetry"]) {
       fireEvent.click(screen.getByRole("tab", { name }));
       expect(screen.getByLabelText("Dataset")).toHaveValue("recording-a");
       expect(
@@ -1071,9 +1066,10 @@ describe("ROS Workbench", () => {
     await waitFor(() =>
       expect(screen.getByLabelText("Dataset")).toHaveValue("a"),
     );
-    expect(
-      screen.getByRole("tab", { name: "Recording Investigation" }),
-    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Recording" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     expect(
       screen.getByText(/previous dataset is no longer available/),
     ).toBeVisible();
@@ -1117,9 +1113,7 @@ describe("ROS Workbench", () => {
     await waitFor(() =>
       expect(screen.getByLabelText("Dataset")).toHaveValue("a"),
     );
-    fireEvent.click(
-      screen.getByRole("tab", { name: "Recording Investigation" }),
-    );
+    fireEvent.click(screen.getByRole("tab", { name: "Recording" }));
     const dialog = container.querySelector("dialog");
     dialog.showModal = () => {
       dialog.open = true;

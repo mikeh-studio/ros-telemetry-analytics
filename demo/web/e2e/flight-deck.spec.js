@@ -16,7 +16,7 @@ test("completed recorded mission is operationally trustworthy", async ({
     page.getByRole("heading", { name: "ROS Workbench", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("tab", { name: "Telemetry Health", exact: true }),
+    page.getByRole("tab", { name: "Telemetry", exact: true }),
   ).toBeVisible();
 
   await page.locator(".stack-disclosure summary").click();

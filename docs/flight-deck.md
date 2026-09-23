@@ -8,6 +8,12 @@ revisions into SQLite through FastAPI, and presents the results in a responsive
 React operations console. It includes the deterministic 90-second MCAP mission
 for `robot-17`, installed public validation datasets, and user uploads.
 
+Select a recording once, then use **Telemetry**, **Recording**, or **Localization**.
+Telemetry covers replay delivery; Recording provides offline incident explanations
+and source evidence; Localization shows prepared detector evaluation results.
+Availability is shown separately for each tab. See the
+[recording guide](recording-investigations.md) for preparation and the **Rebuild evidence** flow.
+
 Start the stack:
 
 ```bash

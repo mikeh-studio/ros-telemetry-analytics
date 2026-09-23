@@ -182,3 +182,38 @@ projection are production-shaped learning components, but the demo is not a
 robot command or safety path. A future ROS 2 bridge may publish the same event
 schema from an edge gateway only after QoS, clock synchronization, offline
 buffering, fleet partitioning, and security are designed explicitly.
+## Offline incident explanations
+
+Recording preparation extends the batch evidence flow with structured detector
+provenance (`anomaly_event_evidence.parquet`), complete normalized events,
+conservative grouping, and predefined explanations. Detector conditions and their
+original anomaly rows retain their existing meaning. The batch analysis cache
+version includes the new provenance artifact.
+
+`incident_grouping.py` supplies source-bound stable event IDs and same-topic image
+overlap grouping. `incident_explanations.py` validates provenance counts and
+conditions, computes interval-specific delivery context from the complete message
+index, and builds an explanation catalog with typed values and evidence references.
+Related configured streams remain context; they are not merged into a causal claim.
+
+`investigations.py` writes `events.parquet`, `event_evidence.parquet`, and
+`incidents.json` into a new analysis directory. It records their digests and the
+rule/configuration signatures before advancing `latest.json`. Evidence GET endpoints
+verify identities and digests, serve paginated summaries/details, and support
+targeted interval signal retrieval. Read requests do not run detectors, generate
+explanations, or parse raw bags. Existing interval plots still read prepared
+Parquet evidence.
+
+The recording UI keeps generated incidents distinct from reviewed annotations and
+the live/replay `anomaly_id` revision model. Source nanoseconds remain strings in
+JSON; plots use relative recorded seconds. Missing evidence, unsupported detector
+types, and stale bundles have distinct outcomes. See the
+[recording guide](recording-investigations.md#generated-incident-explanations) and
+[incident schema](../schemas/recording-incidents-v1.schema.json).
+
+An explicit evidence-preparation POST starts a background rebuild for a registered,
+installed recording. The single-worker local API allows one build at a time,
+reports stages through a status GET, and retains prior bundles. The frontend polls
+this job and reloads saved evidence on completion; callback changes do not restart
+the job. Job status is in memory, so an API restart requires retrying an interrupted
+build. The investigation output mount is writable; source recordings remain read-only.

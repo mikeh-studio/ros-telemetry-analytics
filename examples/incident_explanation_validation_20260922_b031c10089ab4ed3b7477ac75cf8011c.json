@@ -1,0 +1,260 @@
+{
+  "created_at": "2026-09-22T17:33:18.325608+00:00",
+  "scope": "Local prepared public recordings; detector parity and explanation evidence, not physical-fault labels",
+  "datasets": [
+    {
+      "dataset_id": "tum_rgbd_freiburg1_xyz",
+      "analysis_id": "9db84c047b8345aa8d3fe9f91acc12c6",
+      "previous_analysis_id": "1ee20745b2a447988a2bd57c5b35ee81",
+      "source_sha256": "27bb3db41ddaa7228a8b39191f6b8a112ddf7bca3eed862cd753384696ba8d7e",
+      "message_count": 25626,
+      "event_count": 0,
+      "incident_count": 0,
+      "statuses": {
+        "supported": 0,
+        "unsupported": 0,
+        "insufficient_evidence": 0
+      },
+      "domain_detector_events_unchanged": true,
+      "schema_valid": true
+    },
+    {
+      "dataset_id": "tum_vi_room4_512",
+      "analysis_id": "50633434808144fc804d9f481cee5ee0",
+      "previous_analysis_id": "8b376ac8f0324479baf68185913adde2",
+      "source_sha256": "8027451a7390efd51098a10949b91dae7c183d9daf1a09ab058e8169c55ecf9e",
+      "message_count": 39743,
+      "event_count": 63,
+      "incident_count": 54,
+      "statuses": {
+        "supported": 54,
+        "unsupported": 0,
+        "insufficient_evidence": 0
+      },
+      "domain_detector_events_unchanged": true,
+      "schema_valid": true
+    },
+    {
+      "dataset_id": "lilocbench_dynamics_0",
+      "analysis_id": "dcc14179276f4497a03f32e88ca5fc6a",
+      "previous_analysis_id": "cd142d7c1f394625a9d6e19d0c6b7c5c",
+      "source_sha256": "df4abb923df1bb1ff46326abab8667188f4bc17e7ae12ea16905e9d632470c58",
+      "message_count": 30577,
+      "event_count": 3,
+      "incident_count": 3,
+      "statuses": {
+        "supported": 3,
+        "unsupported": 0,
+        "insufficient_evidence": 0
+      },
+      "domain_detector_events_unchanged": true,
+      "schema_valid": true
+    },
+    {
+      "dataset_id": "lilocbench_static_0",
+      "analysis_id": "970ba02177384807b38a5fc49615bc67",
+      "previous_analysis_id": "0c906fce8d4143afb2fa9fa67106cc80",
+      "source_sha256": "5579090b35a48cf24a66fb1118899052218d2089f9b956788d5abee76e01f4ce",
+      "message_count": 110812,
+      "event_count": 3,
+      "incident_count": 3,
+      "statuses": {
+        "supported": 3,
+        "unsupported": 0,
+        "insufficient_evidence": 0
+      },
+      "domain_detector_events_unchanged": true,
+      "schema_valid": true
+    },
+    {
+      "dataset_id": "lilocbench_lt_changes_0",
+      "analysis_id": "71c10ece6df54c4aae552d5a82bfaa26",
+      "previous_analysis_id": "c9433f618372473c804d83763bac9f26",
+      "source_sha256": "638f9ee912302bb252a32aeb146fb96337fb5ac7c09556e58aa462b7cb5ca830",
+      "message_count": 85117,
+      "event_count": 5,
+      "incident_count": 5,
+      "statuses": {
+        "supported": 5,
+        "unsupported": 0,
+        "insufficient_evidence": 0
+      },
+      "domain_detector_events_unchanged": true,
+      "schema_valid": true
+    },
+    {
+      "dataset_id": "tum_rgbd_sitting_xyz",
+      "analysis_id": "cbd7625321ec45b586d5de06d024d67c",
+      "previous_analysis_id": "575709c07cda4b18aaab7d5785a992a0",
+      "source_sha256": "7c052d123d2a9ab03d54608afa962e2ca37d030df6d4360d6b92d0d55929e136",
+      "message_count": 15227,
+      "event_count": 120,
+      "incident_count": 120,
+      "statuses": {
+        "supported": 120,
+        "unsupported": 0,
+        "insufficient_evidence": 0
+      },
+      "domain_detector_events_unchanged": true,
+      "schema_valid": true
+    },
+    {
+      "dataset_id": "tum_rgbd_walking_xyz",
+      "analysis_id": "ff5ca8a1708f4333b0967502fe693f0e",
+      "previous_analysis_id": "b23526bce90c4b999e3b6214eb0333e7",
+      "source_sha256": "9c4de34d24c709388451c2f34bcc5e7ef37167f1cf7bc08e0ead55945a53fbc0",
+      "message_count": 10341,
+      "event_count": 76,
+      "incident_count": 76,
+      "statuses": {
+        "supported": 76,
+        "unsupported": 0,
+        "insufficient_evidence": 0
+      },
+      "domain_detector_events_unchanged": true,
+      "schema_valid": true
+    }
+  ],
+  "cases": [
+    {
+      "case": "image-content-with-delivery-context",
+      "dataset_id": "tum_vi_room4_512",
+      "incident_id": "fab0deb965cbe868f77da42bd8f62c11a39403b99c5a44e9831943726458ec46",
+      "start_s": 102.602844667,
+      "end_s": 102.952855667,
+      "observations": [
+        {
+          "rule_id": "dark_frames",
+          "text": "8 analyzed frames on /cam0/image_raw had mean_intensity below 20.0 mean intensity. 8 of 8 analyzed frames in this detector interval had finite values.",
+          "evidence_refs": [
+            "24fa40b5f45e6a5a00b9dc3badd0366703c36e7147001b45569d10cbb6ad55df"
+          ],
+          "parameters": {
+            "observed_value": 15.585321426391602,
+            "threshold": 20.0,
+            "unit": "mean intensity",
+            "analyzed_count": 8,
+            "comparator": "lt",
+            "field": "mean_intensity",
+            "finite_count": 8,
+            "kind": "image",
+            "sample_count": 8
+          }
+        },
+        {
+          "rule_id": "low_sharpness",
+          "text": "8 analyzed frames on /cam0/image_raw had sharpness_score below 2.0 score. 8 of 8 analyzed frames in this detector interval had finite values.",
+          "evidence_refs": [
+            "16d601b843023930d7fd7e6830aaf3c2bd71d92788940f187bfbbb4a1d24263a"
+          ],
+          "parameters": {
+            "observed_value": 1.0728177428245544,
+            "threshold": 2.0,
+            "unit": "score",
+            "analyzed_count": 8,
+            "comparator": "lt",
+            "field": "sharpness_score",
+            "finite_count": 8,
+            "kind": "image",
+            "sample_count": 8
+          }
+        },
+        {
+          "rule_id": "delivery_context",
+          "text": "No recorded receive interval exceeded the configured threshold in the inspected coverage.",
+          "evidence_refs": [
+            "delivery:/cam0/image_raw"
+          ],
+          "parameters": {
+            "pair_count": 9,
+            "threshold_ms": 75.0,
+            "maximum_ms": 51.727965,
+            "exceedance_count": 0
+          }
+        }
+      ],
+      "limits": [
+        "Image features do not distinguish these possibilities or establish camera malfunction or localization impact. Low sharpness is not automatically blur."
+      ]
+    },
+    {
+      "case": "reference-coverage",
+      "dataset_id": "tum_vi_room4_512",
+      "incident_id": "f371556062db49fd0545eddfdf5b733d4ba611b9d61246b0f9c4e19afdc8aed5",
+      "start_s": 45.210764374,
+      "end_s": 45.694098374,
+      "observations": [
+        {
+          "rule_id": "reference_gap",
+          "text": "Reference /vrpn_client/raw_transform has a 483.334 ms recorded receive interval, above the 12.500 ms configured threshold.",
+          "evidence_refs": [
+            "f1d1b02d1b3c3e6d6b465e38b5e6be5210fa910627989b2f55c8f78ec54d3ab7"
+          ],
+          "parameters": {
+            "observed_value": 483.334,
+            "threshold": 12.5,
+            "unit": "ms",
+            "kind": "gap",
+            "sample_count": 2,
+            "clock": "recorded_receive",
+            "threshold_ms": 12.5,
+            "observed_ms": 483.334,
+            "reference_context": true
+          }
+        }
+      ],
+      "limits": [
+        "This is an evaluation reference coverage limitation, not evidence of camera or IMU failure. The cause is not established."
+      ]
+    },
+    {
+      "case": "nearest-sample-motion-disagreement",
+      "dataset_id": "lilocbench_dynamics_0",
+      "incident_id": "08f1c764a99adc0592bdd9bfe3c475d0a39255ceee7b7d0ac97ea524d9206365",
+      "start_s": 65.781187617,
+      "end_s": 65.853196917,
+      "observations": [
+        {
+          "rule_id": "command_without_motion",
+          "text": "13 commands on /dingo_velocity_controller/cmd_vel with linear speed >= 0.1 m/s matched /dingo_velocity_controller/odom samples with speed <= 0.05 m/s. Matching used the nearest recorded timestamp within 500 ms.",
+          "evidence_refs": [
+            "df008848d50cd7640600fef2deec0658626a430099d851ff1093b574b7e334da"
+          ],
+          "parameters": {
+            "observed_value": 0.11123261451721192,
+            "threshold": 0.1,
+            "unit": "m/s",
+            "command_threshold_mps": 0.1,
+            "kind": "motion",
+            "matching_policy": "nearest recorded timestamp; earlier sample breaks ties",
+            "matching_window_ns": "500000000",
+            "odometry_topic": "/dingo_velocity_controller/odom",
+            "odometry_topic_count": 1,
+            "sample_count": 13,
+            "selection_policy": "topic with most records; first partition breaks ties",
+            "speed_definition": "Euclidean magnitude of linear x/y/z",
+            "stationary_threshold_mps": 0.05,
+            "minimum_offset_ms": -32.324485,
+            "maximum_offset_ms": 28.81749,
+            "command_frames": [
+              ""
+            ],
+            "command_frame_count": 1,
+            "odometry_frames": [
+              "base_link"
+            ],
+            "odometry_frame_count": 1
+          }
+        }
+      ],
+      "limits": [
+        "Nearest recorded-time matching may use an odometry sample before the command. It is not a forward response-latency measurement. Unstamped command frames and odometry child frames do not establish equivalent axes. Wheel slip, stalled hardware, and localization loss are not established."
+      ]
+    }
+  ],
+  "totals": {
+    "message_count": 317443,
+    "event_count": 270,
+    "incident_count": 261
+  }
+}

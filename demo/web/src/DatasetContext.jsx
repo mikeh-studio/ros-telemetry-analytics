@@ -53,6 +53,26 @@ export default function DatasetContext({
 }) {
   const [aboutOpen, setAboutOpen] = useState(false);
   const coverage = selected?.coverage || [];
+  const signalTypes = [
+    ...new Set(
+      coverage
+        .map(
+          (c) =>
+            ({
+              image: "Camera images",
+              images: "Camera images",
+              tf: "Transforms",
+              imu: "IMU",
+              lidar: "Lidar",
+              scan: "Laser scans",
+              laser_scan: "Laser scans",
+              command: "Commands",
+              odometry: "Odometry",
+            })[c.domain] || c.domain?.replaceAll("_", " "),
+        )
+        .filter((d) => d && d !== "unclassified"),
+    ),
+  ];
   return (
     <section className="dataset-context" aria-label="Shared dataset context">
       <div className="dataset-toolbar">
@@ -93,31 +113,17 @@ export default function DatasetContext({
         {(coverage.length > 0 || selected?.topic_count != null) && (
           <span>{coverage.length || selected.topic_count} topics</span>
         )}
-        {coverage.length > 0 && (
-          <span>
-            {[
-              ...new Set(
-                coverage
-                  .map(
-                    (c) =>
-                      ({
-                        image: "Camera images",
-                        tf: "transforms",
-                        imu: "IMU",
-                        lidar: "Lidar",
-                      })[c.domain] || c.domain,
-                  )
-                  .filter((d) => d && d !== "unclassified"),
-              ),
-            ].join(" and ")}
-          </span>
-        )}
         {selected?.runs && (
           <span>
             {selected.runs.length} prepared run(s) · independent run clocks
           </span>
         )}
       </div>
+      {signalTypes.length > 0 && (
+        <p className="dataset-signals">
+          <span>Signals</span> {signalTypes.join(" · ")}
+        </p>
+      )}
       <div
         id="recording-details"
         className="recording-details"

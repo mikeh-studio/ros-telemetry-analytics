@@ -29,7 +29,10 @@ def main() -> None:
         try:
             metadata = build_bundle(ROOT, dataset_id, args.output)
             if metadata["status"] in {"ready", "limited"}:
-                publish(ROOT, args.output, dataset_id, metadata)
+                try:
+                    publish(ROOT, args.output, dataset_id, metadata)
+                except (OSError, ValueError, KeyError) as exc:
+                    metadata["annotation_warning"] = str(exc)
             result = {
                 k: v
                 for k, v in metadata.items()

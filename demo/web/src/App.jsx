@@ -496,6 +496,10 @@ export default function App() {
     loadDatasets().catch((reason) => setCatalogNotice(reason.message));
   }, [loadDatasets]);
 
+  const refreshEvidenceCatalog = useCallback(() => {
+    loadDatasets().catch((reason) => setCatalogNotice(reason.message));
+  }, [loadDatasets]);
+
   useEffect(() => {
     refresh().catch((reason) => setError(reason.message));
     let events;
@@ -893,9 +897,9 @@ export default function App() {
         aria-label="ROS Workbench views"
       >
         {[
-          ["health", "Telemetry Health", PulseIcon],
-          ["recordings", "Recording Investigation", RecordIcon],
-          ["localization", "Localization Investigation", NavigationArrowIcon],
+          ["health", "Telemetry", PulseIcon],
+          ["recordings", "Recording", RecordIcon],
+          ["localization", "Localization", NavigationArrowIcon],
         ].map(([id, label, Icon], index) => (
           <button
             key={id}
@@ -1336,7 +1340,7 @@ export default function App() {
                     document.getElementById("view-localization").focus();
                   }}
                 >
-                  Open Localization Investigation
+                  Open Localization
                 </button>
               </div>
 
@@ -1541,7 +1545,7 @@ export default function App() {
         aria-labelledby="view-recordings"
         hidden={activeView !== "recordings"}
       >
-        {["ready", "limited"].includes(
+        {["ready", "limited", "stale", "not_analyzed"].includes(
           capability(selectedDataset, "recordings"),
         ) ? (
           <RecordingInvestigation
@@ -1549,6 +1553,7 @@ export default function App() {
             datasetId={selectedDatasetId}
             apiUrl={API_URL}
             active={activeView === "recordings"}
+            onEvidenceRebuilt={refreshEvidenceCatalog}
           />
         ) : (
           <AnalysisUnavailable dataset={selectedDataset} view="recordings" />

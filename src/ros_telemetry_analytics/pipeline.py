@@ -28,6 +28,7 @@ LOGGER = logging.getLogger(__name__)
 EXPECTED_BAG_ARTIFACTS = {
     "analysis_coverage.parquet",
     "anomaly_events.parquet",
+    "anomaly_event_evidence.parquet",
     "bag_report.md",
     "domain_metrics.parquet",
     "domain_summary.json",
