@@ -15,7 +15,9 @@ and understand what remains uncertain.
 The goal is to help you decide **where to investigate next**, with the evidence
 and its limits visible. A warning does not establish a physical root cause.
 
-<img src="artifacts/workbench-review/option-one-desktop.jpg" alt="ROS Workbench desktop recording selector and replay controls" width="800">
+<img src="artifacts/screenshots/telemetry-desktop.png" alt="Telemetry desktop view with replay controls, mission timeline, and topic delivery rates" width="800">
+
+_Replay a recording and inspect topic delivery._
 
 ## Try it locally
 
@@ -36,6 +38,10 @@ For **Recording** analysis, install and prepare the public recordings using the
 incident to see observations, possible explanations, uncertainty, and next checks.
 **Rebuild evidence** updates an installed, registered recording directly from the
 page. Uploads do not yet receive this prepared analysis automatically.
+
+<img src="artifacts/screenshots/recording-signals-desktop.png" alt="Recording signals view with time-range controls and a laser scan valid-range chart" width="800">
+
+_Choose a time range and inspect recorded signals and samples._
 
 ## Analyze bags without the web app
 

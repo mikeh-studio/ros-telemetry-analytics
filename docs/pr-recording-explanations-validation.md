@@ -81,7 +81,9 @@ built-in recording. All 63 frontend tests and the production build passed.
 The equivalent automated browser regression was extended; its execution remains
 a PR CI gate. See [design QA](../design-qa.md) for comparison and capture details.
 
-See the [desktop overview](../artifacts/workbench-review/option-one-desktop.jpg).
+See the user-selected [Telemetry screenshot](../artifacts/screenshots/telemetry-desktop.png)
+and [Recording signals screenshot](../artifacts/screenshots/recording-signals-desktop.png)
+used in the README.
 
 ## Compose smoke startup regression
 
@@ -130,8 +132,8 @@ P3 review decisions:
 - **Retained:** the last rebuild error remains available until retry, including
   after restart. This provides a failure record rather than implying success.
 - **Retained:** the small remaining desktop/design QA artifacts support review.
-  The three unwanted screenshots were already removed; the README has one
-  bounded desktop overview.
+  The three unwanted screenshots were already removed; the README has two
+  user-selected desktop screenshots displayed at a bounded width.
 
 Validation: 284 Python tests passed (91.06% package coverage), 67 frontend tests
 passed, Ruff lint/format checks and the production frontend build passed. The
