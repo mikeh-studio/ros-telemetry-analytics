@@ -1,6 +1,6 @@
 # Recording investigations and dataset audit
 
-Implemented from the [reviewed plan](dataset-evaluation-and-workbench-plan.md). Seven real recordings are prepared locally, including all four additions. The **Recording** tab works without a replay. It provides versioned evidence, interval selection, three aligned plots with a shared recorded-time cursor, bounded image/scan previews, event details, and topic coverage.
+Seven real recordings were prepared in the [dated dataset audit](dataset-audit-results.md), including four comparison additions. The **Recording** tab works without a replay. It provides versioned evidence, interval selection, three aligned plots with a shared recorded-time cursor, bounded image/scan previews, event details, and topic coverage.
 
 ## Generated incident explanations
 
@@ -30,8 +30,8 @@ generated explanation. Uploads still need separate offline preparation; live
 incident explanation and automatic baseline comparison are not part of this release.
 
 Click **Rebuild evidence** after upgrading: old bundles are stale by
-design when analysis or explanation rules change. New UUID directories preserve
-earlier evidence. The packaged catalog is
+design when analysis or explanation rules change. New UUID directories isolate
+each build; page rebuilds retain the current and one previous completed analysis. The packaged catalog is
 `src/ros_telemetry_analytics/default_incident_explanations.yaml`, with validated
 repository overrides in `configs/incident_explanations.yaml`. These rules do not
 change the detector thresholds in analysis profiles.
@@ -114,7 +114,17 @@ The dated [audit results](dataset-audit-results.md) record seven admitted bags, 
 
 ## Shared workbench
 
-Select the recording once above all three tabs. Availability separates dataset support, prepared analysis and runtime services. Uploaded files can be replayed after validation; they do not automatically receive prepared investigation or localization evidence. See [behavior and design decisions](shared-dataset-workbench-plan.md).
+Select the recording once above all three tabs. Switching tabs does not select another recording or start a replay.
+
+- **Telemetry:** readiness, replay controls and topic-delivery history. Browsing another recording leaves an active replay running but hides its metrics from the new selection.
+- **Recording:** prepared incidents, reviewed examples, interval plots and source samples; works without Kafka/Flink.
+- **Localization:** a separately identified saved evaluation. Mismatched or changed evaluation identities are rejected.
+
+Availability separates dataset support, prepared analysis and runtime services; “Ready” does not mean fault-free. Uploaded files can be replayed after validation but do not automatically receive prepared investigation or localization evidence.
+
+The recording menu supports keyboard selection and dismissal. Provenance lives under About this recording; upload remains global. Equal-width tabs stay left aligned, replay controls wrap at narrow widths, and topic rows retain full paths and observed/expected measurements. Barlow Condensed, IBM Plex Mono and restrained status colors remain shared across tabs.
+
+The delivered scope covers source identities, extraction coverage, reconciled previews, three reviewed investigations, bounded interval APIs, and host inventory/parser checks. Raw recordings are observations, not physical-failure labels. References need clock/frame validation; Warehouse Run 17 is a synthetic timing demo, and TUHH retains its separate simulation evaluation and label-conflict handling. NTU VIRAL, ARCO downloads, GNSS/radar analyzers and additional localization algorithms remain later work. The [original research](ros-data-learning-plan.md) records those options.
 
 ## Evidence contract and validation
 

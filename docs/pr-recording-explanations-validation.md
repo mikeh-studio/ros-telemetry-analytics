@@ -79,7 +79,12 @@ pixels: no horizontal overflow, equal tab widths, action text inside its button,
 and aligned desktop controls. Start, pause and resume were exercised on the
 built-in recording. All 63 frontend tests and the production build passed.
 The equivalent automated browser regression was extended; its execution remains
-a PR CI gate. See [design QA](../design-qa.md) for comparison and capture details.
+a PR CI gate. The [responsive measurements](../artifacts/workbench-review/option-one-responsive.json)
+retain the layout evidence. The browser review also checked picker keyboard
+selection/dismissal and a recording without fault injection; its console was clear.
+This was a focused review, not full accessibility certification. Long incident
+labels, screen-reader announcements, keyboard order and measured contrast remain
+useful follow-up checks.
 
 See the user-selected [Telemetry screenshot](../artifacts/screenshots/telemetry-desktop.png)
 and [Recording signals screenshot](../artifacts/screenshots/recording-signals-desktop.png)
@@ -131,9 +136,9 @@ P3 review decisions:
   rarely exceed three. It is separate from rebuild reliability.
 - **Retained:** the last rebuild error remains available until retry, including
   after restart. This provides a failure record rather than implying success.
-- **Retained:** the small remaining desktop/design QA artifacts support review.
-  The three unwanted screenshots were already removed; the README has two
-  user-selected desktop screenshots displayed at a bounded width.
+- **Simplified after review:** retain the two user-selected desktop screenshots
+  and responsive measurements. Superseded UI audits, design mockups and duplicate
+  scope notes were removed; useful interaction contracts are in the recording guide.
 
 Validation: 284 Python tests passed (91.06% package coverage), 67 frontend tests
 passed, Ruff lint/format checks and the production frontend build passed. The

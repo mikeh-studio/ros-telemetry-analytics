@@ -182,6 +182,7 @@ projection are production-shaped learning components, but the demo is not a
 robot command or safety path. A future ROS 2 bridge may publish the same event
 schema from an edge gateway only after QoS, clock synchronization, offline
 buffering, fleet partitioning, and security are designed explicitly.
+
 ## Offline incident explanations
 
 Recording preparation extends the batch evidence flow with structured detector
@@ -211,9 +212,13 @@ types, and stale bundles have distinct outcomes. See the
 [recording guide](recording-investigations.md#generated-incident-explanations) and
 [incident schema](../schemas/recording-incidents-v1.schema.json).
 
-An explicit evidence-preparation POST starts a background rebuild for a registered,
-installed recording. The single-worker local API allows one build at a time,
-reports stages through a status GET, and retains prior bundles. The frontend polls
-this job and reloads saved evidence on completion; callback changes do not restart
-the job. Job status is in memory, so an API restart requires retrying an interrupted
-build. The investigation output mount is writable; source recordings remain read-only.
+An explicit evidence-preparation POST with the Workbench request header starts a
+child process for a registered, installed recording. A file lock serializes builds;
+status is stored on disk and reported through GET. The frontend polls the job and
+reloads evidence on completion; callback changes do not restart it. Failed staging
+is cleaned up, and successful publication retains the current plus one previous
+analysis. Interrupted attempts can be retried after an API restart. The child shares
+the container's resource budget but has its own Python interpreter. When the API
+runs as root, the child uses the evidence folder's UID/GID. The output mount is
+writable; source recordings remain read-only. See the [rebuild contract](recording-investigations.md#rebuild-evidence-from-the-page)
+for recovery and ownership details.

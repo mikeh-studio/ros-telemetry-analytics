@@ -105,8 +105,8 @@ a live ROS/Kafka/Flink end-to-end run.
 
 ## Localization investigation
 
-Choose the **Localization Investigation** tab beside **Telemetry Health** to inspect
-the separate saved evaluation. Telemetry Health also includes a direct entry point.
+Choose the **Localization** tab to inspect the separate saved evaluation.
+**Telemetry** also includes a direct entry point.
 Switching tabs preserves the selected event, filter, and playback cursor, and
 pauses investigation playback when leaving it. The tab controls support
 Left/Right arrows and Home/End for keyboard navigation.

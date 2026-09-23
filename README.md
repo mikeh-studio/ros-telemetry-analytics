@@ -73,6 +73,8 @@ control or certification. Timing checks use recorded receive timestamps; they do
 not establish hardware synchronization or sensor accuracy. Live ROS 2 integration
 has separate runtime requirements and [validation gates](docs/reliability-roadmap.md).
 
+Browse the [documentation index](docs/README.md) for validation records and design context.
+
 ## Development
 
 ```bash

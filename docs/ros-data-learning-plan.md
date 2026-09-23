@@ -1,10 +1,12 @@
-Implementation follow-up: [recording investigations and completed host audit](recording-investigations.md). This document preserves the original planning baseline.
+# Dataset research baseline — September 2026
+
+Historical research context, not current setup instructions. The selected LILocBench/TUM scope was delivered; see [recording investigations and the completed audit](recording-investigations.md). Broader dataset options below remain proposals.
 
 **ROS data research and learning plan — draft for review**
 
 Prepared September 20, 2026. Repository inspected at `8668ab0`.
 
-Selected next scope: current-dataset evaluation plus recommendations 1 and 2. See the [dataset evaluation and Workbench implementation plan](dataset-evaluation-and-workbench-plan.md) for the proposed work packages, curation decisions and completion criteria. The broader options below remain research context.
+Selected next scope: current-dataset evaluation plus recommendations 1 and 2. See the [recording guide](recording-investigations.md) for delivered scope, curation decisions and validation. The broader options below remain research context.
 
 The recommended direction is to build a small collection of explainable failure investigations: what changed in the recording, which measurement exposed it, which alert was useful, and which view made the evidence understandable. Start with inexpensive additions to existing datasets, then add one dataset with a documented timing problem. Bring offline sensor evidence into ROS Workbench before adding many more detectors.
 
