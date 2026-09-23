@@ -101,3 +101,39 @@ three signal-group browser tests pass.
 [CI run 35820888711](https://github.com/mikeh-studio/ros-telemetry-analytics/actions/runs/35820888711)
 passed all jobs on commit `391c9a9`, including the full Compose replay, oracle,
 dropout, and browser checks.
+
+## Rebuild review follow-up
+
+The API now launches a separate Python worker for bag parsing and analysis. A
+file lock serializes rebuilds, including across API restarts. Jobs are recorded
+on disk; a stopped worker leaves a retryable interrupted status. Staging cleanup
+and publication tests cover worker death, analysis errors, and pointer-write
+failure. Successful publication retains the current analysis and one previous
+completed version. This isolates Python execution, not the container's memory
+budget; it is not a durable queue.
+
+P3 review decisions:
+
+- **Addressed:** require the Workbench request header before starting a rebuild,
+  preventing browser form/simple-request triggers from unrelated sites.
+- **Addressed:** a root API launches the worker with the evidence directory's
+  UID/GID. Setup now creates that host directory before Compose; the recording
+  guide covers existing root-owned output. Unit coverage checks the launch
+  identity. A disposable Linux container also rebuilt a five-message recording
+  from a root API and verified all 39 published paths belonged to UID/GID 1000.
+- **Retained:** strict provenance rejection. Silently serving an incomplete
+  incident set could misrepresent coverage; graceful degradation needs an
+  explicit partial-evidence contract.
+- **Deferred:** warning pagination preserves its existing behavior. The reset is
+  undesirable, but only affects groups exceeding 50 members; observed groups
+  rarely exceed three. It is separate from rebuild reliability.
+- **Retained:** the last rebuild error remains available until retry, including
+  after restart. This provides a failure record rather than implying success.
+- **Retained:** the small remaining desktop/design QA artifacts support review.
+  The three unwanted screenshots were already removed; the README has one
+  bounded desktop overview.
+
+Validation: 284 Python tests passed (91.06% package coverage), 67 frontend tests
+passed, Ruff lint/format checks and the production frontend build passed. The
+updated API image built successfully; a real worker subprocess produced a
+loadable recording in both the Python suite and the Linux container check.

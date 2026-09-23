@@ -14,6 +14,9 @@ export default function EvidencePreparation({ apiUrl, datasetId, onComplete }) {
       try {
         const response = await fetch(url, {
           method: start ? "POST" : "GET",
+          ...(start
+            ? { headers: { "X-Requested-With": "ROS-Workbench" } }
+            : {}),
           signal: controller.signal,
         });
         const body = await response.json();

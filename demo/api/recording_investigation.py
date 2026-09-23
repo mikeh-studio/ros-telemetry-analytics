@@ -6,7 +6,7 @@ import json
 from functools import lru_cache
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query
 
 from demo.api.evidence_preparation import EvidencePreparation
 from ros_telemetry_analytics import investigations as evidence
@@ -17,7 +17,9 @@ def router(root: Path, output: Path) -> APIRouter:
     preparation = EvidencePreparation(root, output)
 
     @routes.post("/{dataset_id}/preparation", status_code=202)
-    def prepare(dataset_id: str):
+    def prepare(dataset_id: str, x_requested_with: str | None = Header(default=None)):
+        if x_requested_with != "ROS-Workbench":
+            raise HTTPException(403, "Rebuild requires the ROS Workbench request header")
         return preparation.start(dataset_id)
 
     @routes.get("/{dataset_id}/preparation")

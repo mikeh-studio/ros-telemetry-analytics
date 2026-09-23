@@ -39,6 +39,9 @@ it("starts one rebuild, shows progress, and automatically reloads completed evid
   expect(screen.getByRole("button")).toBeDisabled();
   expect(screen.getByRole("status")).toHaveTextContent("Analyzing recording");
   expect(fetch.mock.calls[1][1].method).toBe("POST");
+  expect(fetch.mock.calls[1][1].headers).toEqual({
+    "X-Requested-With": "ROS-Workbench",
+  });
   await act(async () => {
     await vi.advanceTimersByTimeAsync(1000);
   });

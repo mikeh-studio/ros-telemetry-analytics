@@ -1,15 +1,20 @@
-"""One background evidence rebuild at a time for the local, single-worker API."""
+"""Serialize isolated evidence rebuilds for the local API (macOS/Linux)."""
 
 from __future__ import annotations
 
+import fcntl
+import json
 import logging
+import os
+import subprocess
+import sys
 from pathlib import Path
 from threading import Lock, Thread
 
 from fastapi import HTTPException
 
+from demo.api.evidence_worker import cleanup_staging
 from ros_telemetry_analytics import investigations as evidence
-from scripts.curate_investigations import publish
 
 logger = logging.getLogger(__name__)
 
@@ -19,14 +24,46 @@ class EvidencePreparation:
         self.root = root
         self.output = output
         self.lock = Lock()
-        self.jobs: dict[str, dict] = {}
         self.active: str | None = None
+
+    def _job(self, dataset_id: str) -> Path:
+        return self.output / f".preparation-{dataset_id}.json"
+
+    def _read(self, dataset_id: str) -> dict:
+        try:
+            return json.loads(self._job(dataset_id).read_text())
+        except FileNotFoundError:
+            return {"status": "idle"}
+
+    def _claim(self):
+        self.output.mkdir(parents=True, exist_ok=True)
+        handle = (self.output / ".preparation.lock").open("a")
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            handle.close()
+            return None
+        return handle
 
     def status(self, dataset_id: str) -> dict:
         if dataset_id not in evidence.specs(self.root):
             raise HTTPException(404, "Unknown recording")
         with self.lock:
-            return dict(self.jobs.get(dataset_id, {"status": "idle"}))
+            result = self._read(dataset_id)
+            if result["status"] == "running" and self.active != dataset_id:
+                handle = self._claim()
+                if handle is not None:
+                    with handle:
+                        # Recheck after acquiring the lock; a worker may just have finished.
+                        result = self._read(dataset_id)
+                        if result["status"] == "running":
+                            result = {
+                                "status": "failed",
+                                "error": "Rebuild was interrupted. Try again.",
+                            }
+                            evidence.write_json(self._job(dataset_id), result)
+                            cleanup_staging(self.output)
+            return result
 
     def start(self, dataset_id: str) -> dict:
         spec = evidence.specs(self.root).get(dataset_id)
@@ -36,44 +73,71 @@ class EvidencePreparation:
             raise HTTPException(409, "Recording source is not installed")
         with self.lock:
             if self.active == dataset_id:
-                return dict(self.jobs[dataset_id])
-            if self.active is not None:
+                return self._read(dataset_id)
+            handle = self._claim() if self.active is None else None
+            if handle is None:
                 raise HTTPException(
                     409, "Another recording is rebuilding. Try again when it finishes."
                 )
             self.active = dataset_id
-            self.jobs[dataset_id] = {"status": "running", "stage": "Analyzing recording"}
+            result = {"status": "running", "stage": "Analyzing recording"}
             try:
-                Thread(target=self._run, args=(dataset_id,), daemon=True).start()
+                evidence.write_json(self._job(dataset_id), result)
+                Thread(target=self._run, args=(dataset_id, handle), daemon=True).start()
             except Exception:
+                handle.close()
                 self.active = None
-                self.jobs[dataset_id] = {"status": "failed", "error": "Could not start rebuild"}
+                evidence.write_json(
+                    self._job(dataset_id), {"status": "failed", "error": "Could not start rebuild"}
+                )
                 raise
-            return dict(self.jobs[dataset_id])
+            return result
 
-    def _run(self, dataset_id: str) -> None:
+    def _run(self, dataset_id: str, handle) -> None:
         result = {"status": "failed", "error": "Could not rebuild evidence. Try again."}
         try:
-            metadata = evidence.build_bundle(self.root, dataset_id, self.output)
-            if metadata["status"] not in {"ready", "limited"}:
-                raise ValueError("Recording source is not available")
-            with self.lock:
-                self.jobs[dataset_id] = {"status": "running", "stage": "Attaching reviewed cases"}
-            warning = None
-            try:
-                publish(self.root, self.output, dataset_id, metadata)
-            except (OSError, ValueError, KeyError):
-                logger.exception("Could not attach reviewed cases for %s", dataset_id)
-                warning = "Evidence rebuilt, but reviewed cases could not be attached."
-            result = {"status": "completed", "analysis_id": metadata["analysis_id"]}
-            if warning:
-                result["warning"] = warning
-        except PermissionError:
-            logger.exception("Evidence output is not writable")
-            result["error"] = "Evidence storage is not writable. Restart the updated local app."
+            # Match bind-mount ownership on Linux, without changing the API's shared volumes.
+            identity = {}
+            if os.geteuid() == 0:
+                owner = self.output.stat()
+                identity = {"user": owner.st_uid, "group": owner.st_gid, "extra_groups": []}
+            process = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "demo.api.evidence_worker",
+                    "--root",
+                    str(self.root),
+                    "--output",
+                    str(self.output),
+                    "--dataset",
+                    dataset_id,
+                ],
+                cwd=Path(__file__).resolve().parents[2],
+                stdout=subprocess.PIPE,
+                text=True,
+                # The child keeps the lock if the API dies, preventing overlapping cleanup.
+                pass_fds=(handle.fileno(),),
+                check=False,
+                **identity,
+            )
+            if process.stdout.strip():
+                result = json.loads(process.stdout.splitlines()[-1])
+            if process.returncode != 0 and result.get("status") != "failed":
+                result = {
+                    "status": "failed",
+                    "error": "Evidence worker exited unexpectedly. Try again.",
+                }
         except Exception:
-            logger.exception("Evidence rebuild failed for %s", dataset_id)
+            logger.exception("Evidence worker failed for %s", dataset_id)
         finally:
+            try:
+                cleanup_staging(self.output)
+            except OSError:
+                logger.exception("Could not remove interrupted rebuild files")
             with self.lock:
-                self.jobs[dataset_id] = result
-                self.active = None
+                try:
+                    evidence.write_json(self._job(dataset_id), result)
+                finally:
+                    self.active = None
+                    handle.close()

@@ -22,6 +22,7 @@ and its limits visible. A warning does not establish a physical root cause.
 ```bash
 git clone https://github.com/mikeh-studio/ros-telemetry-analytics.git
 cd ros-telemetry-analytics
+mkdir -p data/investigations
 docker compose up --build
 ```
 

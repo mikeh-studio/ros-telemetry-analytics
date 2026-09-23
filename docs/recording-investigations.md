@@ -131,9 +131,13 @@ Local validation: Python coverage tests, frontend interaction tests, production 
 
 Select a registered, installed recording and click **Rebuild evidence**. The button starts background analysis, shows the current stage, and reloads results automatically on success. Reopening the page reconnects to a running job. Failures leave previous bundles intact and allow retry. There is no terminal step for this flow.
 
-`POST /api/investigations/{dataset_id}/preparation` starts a job (202); `GET` on the same path reports idle, running, completed, or failed. Repeated requests for the running recording reuse its job; another recording receives 409 until the worker is free. Unknown IDs return 404 and missing sources return 409. Reviewed cases are attached after analysis; an annotation failure is reported separately from successfully rebuilt evidence.
+`POST /api/investigations/{dataset_id}/preparation` requires `X-Requested-With: ROS-Workbench` and starts a job (202); `GET` on the same path reports idle, running, completed, or failed. Repeated requests for the running recording reuse its job; another recording receives 409 until the worker is free. Unknown IDs return 404 and missing sources return 409. Reviewed cases are attached after analysis; an annotation failure is reported separately from successfully rebuilt evidence.
 
-This local job manager uses one API process and keeps job status in memory. An API restart interrupts unfinished jobs; retry from the page. Run the Compose API with its default single worker. The CLI remains available for preparing multiple recordings.
+Analysis runs in a separate Python process so its parsing loops do not hold the API interpreter lock. An OS file lock serializes rebuilds; job status is stored on disk. Interrupted jobs are reported on the next status check and can be retried. Incomplete staging directories are cleaned after worker exit or when the next rebuild acquires the lock. The published bundle remains available until its replacement is complete. Each successful API rebuild keeps the current bundle and one previous version; older completed versions are removed.
+
+Create `data/investigations` as your host user before starting Compose (`mkdir -p data/investigations`). When the API runs as root, the child uses that folder's UID/GID so Linux bind-mount files remain host-owned. Existing root-owned output may need a one-time ownership repair: `sudo chown -R "$(id -u):$(id -g)" data/investigations`. This does not change ownership of the API's other volumes.
+
+Keep the default single API worker. The child shares the container's CPU and memory budget: process isolation removes interpreter-lock contention, but is not a resource quota or a durable job queue. If the API dies before recording completion, status reports an interrupted attempt even if publication finished; retry is safe. The CLI remains available for batch preparation; do not run it concurrently with a page rebuild.
 
 ## Recording tab wording
 

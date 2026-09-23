@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 
 from fastapi import FastAPI
 
+from demo.api.evidence_preparation import EvidencePreparation
 from demo.api.recording_investigation import router
 from ros_telemetry_analytics import investigations as evidence
 
@@ -37,7 +38,7 @@ def test_read_only_api_identity_and_interval_errors(tmp_path: Path, monkeypatch)
     monkeypatch.setattr(evidence, "interval", interval)
 
     class Client:
-        def request(self, method, path, params=None):
+        def request(self, method, path, params=None, headers=None):
             async def call():
                 messages = []
 
@@ -56,7 +57,7 @@ def test_read_only_api_identity_and_interval_errors(tmp_path: Path, monkeypatch)
                         "path": path,
                         "raw_path": path.encode(),
                         "query_string": urlencode(params or {}).encode(),
-                        "headers": [],
+                        "headers": headers or [],
                         "client": ("test", 123),
                         "server": ("test", 80),
                         "root_path": "",
@@ -89,3 +90,24 @@ def test_read_only_api_identity_and_interval_errors(tmp_path: Path, monkeypatch)
     assert client.get(path, params={**query, "start_s": 2}).status_code == 400
     assert client.get(path, params={**query, "start_s": -1}).status_code == 422
     assert client.post("/api/investigations/test").status_code == 405
+
+    calls = []
+    monkeypatch.setattr(
+        EvidencePreparation,
+        "start",
+        lambda self, dataset_id: calls.append(dataset_id) or {"status": "running"},
+    )
+    preparation = "/api/investigations/test/preparation"
+    assert client.post(preparation).status_code == 403
+    assert (
+        client.request("POST", preparation, headers=[(b"content-type", b"text/plain")]).status_code
+        == 403
+    )
+    assert calls == []
+    assert (
+        client.request(
+            "POST", preparation, headers=[(b"x-requested-with", b"ROS-Workbench")]
+        ).status_code
+        == 202
+    )
+    assert calls == ["test"]
