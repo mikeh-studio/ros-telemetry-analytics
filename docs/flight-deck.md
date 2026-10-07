@@ -11,7 +11,7 @@ for `robot-17`, installed public validation datasets, and user uploads.
 Select a recording once, then use **Telemetry**, **Recording**, or **Localization**.
 Telemetry covers replay delivery; Recording provides offline incident explanations
 and source evidence; Localization shows prepared detector evaluation results.
-Availability is shown separately for each tab. See the
+The independent **Navigation** tab reviews saved baseline/candidate comparisons without a selected recording. Availability is shown separately for each tab. See the
 [recording guide](recording-investigations.md) for preparation and the **Rebuild evidence** flow.
 
 Start the stack:

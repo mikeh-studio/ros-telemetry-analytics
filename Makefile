@@ -2,15 +2,18 @@ PYTHON ?= .venv/bin/python
 SYSTEM_PYTHON ?= python3
 CONFIG ?= configs/pipeline.yaml
 
-.PHONY: setup test lint format discover analyze analyze-public-data force-analyze download-visual-slam download-nvblox clean-derived
+.PHONY: setup test test-contract lint format discover analyze analyze-public-data force-analyze download-visual-slam download-nvblox clean-derived
 
 setup:
 	$(SYSTEM_PYTHON) -m venv .venv
 	$(PYTHON) -m pip install --upgrade pip
-	$(PYTHON) -m pip install -e ".[dev]"
+	$(PYTHON) -m pip install -e ".[dev,demo]"
 
 test:
 	$(PYTHON) -m pytest --cov=ros_telemetry_analytics --cov-report=term-missing --cov-fail-under=80
+
+test-contract:
+	npm --prefix demo/web run test:contract
 
 lint:
 	$(PYTHON) -m ruff check .
