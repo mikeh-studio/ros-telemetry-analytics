@@ -6,6 +6,7 @@ import {
   validateNavigationReport,
   pairAttempts,
   categories,
+  MAX_REPORT_BYTES,
 } from "./navigationReport";
 
 const number = (v, unit = "") =>
@@ -48,7 +49,7 @@ export default function NavigationRegression() {
   );
   const active = pairs.find((p) => p.key === selected);
   const position = visible.findIndex((p) => p.key === selected);
-  const regressions = pairs.filter((p) => p.category === "Regressions");
+  const worseOutcomes = pairs.filter((p) => p.category === "Worse outcomes");
   const collisions = pairs.filter((p) => p.change === "New collision").length;
   const valid = report.attempts.filter(
     (r) => !["invalid", "harness_error"].includes(r.outcome),
@@ -89,8 +90,8 @@ export default function NavigationRegression() {
     input.value = "";
     if (!file) return;
     try {
-      if (file.size > 10 * 1024 * 1024)
-        throw new Error("Choose a report smaller than 10 MB.");
+      if (file.size > MAX_REPORT_BYTES)
+        throw new Error("Report exceeds the viewer file-size limit of 32 MiB.");
       const next = validateNavigationReport(JSON.parse(await file.text()));
       if (version !== importVersion.current) return;
       setReport(next);
@@ -110,9 +111,9 @@ export default function NavigationRegression() {
     }
   }
   function review(event) {
-    if (regressions.length) {
-      setFilter("Regressions");
-      open(regressions[0], event.currentTarget);
+    if (worseOutcomes.length) {
+      setFilter("Worse outcomes");
+      open(worseOutcomes[0], event.currentTarget);
     } else {
       evaluation.current.open = true;
       evaluation.current.querySelector("summary").focus();
@@ -186,8 +187,8 @@ export default function NavigationRegression() {
             </p>
           </div>
           <button className="nav-primary" onClick={review}>
-            {regressions.length
-              ? `Review ${regressions.length} regression${regressions.length === 1 ? "" : "s"}`
+            {worseOutcomes.length
+              ? `Review ${worseOutcomes.length} worse outcome${worseOutcomes.length === 1 ? "" : "s"}`
               : "Review comparison metrics"}
             <span aria-hidden="true"> →</span>
           </button>
@@ -292,7 +293,9 @@ export default function NavigationRegression() {
                     <td>
                       <span
                         className={
-                          pair.category === "Regressions" ? "nav-negative" : ""
+                          pair.category === "Worse outcomes"
+                            ? "nav-negative"
+                            : ""
                         }
                       >
                         {pair.change}

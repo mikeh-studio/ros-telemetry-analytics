@@ -67,6 +67,14 @@ def _text(value: Any) -> str:
     return value
 
 
+def _require_fields(value: dict, fields: tuple[str, ...], context: str) -> None:
+    if not isinstance(value, dict):
+        raise ValueError(f"{context} must be an object")
+    missing = [field for field in fields if field not in value]
+    if missing:
+        raise ValueError(f"{context}: missing required field(s): {', '.join(missing)}")
+
+
 def _policy(raw: dict) -> dict:
     if not isinstance(raw, dict):
         raise ValueError("Scoring policy must be an object")
@@ -188,7 +196,12 @@ def score_attempt(attempt: dict, scenario: dict, policy: dict) -> dict:
         else:
             outcome = "goal_not_verified"
         return result | {"outcome": outcome, "success": outcome == "success"}
-    except (KeyError, ValueError, TypeError, IndexError) as error:
+    except KeyError as error:
+        return result | {
+            "reason": f"Attempt run_id={attempt.get('run_id')!r}: "
+            f"missing required evidence field: {error.args[0]}"
+        }
+    except (ValueError, TypeError, IndexError) as error:
         return result | {"outcome": "invalid", "success": False, "reason": str(error)}
 
 
@@ -196,6 +209,19 @@ def evaluate_suite(document: dict) -> dict:
     """Validate schedule/identities, score attempts, and compare paired map clusters."""
     if not isinstance(document, dict):
         raise ValueError("Suite must be a JSON object")
+    _require_fields(
+        document,
+        (
+            "schema_version",
+            "evidence_kind",
+            "suite_id",
+            "runtime_sha256",
+            "configurations",
+            "scenarios",
+            "attempts",
+        ),
+        "Suite",
+    )
     if type(document.get("schema_version")) is not int or document["schema_version"] != 1:
         raise ValueError("Unsupported navigation suite schema")
     kind = document["evidence_kind"]
@@ -206,9 +232,8 @@ def evaluate_suite(document: dict) -> dict:
     configurations = document["configurations"]
     if not isinstance(configurations, dict) or set(configurations) != {"baseline", "candidate"}:
         raise ValueError("Exactly baseline and candidate configurations are required")
-    for config in configurations.values():
-        if not isinstance(config, dict):
-            raise ValueError("Configuration must be an object")
+    for role, config in configurations.items():
+        _require_fields(config, ("config_sha256", "git_revision"), f"Configuration {role}")
         _hash(config["config_sha256"])
         _text(config["git_revision"])
     runtime = _hash(document["runtime_sha256"])
@@ -222,9 +247,12 @@ def evaluate_suite(document: dict) -> dict:
         raise ValueError("Duplicate or excess attempts in schedule")
     scenarios = {}
     map_identity = {}
-    for scenario in document["scenarios"]:
-        if not isinstance(scenario, dict):
-            raise ValueError("Scenario must be an object")
+    for index, scenario in enumerate(document["scenarios"]):
+        _require_fields(
+            scenario,
+            ("scenario_id", "seed", "start", "goal", "map_sha256", "scenario_sha256"),
+            f"Scenario[{index}]",
+        )
         sid = _text(scenario["scenario_id"])
         seed = scenario["seed"]
         if type(seed) is not int or seed < 0:
@@ -247,8 +275,25 @@ def evaluate_suite(document: dict) -> dict:
     # A map reused through aliases remains one statistical cluster.
     attempts = {}
     run_ids = set()
-    for attempt in document["attempts"]:
-        if not isinstance(attempt, dict) or type(attempt.get("seed")) is not int:
+    for index, attempt in enumerate(document["attempts"]):
+        context = f"Attempt[{index}]"
+        if isinstance(attempt, dict) and "run_id" in attempt:
+            context += f" run_id={attempt['run_id']!r}"
+        _require_fields(
+            attempt,
+            (
+                "scenario_id",
+                "seed",
+                "configuration",
+                "run_id",
+                "config_sha256",
+                "git_revision",
+                "runtime_sha256",
+                "scenario_sha256",
+            ),
+            context,
+        )
+        if type(attempt["seed"]) is not int:
             raise ValueError("Attempt must have an integer seed")
         key = (attempt["scenario_id"], attempt["seed"], attempt["configuration"])
         if key[:2] not in scenarios or key[2] not in configurations:
@@ -315,7 +360,7 @@ def evaluate_suite(document: dict) -> dict:
     new_collisions = [
         p
         for p in pairs
-        if p["candidate"]["collision"] is True and p["baseline"]["collision"] is False
+        if p["candidate"]["collision"] is True and p["baseline"]["collision"] is not True
     ]
     result["new_collision_pairs"] = [
         {"scenario_id": p["scenario_id"], "seed": p["seed"]} for p in new_collisions

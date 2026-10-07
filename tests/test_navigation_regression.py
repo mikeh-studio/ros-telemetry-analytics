@@ -192,6 +192,71 @@ def test_new_collision_regression_even_in_small_pilot():
     assert result["new_collision_pairs"] == [{"scenario_id": "map-0", "seed": 0}]
 
 
+@pytest.mark.parametrize("maps", [1, 26])
+def test_candidate_collision_after_baseline_rejection_is_regression(maps):
+    data = suite(maps=maps, kind="simulator")
+    data["policy"]["min_maps"] = 20
+    data["attempts"][0].update(
+        termination="rejected",
+        elapsed_s=0,
+        ground_truth=[],
+        contact_heartbeat_s=[],
+        obstacle_contacts=[],
+    )
+    data["attempts"][1]["obstacle_contacts"] = [{"t": 1, "obstacle": "wall"}]
+    result = evaluate_suite(data)
+    assert result["status"] == "REGRESSION"
+    assert result["new_collision_pairs"] == [{"scenario_id": "map-0", "seed": 0}]
+    assert result["success_delta"]["estimate"] == 0
+
+
+def test_collisions_in_both_configurations_are_not_new_collisions():
+    data = suite(maps=1)
+    for attempt in data["attempts"]:
+        attempt["obstacle_contacts"] = [{"t": 1, "obstacle": "wall"}]
+    result = evaluate_suite(data)
+    assert result["new_collision_pairs"] == []
+    assert result["status"] == "INCONCLUSIVE"
+
+
+@pytest.mark.parametrize(
+    "scope,field,context",
+    [
+        ("suite", "evidence_kind", "Suite"),
+        ("configuration", "config_sha256", "Configuration baseline"),
+        ("scenario", "scenario_id", "Scenario[0]"),
+        ("attempt", "scenario_id", "Attempt[0] run_id='0-0-baseline'"),
+        ("attempt", "config_sha256", "Attempt[0] run_id='0-0-baseline'"),
+        ("attempt", "run_id", "Attempt[0]"),
+    ],
+)
+def test_missing_manifest_fields_name_record_and_field(tmp_path, caplog, scope, field, context):
+    data = suite()
+    record = {
+        "suite": data,
+        "configuration": data["configurations"]["baseline"],
+        "scenario": data["scenarios"][0],
+        "attempt": data["attempts"][0],
+    }[scope]
+    del record[field]
+    path = tmp_path / "suite.json"
+    path.write_text(json.dumps(data))
+    output = tmp_path / "out"
+    assert main(["evaluate-navigation", "--input", str(path), "--output", str(output)]) == 2
+    assert f"{context}: missing required field(s): {field}" in caplog.text
+    assert not output.exists()
+
+
+def test_missing_evidence_field_is_contextual_invalid_attempt():
+    data = suite()
+    del data["attempts"][0]["elapsed_s"]
+    result = evaluate_suite(data)
+    assert result["status"] == "INVALID"
+    assert result["attempts"][0]["reason"] == (
+        "Attempt run_id='0-0-baseline': missing required evidence field: elapsed_s"
+    )
+
+
 def test_synthetic_success_never_approves_navigation_change():
     result = evaluate_suite(suite())
     assert result["status"] == "INCONCLUSIVE"

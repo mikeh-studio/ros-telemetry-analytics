@@ -1,6 +1,9 @@
 const text = (value, limit) =>
   typeof value === "string" && value.trim().length > 0 && value.length <= limit;
 
+export const MAX_REPORT_PAIRS = 10000;
+export const MAX_REPORT_BYTES = 32 * 1024 * 1024;
+
 const outcomes = [
   "success",
   "collision",
@@ -27,12 +30,17 @@ export function validateNavigationReport(value) {
     !value.reasons.every((r) => text(r, 4096)) ||
     !Array.isArray(value.attempts) ||
     !value.attempts.length ||
-    value.attempts.length > 10000 ||
     !Number.isSafeInteger(value.scheduled_pairs) ||
-    value.scheduled_pairs < 1 ||
-    value.scheduled_pairs > 5000
+    value.scheduled_pairs < 1
   )
     fail();
+  if (
+    value.scheduled_pairs > MAX_REPORT_PAIRS ||
+    value.attempts.length > MAX_REPORT_PAIRS * 2
+  )
+    throw new Error(
+      "Report exceeds the viewer limit of 10,000 pairs / 20,000 attempts.",
+    );
   if (
     value.independent_maps != null &&
     (!Number.isInteger(value.independent_maps) || value.independent_maps < 0)
@@ -115,7 +123,7 @@ export function validateNavigationReport(value) {
 
 export const categories = [
   "All",
-  "Regressions",
+  "Worse outcomes",
   "Improvements",
   "Unchanged",
   "Needs review",
@@ -143,13 +151,13 @@ export function pairAttempts(attempts) {
         !["invalid", "harness_error"].includes(b.outcome) &&
         !["invalid", "harness_error"].includes(c.outcome)
       ) {
-        if (c.collision === true && b.collision === false) {
-          category = "Regressions";
+        if (c.collision === true && b.collision !== true) {
+          category = "Worse outcomes";
           change = "New collision";
           rule =
-            "Any new candidate collision in a previously collision-free pair.";
+            "Candidate collided while baseline did not record a collision, including rejected goals.";
         } else if (b.outcome === "success" && c.outcome !== "success") {
-          category = "Regressions";
+          category = "Worse outcomes";
           change = "Lost success";
           rule = "Baseline succeeded; candidate did not.";
         } else if (b.outcome !== "success" && c.outcome === "success") {

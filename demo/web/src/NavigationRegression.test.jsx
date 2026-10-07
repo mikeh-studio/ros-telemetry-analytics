@@ -20,7 +20,7 @@ describe("navigation comparisons", () => {
     expect(screen.getByText("Synthetic example")).toBeInTheDocument();
     expect(screen.getByText("Regression detected")).toBeInTheDocument();
     fireEvent.click(
-      screen.getByRole("button", { name: "Review 1 regression" }),
+      screen.getByRole("button", { name: "Review 1 worse outcome" }),
     );
     expect(
       screen.getByRole("region", { name: "Paired scenario evidence" }),
@@ -84,11 +84,12 @@ it("classifies paired evidence without ranking different failures", () => {
 it("opens paired detail in one action and returns to its filter", async () => {
   const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   render(<NavigationRegression />);
-  fireEvent.click(screen.getByRole("button", { name: "Review 1 regression" }));
-  expect(screen.getByRole("button", { name: "Regressions 1" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
+  fireEvent.click(
+    screen.getByRole("button", { name: "Review 1 worse outcome" }),
   );
+  expect(
+    screen.getByRole("button", { name: "Worse outcomes 1" }),
+  ).toHaveAttribute("aria-pressed", "true");
   expect(
     screen.getByText(/Contact timestamps, trajectories/),
   ).toBeInTheDocument();
@@ -224,4 +225,113 @@ it("renders imported identifiers as inert text", async () => {
   });
   expect(await screen.findByText(hostile)).toBeInTheDocument();
   expect(document.querySelector(".navigation-regression img")).toBeNull();
+});
+
+it("marks a candidate collision after baseline rejection as a worse outcome", () => {
+  const rows = structuredClone(example.attempts);
+  rows[0] = {
+    ...rows[0],
+    outcome: "rejected",
+    collision: null,
+    completion_s: null,
+  };
+  const pair = pairAttempts(rows)[0];
+  expect(pair.category).toBe("Worse outcomes");
+  expect(pair.change).toBe("New collision");
+});
+
+it.each(["PASS", "INCONCLUSIVE"])(
+  "keeps lost success distinct from the %s suite decision",
+  async (status) => {
+    render(<NavigationRegression />);
+    const report = structuredClone(example);
+    report.evidence_kind = "simulator";
+    report.status = status;
+    report.reasons = ["Saved evaluator decision"];
+    report.attempts[1] = {
+      ...report.attempts[1],
+      outcome: "timeout",
+      collision: false,
+    };
+    fireEvent.change(screen.getByLabelText("Load navigation evaluation"), {
+      target: {
+        files: [
+          {
+            name: "evaluation.json",
+            size: 500,
+            text: async () => JSON.stringify(report),
+          },
+        ],
+      },
+    });
+    expect(
+      await screen.findByText(
+        status === "PASS" ? "Suite gates passed" : "More evidence needed",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Regression/)).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Review 1 worse outcome" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Worse outcomes 1" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("region", { name: "Paired scenario evidence" }),
+    ).toHaveTextContent("Lost success");
+  },
+);
+
+it.each([5001, 10000])(
+  "accepts %i complete pairs within the CLI schedule limit",
+  (count) => {
+    const attempts = Array.from({ length: count }, (_, seed) =>
+      example.attempts.map((row) => ({ ...row, seed })),
+    ).flat();
+    const report = { ...example, scheduled_pairs: count, attempts };
+    expect(validateNavigationReport(report)).toBe(report);
+  },
+);
+
+it("explains the pair and attempt limits", () => {
+  expect(() =>
+    validateNavigationReport({ ...example, scheduled_pairs: 10001 }),
+  ).toThrow("10,000 pairs / 20,000 attempts");
+  expect(() =>
+    validateNavigationReport({
+      ...example,
+      attempts: Array(20001).fill(example.attempts[0]),
+    }),
+  ).toThrow("10,000 pairs / 20,000 attempts");
+});
+
+it("accepts files above the former limit and explains files above 32 MiB", async () => {
+  render(<NavigationRegression />);
+  const input = screen.getByLabelText("Load navigation evaluation");
+  fireEvent.change(input, {
+    target: {
+      files: [
+        {
+          name: "larger.json",
+          size: 15 * 1024 * 1024,
+          text: async () =>
+            JSON.stringify({ ...example, suite_id: "Large report" }),
+        },
+      ],
+    },
+  });
+  expect(await screen.findByText("Large report")).toBeInTheDocument();
+  const read = vi.fn();
+  fireEvent.change(input, {
+    target: {
+      files: [
+        { name: "oversized.json", size: 32 * 1024 * 1024 + 1, text: read },
+      ],
+    },
+  });
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "viewer file-size limit of 32 MiB",
+  );
+  expect(read).not.toHaveBeenCalled();
+  expect(screen.getByText("Large report")).toBeInTheDocument();
 });
