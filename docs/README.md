@@ -4,7 +4,7 @@ Start with the [project overview and quickstart](../README.md).
 
 ## Use the workbench
 
-- [ROS Workbench](flight-deck.md): replay controls, topic delivery and saved localization results.
+- [ROS Workbench](flight-deck.md): all four workspaces, replay controls and saved evaluations.
 - [Recording investigations](recording-investigations.md): incidents, evidence rebuilds, signals and samples.
 - [Bag analysis](bag-analysis.md): batch commands, supported formats and output contracts.
 - [Localization evaluation](localization-evaluation.md): detector studies and interpretation limits.
@@ -19,7 +19,7 @@ Start with the [project overview and quickstart](../README.md).
 - [Reliability case study](reliability-case-study.md): findings and linked experiment results.
 - [Recording validation](pr-recording-explanations-validation.md): dated checks, review decisions and layout measurements.
 
-Sample reports, notebooks and result JSON in `examples/` are linked from the relevant guides. They are retained evidence, not current runtime state. Generated recordings and analysis outputs belong under ignored `data/` paths.
+The [examples index](../examples/README.md) identifies runnable fixtures, notebooks, sample reports and historical result JSON. The [artifact index](../artifacts/README.md) identifies current screenshots and historical UI evidence. They are retained evidence, not current runtime state. Generated recordings and analysis outputs belong under ignored `data/` paths.
 
 ## Design context and remaining work
 

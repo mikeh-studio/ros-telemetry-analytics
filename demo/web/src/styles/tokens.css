@@ -1,0 +1,27 @@
+/* Shared theme tokens. Keep component layout in workbench.css or feature styles. */
+:root {
+  --white: #f0f0fa;
+  --muted: #8a8a92;
+  --line: rgba(240, 240, 250, 0.24);
+  --line-strong: rgba(240, 240, 250, 0.52);
+  --green: #5bd78a;
+  --amber: #d3a94c;
+  --red: #ec625f;
+  --label-size: 0.75rem;
+  --detail-size: 0.7rem;
+}
+.workbench-theme .replay-controls {
+  --replay-control-height: 44px;
+}
+.workbench-theme {
+  --accent: #f0f0fa;
+  --font-body: Arial, Helvetica, sans-serif;
+  --font-heading: "Barlow Condensed", sans-serif;
+  --surface: #111111;
+  --control: #0b0b0b;
+  --chip: #1b1b1b;
+  --border: #3d3d40;
+  --muted: #b5b5bd;
+  --white: #f0f0f5;
+  --panel-radius: 4px;
+}

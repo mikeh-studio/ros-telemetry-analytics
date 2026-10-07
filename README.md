@@ -3,7 +3,7 @@
 Find suspicious intervals in robot recordings, inspect the supporting evidence,
 and understand what remains uncertain.
 
-**ROS Workbench** brings three workflows into one local interface:
+**ROS Workbench** brings four workflows into one local interface:
 
 - **Telemetry:** replay a mission to see when topic delivery drops, gaps, or recovers.
 - **Recording:** select a detected incident, inspect measurements and source samples,
@@ -11,11 +11,21 @@ and understand what remains uncertain.
   API key, or replay required for prepared recordings.
 - **Localization:** compare an AMCL failure detector with published reference
   trajectories and labels to understand missed events and false alarms.
+- **Navigation:** score paired baseline/candidate experiments offline and inspect
+  saved comparisons. The built-in example is synthetic; live Gazebo collection
+  and BARN orchestration are not implemented.
+
+| Workspace    | Available immediately                         | Additional input                          |
+| ------------ | --------------------------------------------- | ----------------------------------------- |
+| Telemetry    | Synthetic warehouse replay                    | Optional uploaded or installed recordings |
+| Recording    | Availability and preparation guidance         | Prepared recording evidence               |
+| Localization | Availability guidance                         | Compatible saved detector evaluation      |
+| Navigation   | Synthetic comparison and browser-local import | CLI-generated `evaluation.json`           |
 
 The goal is to help you decide **where to investigate next**, with the evidence
 and its limits visible. A warning does not establish a physical root cause.
 
-<img src="artifacts/screenshots/telemetry-desktop.png" alt="Telemetry desktop view with replay controls, mission timeline, and topic delivery rates" width="800">
+<img src="artifacts/screenshots/telemetry-desktop.png" alt="Telemetry desktop view with replay controls and a completed mission timeline" width="800">
 
 _Replay a recording and inspect topic delivery._
 
@@ -39,9 +49,14 @@ incident to see observations, possible explanations, uncertainty, and next check
 **Rebuild evidence** updates an installed, registered recording directly from the
 page. Uploads do not yet receive this prepared analysis automatically.
 
-<img src="artifacts/screenshots/recording-signals-desktop.png" alt="Recording signals view with time-range controls and a laser scan valid-range chart" width="800">
+For **Navigation**, select its tab to inspect the synthetic example without
+preparing a recording. Import saved evaluator output using **Import comparison**;
+files stay in your browser. See the [navigation guide](docs/navigation-regression.md)
+for the offline CLI and evidence requirements.
 
-_Choose a time range and inspect recorded signals and samples._
+<img src="artifacts/screenshots/navigation-desktop.png" alt="Navigation comparison with four equal-width workspace tabs, a synthetic collision decision, and paired outcomes" width="800">
+
+_Synthetic comparison: inspect a candidate collision alongside baseline evidence._
 
 ## Analyze bags without the web app
 
@@ -65,7 +80,7 @@ ROS 1 bags, ROS 2 bag directories, `.db3`, and `.mcap` files.
 | Investigate incidents without replay            | [Recording analysis](docs/recording-investigations.md)                                          |
 | Configure batch checks and inspect output       | [Bag analysis](docs/bag-analysis.md)                                                            |
 | Evaluate localization detection                 | [Localization evaluation](docs/localization-evaluation.md)                                      |
-| Compare navigation experiments offline          | [Navigation regression](docs/navigation-regression.md)                                         |
+| Compare navigation experiments offline          | [Navigation regression](docs/navigation-regression.md)                                          |
 | Connect live ROS 2 topics                       | [Optional gateway and simulation](docs/live-ros2.md)                                            |
 | Understand implementation and validation limits | [Architecture](docs/architecture.md) · [Reliability case study](docs/reliability-case-study.md) |
 
@@ -76,6 +91,19 @@ has separate runtime requirements and [validation gates](docs/reliability-roadma
 
 Browse the [documentation index](docs/README.md) for validation records and design context.
 
+## Repository map
+
+| Path                                                                            | Purpose                                                            |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `src/ros_telemetry_analytics/`                                                  | Python ingestion, analysis, evaluators and CLI                     |
+| `demo/api/`, `demo/replayer/`, `demo/gateway/`                                  | Local services and optional ROS integration                        |
+| `demo/web/`                                                                     | Workbench UI, component tests and browser/CLI contract checks      |
+| `streaming/flink-job/`                                                          | Java event-time processing and tests                               |
+| `configs/`, `schemas/`                                                          | Runtime profiles and versioned data contracts                      |
+| `tests/`, `scripts/`                                                            | Python tests, preparation tools and integration evaluations        |
+| `docs/`, [`examples/`](examples/README.md), [`artifacts/`](artifacts/README.md) | Guides, runnable fixtures and explicitly labeled retained evidence |
+| `data/`, `.local/`                                                              | Ignored runtime outputs, downloads and private working notes       |
+
 ## Development
 
 ```bash
@@ -85,6 +113,7 @@ make lint
 make test
 npm --prefix demo/web ci
 npm --prefix demo/web test
+make test-contract
 npm --prefix demo/web run build
 ```
 
