@@ -4,6 +4,20 @@ All notable changes to this project are documented here.
 
 ## Unreleased
 
+- Added the four-workspace ROS Workbench for replay telemetry, prepared recording
+  investigations, localization evaluation and offline navigation comparisons.
+- Added deterministic incident explanations, source evidence inspection and
+  explicit preparation/availability states.
+- Added paired navigation scoring, collision gates (including rejected baselines),
+  map-cluster uncertainty, bounded imports and contextual input diagnostics.
+  Live navigation evidence collection remains unimplemented.
+- Unified workspace layout and extracted shell, replay state, controls, upload
+  dialog and Telemetry presentation into focused modules; consolidated shared
+  styles and removed obsolete launch controls. Phone tabs use two equal columns
+  to keep labels readable.
+- Aligned developer installation with CI, added CLI-to-viewer compatibility checks,
+  refreshed onboarding screenshots and indexed runnable versus historical examples.
+- Updated Vitest and vulnerable transitive frontend dependencies.
 - Added configurable timestamp-pair relationships with per-pair thresholds,
   required/optional counterpart handling, and `relationship_health.parquet`.
 - Preserved automatic left/right stereo discovery and projected configured

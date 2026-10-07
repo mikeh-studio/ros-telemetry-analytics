@@ -36,6 +36,7 @@ const DEFAULT_DATASET_FOR_TEST = {
 describe("ROS Workbench", () => {
   beforeEach(() => {
     localStorage.clear();
+    window.history.replaceState(null, "", "/");
     FakeEventSource.instances = [];
     vi.stubGlobal("EventSource", FakeEventSource);
     vi.stubGlobal(
@@ -88,6 +89,7 @@ describe("ROS Workbench", () => {
     fireEvent.keyDown(recordings, { key: "ArrowRight" });
     expect(investigation).toHaveFocus();
     expect(investigation).toHaveAttribute("aria-selected", "true");
+    expect(window.location.search).toBe("?view=localization");
     expect(
       screen.getByRole("tabpanel", { name: "Localization" }),
     ).toBeVisible();
@@ -1111,6 +1113,21 @@ describe("ROS Workbench", () => {
       ),
     ).toBe(false);
     expect(localStorage.getItem("workbench.view")).toBe("health");
+    const tabs = screen.getByRole("tablist");
+    const context = screen.getByRole("region", {
+      name: "Shared dataset context",
+    });
+    expect(
+      tabs.compareDocumentPosition(context) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Navigation" }));
+    expect(screen.queryByLabelText("Dataset")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Import comparison" }),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole("tab", { name: "Telemetry" }));
+    expect(screen.getByLabelText("Dataset")).toHaveValue("recording-a");
+    expect(screen.getByRole("tablist")).toBe(tabs);
   });
 
   it("keeps replay A isolated while browsing B, including disconnected runtime authority", async () => {

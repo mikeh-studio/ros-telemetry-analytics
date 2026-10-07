@@ -1,0 +1,310 @@
+{
+  "schema_version": 1,
+  "suite_id": "synthetic-collision-after-arrival",
+  "evidence_kind": "synthetic",
+  "runtime_sha256": "d92c6a81b2ff50096bcda80885427d1f59a25b5f483f7055523504925d16ab23",
+  "configurations": {
+    "baseline": {
+      "config_sha256": "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24",
+      "git_revision": "test-revision"
+    },
+    "candidate": {
+      "config_sha256": "dda18a0e21ae47c53b4309434cbc02ae8bf764fa83a6defbb719431242722aa7",
+      "git_revision": "test-revision"
+    }
+  },
+  "policy": {},
+  "scenarios": [
+    {
+      "scenario_id": "map-0",
+      "seed": 0,
+      "map_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "scenario_sha256": "9d37e282dff85f7c8fffc4daf3461561337a4a9da281111f2dbf927b7a99db77",
+      "start": [
+        0,
+        0,
+        0
+      ],
+      "goal": [
+        1,
+        0,
+        0
+      ]
+    }
+  ],
+  "attempts": [
+    {
+      "run_id": "0-0-baseline",
+      "scenario_id": "map-0",
+      "seed": 0,
+      "configuration": "baseline",
+      "config_sha256": "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24",
+      "git_revision": "test-revision",
+      "runtime_sha256": "d92c6a81b2ff50096bcda80885427d1f59a25b5f483f7055523504925d16ab23",
+      "scenario_sha256": "9d37e282dff85f7c8fffc4daf3461561337a4a9da281111f2dbf927b7a99db77",
+      "elapsed_s": 3,
+      "termination": "finished",
+      "ground_truth": [
+        {
+          "t": 0.0,
+          "pose": [
+            0.0,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 0.25,
+          "pose": [
+            0.125,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 0.5,
+          "pose": [
+            0.25,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 0.75,
+          "pose": [
+            0.375,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 1.0,
+          "pose": [
+            0.5,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 1.25,
+          "pose": [
+            0.625,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 1.5,
+          "pose": [
+            0.75,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 1.75,
+          "pose": [
+            0.875,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 2.0,
+          "pose": [
+            1.0,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 2.25,
+          "pose": [
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 2.5,
+          "pose": [
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 2.75,
+          "pose": [
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 3.0,
+          "pose": [
+            1,
+            0,
+            0
+          ]
+        }
+      ],
+      "contact_heartbeat_s": [
+        0.0,
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        1.75,
+        2.0,
+        2.25,
+        2.5,
+        2.75,
+        3.0
+      ],
+      "obstacle_contacts": []
+    },
+    {
+      "run_id": "0-0-candidate",
+      "scenario_id": "map-0",
+      "seed": 0,
+      "configuration": "candidate",
+      "config_sha256": "dda18a0e21ae47c53b4309434cbc02ae8bf764fa83a6defbb719431242722aa7",
+      "git_revision": "test-revision",
+      "runtime_sha256": "d92c6a81b2ff50096bcda80885427d1f59a25b5f483f7055523504925d16ab23",
+      "scenario_sha256": "9d37e282dff85f7c8fffc4daf3461561337a4a9da281111f2dbf927b7a99db77",
+      "elapsed_s": 3,
+      "termination": "finished",
+      "ground_truth": [
+        {
+          "t": 0.0,
+          "pose": [
+            0.0,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 0.25,
+          "pose": [
+            0.125,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 0.5,
+          "pose": [
+            0.25,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 0.75,
+          "pose": [
+            0.375,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 1.0,
+          "pose": [
+            0.5,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 1.25,
+          "pose": [
+            0.625,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 1.5,
+          "pose": [
+            0.75,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 1.75,
+          "pose": [
+            0.875,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 2.0,
+          "pose": [
+            1.0,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 2.25,
+          "pose": [
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 2.5,
+          "pose": [
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 2.75,
+          "pose": [
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "t": 3.0,
+          "pose": [
+            1,
+            0,
+            0
+          ]
+        }
+      ],
+      "contact_heartbeat_s": [
+        0.0,
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        1.75,
+        2.0,
+        2.25,
+        2.5,
+        2.75,
+        3.0
+      ],
+      "obstacle_contacts": [
+        {
+          "t": 2.75,
+          "obstacle": "synthetic-wall"
+        }
+      ]
+    }
+  ]
+}

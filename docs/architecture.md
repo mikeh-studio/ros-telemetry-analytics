@@ -222,3 +222,39 @@ the container's resource budget but has its own Python interpreter. When the API
 runs as root, the child uses the evidence folder's UID/GID. The output mount is
 writable; source recordings remain read-only. See the [rebuild contract](recording-investigations.md#rebuild-evidence-from-the-page)
 for recovery and ownership details.
+
+## Offline navigation comparisons
+
+Navigation is independent of recording selection and the streaming services:
+
+```text
+frozen suite + baseline/candidate pose/contact evidence
+    -> evaluate-navigation CLI -> input.json + evaluation.json + report.md
+    -> browser-local validation -> paired comparison / inspector
+```
+
+The Python evaluator owns scoring, paired-map statistics and suite gates. The
+JavaScript viewer checks display contracts, preserves invalid placeholders and
+labels descriptive pair changes separately from the suite decision. Its imports
+do not send files to the API. Digests check supplied identities; they do not
+prove the provenance of a simulator or collector. Live capture and BARN scheduling
+remain future work. See the [contract and limits](navigation-regression.md).
+
+`demo/web/contracts/navigation-report.test.js` invokes the real CLI and feeds its
+outputs into the UI validator. CI covers all four suite decisions, the rejected
+baseline collision gate, bundled-example fidelity and the 10,000-pair boundary.
+
+## Workbench frontend boundaries
+
+`App.jsx` composes the four mounted workspaces. The shared shell owns accessible
+tabs and the header; workspace selection owns URL and preference persistence.
+`useWorkbenchState` owns catalog selection, uploads, replay requests, SSE recovery
+and service readiness. Telemetry presentation, replay controls and the upload
+dialog are separate components; their existing state transitions are unchanged.
+Recording and Localization retain their feature-specific evidence fetching.
+
+Shared CSS enters through `styles/tokens.css` and `styles/workbench.css`. The first
+owns theme variables; the second owns foundations, shell and shared controls.
+Feature styles keep their own investigation layouts. Avoid reintroducing global
+legacy launch selectors or additional theme override files. Developer commands and
+validation boundaries are in [Contributing](../CONTRIBUTING.md).

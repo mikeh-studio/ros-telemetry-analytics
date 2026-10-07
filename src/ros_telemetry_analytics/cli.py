@@ -13,6 +13,7 @@ from ros_telemetry_analytics.localization_eval import (
     evaluate_localization_files,
 )
 from ros_telemetry_analytics.localization_study import run_localization_study
+from ros_telemetry_analytics.navigation_regression import evaluate_navigation_file
 from ros_telemetry_analytics.pipeline import run_pipeline
 from ros_telemetry_analytics.public_suite import run_public_robotics_suite
 
@@ -82,6 +83,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     public_suite.add_argument("--manifest", type=_path)
     public_suite.add_argument("--force", action="store_true")
+    navigation = subparsers.add_parser(
+        "evaluate-navigation", help="Score and compare paired simulator navigation evidence."
+    )
+    navigation.add_argument("--input", type=_path, required=True)
+    navigation.add_argument("--output", type=_path, required=True)
     return parser
 
 
@@ -91,6 +97,20 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(levelname)s %(message)s",
     )
+
+    if args.command == "evaluate-navigation":
+        try:
+            summary = evaluate_navigation_file(args.input, args.output)
+        except (ValueError, KeyError, TypeError, OSError, RecursionError, OverflowError) as error:
+            logging.error("Navigation evaluation failed: %s", error)
+            return 2
+        print(
+            json.dumps(
+                {key: summary[key] for key in ("status", "evidence_kind", "counts", "reasons")},
+                indent=2,
+            )
+        )
+        return {"PASS": 0, "REGRESSION": 1, "INVALID": 2, "INCONCLUSIVE": 3}[summary["status"]]
 
     if args.command == "download":
         assets = load_asset_config()

@@ -320,14 +320,13 @@ test("replay controls share a height and align when fault injection is available
   }
 });
 
-test("recording header grows while replay labels stay inside their buttons", async ({
+test("shared header keeps equal tabs and contained recording controls", async ({
   page,
 }) => {
   await page.goto("/");
   await expect(
     page.getByRole("combobox", { name: "Dataset", exact: true }),
   ).toBeVisible();
-  let previousPickerWidth = 0;
   for (const width of [320, 390, 768, 1024, 1440, 1920]) {
     await page.setViewportSize({ width, height: 1000 });
     const layout = await page.evaluate(() => {
@@ -343,6 +342,8 @@ test("recording header grows while replay labels stay inside their buttons", asy
         picker: bounds(document.querySelector(".recording-trigger")),
         toolbar: bounds(document.querySelector(".dataset-toolbar")),
         about: bounds(document.querySelector(".recording-about")),
+        upload: bounds(document.querySelector(".header-upload")),
+        tabs: bounds(tabs),
         tabWidths: [...tabs.querySelectorAll("button")].map(
           (node) => bounds(node).width,
         ),
@@ -359,9 +360,15 @@ test("recording header grows while replay labels stay inside their buttons", asy
     expect(
       Math.max(...layout.tabWidths) - Math.min(...layout.tabWidths),
     ).toBeLessThan(1);
-    expect(layout.picker.width).toBeGreaterThan(previousPickerWidth);
-    previousPickerWidth = layout.picker.width;
-    expect(Math.abs(layout.about.right - layout.toolbar.right)).toBeLessThan(1);
+    expect(layout.tabWidths).toHaveLength(4);
+    expect(layout.toolbar.top).toBeGreaterThan(layout.tabs.bottom);
+    for (const box of [layout.picker, layout.about, layout.upload]) {
+      expect(box.width).toBeGreaterThan(0);
+      expect(box.left).toBeGreaterThanOrEqual(layout.toolbar.left - 1);
+      expect(box.right).toBeLessThanOrEqual(layout.toolbar.right + 1);
+      expect(box.top).toBeGreaterThanOrEqual(layout.toolbar.top - 1);
+      expect(box.bottom).toBeLessThanOrEqual(layout.toolbar.bottom + 1);
+    }
     for (const { box, text, lineHeight } of layout.buttons) {
       expect(box.left).toBeGreaterThanOrEqual(0);
       expect(box.right).toBeLessThanOrEqual(width);
