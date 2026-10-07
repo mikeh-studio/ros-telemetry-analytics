@@ -1,0 +1,328 @@
+/* Shared visual contract for every Workbench workspace. Loaded after feature styles. */
+.workbench-theme {
+  --font-body: Arial, Helvetica, sans-serif;
+  --font-heading: "Barlow Condensed", sans-serif;
+  --surface: #111111;
+  --control: #0b0b0b;
+  --chip: #1b1b1b;
+  --border: #3d3d40;
+  --muted: #b5b5bd;
+  --white: #f0f0f5;
+  --panel-radius: 4px;
+  max-width: 1440px;
+  padding: 24px 32px 48px;
+  font: 14px/1.5 var(--font-body);
+  color: var(--white);
+}
+.workbench-theme [hidden] {
+  display: none !important;
+}
+.workbench-theme .command-header {
+  min-height: 56px;
+  padding: 0 0 16px;
+  gap: 24px;
+}
+.workbench-theme .command-header h1 {
+  font: 600 30px/1.2 var(--font-heading);
+  letter-spacing: 0.025em;
+  margin: 0;
+}
+.workbench-subtitle {
+  font-size: 12px;
+  color: var(--muted);
+}
+.workbench-theme .workspace-tabs {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  margin: 0;
+  gap: 0;
+}
+.workbench-theme .workspace-tabs button {
+  padding: 16px 16px 12px;
+  grid-template-rows: 28px minmax(36px, auto);
+  gap: 4px;
+  font: 600 22px/1.25 var(--font-heading);
+}
+.workbench-theme .workspace-tabs .tab-availability {
+  font: 12px/18px var(--font-body);
+  color: var(--muted);
+}
+.workbench-theme .dataset-context {
+  padding: 24px 0;
+  border-bottom: 1px solid var(--border);
+}
+.workbench-theme .dataset-toolbar {
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.workbench-theme .dataset-purpose,
+.workbench-theme .dataset-facts,
+.workbench-theme .dataset-signals,
+.workbench-theme .dataset-details,
+.workbench-theme .dataset-overview {
+  font: 13px/1.6 var(--font-body);
+  letter-spacing: normal;
+}
+.workbench-theme .recording-label {
+  font: 600 11px/1.5 var(--font-body);
+  letter-spacing: 0.08em;
+}
+.workbench-theme .dataset-overview {
+  margin-top: 16px;
+  gap: 24px;
+}
+.workbench-theme .dataset-purpose {
+  max-width: 680px;
+}
+.workbench-theme .recording-trigger {
+  font: 600 20px/1.3 var(--font-heading);
+  min-height: 44px;
+}
+.workbench-theme :is(button:not([role="tab"]), select, input[type="number"]) {
+  font-family: var(--font-body);
+  font-size: 13px;
+  letter-spacing: normal;
+  text-transform: none;
+  border-radius: var(--panel-radius);
+  min-height: 40px;
+}
+.workbench-theme .header-upload {
+  font: 13px/1.5 var(--font-body);
+  padding: 10px 16px;
+  white-space: nowrap;
+  align-self: center;
+}
+.workbench-theme button.text-action {
+  font: 13px/1.5 var(--font-body);
+  padding: 8px 0;
+}
+.workbench-theme select option,
+.workbench-theme select optgroup {
+  font-family: var(--font-body);
+}
+.workbench-theme
+  :is(
+    .analysis-workspace,
+    .recording-investigation,
+    .localization-investigation,
+    .navigation-regression
+  ) {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding-top: 24px;
+  font: 14px/1.5 var(--font-body);
+  color: var(--white);
+}
+.workbench-theme :is(.workspace-heading, .recording-heading, .nav-heading) {
+  gap: 24px;
+  margin: 0 0 20px;
+  align-items: center;
+}
+.workbench-theme
+  :is(
+    h2,
+    .replay-controls .replay-title,
+    .recording-heading h2,
+    .navigation-regression h2
+  ) {
+  font: 600 26px/1.25 var(--font-heading);
+  text-transform: none;
+  letter-spacing: 0.015em;
+}
+.workbench-theme :is(h3, .navigation-regression h3) {
+  font: 600 22px/1.3 var(--font-heading);
+  text-transform: none;
+  letter-spacing: 0.01em;
+}
+.workbench-theme
+  :is(
+    .replay-message,
+    .analysis-unavailable,
+    .investigation-note,
+    .recording-context,
+    .recording-investigation p,
+    .localization-investigation p
+  ) {
+  font: 14px/1.6 var(--font-body);
+  letter-spacing: normal;
+}
+.workbench-theme :is(.analysis-unavailable, .replay-message) {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid #909097;
+  border-radius: var(--panel-radius);
+  padding: 20px 24px;
+  margin: 24px 0;
+}
+.workbench-theme .analysis-unavailable h2 {
+  margin: 0 0 8px;
+}
+.workbench-theme :is(.replay-controls, .investigation-filters) {
+  gap: 16px;
+}
+.workbench-theme
+  :is(
+    .replay-fields > label,
+    .replay-rate legend,
+    .recording-select,
+    .workspace-mode
+  ) {
+  font: 12px/1.5 var(--font-body);
+  letter-spacing: normal;
+}
+.workbench-theme .replay-controls select,
+.workbench-theme .replay-rate-options span,
+.workbench-theme .stack-disclosure > summary {
+  font: 13px/1.5 var(--font-body);
+}
+.workbench-theme
+  :is(
+    .recording-summary span,
+    .recording-case,
+    .investigation-inspector,
+    .investigation-cases,
+    .nav-overview,
+    .nav-detail,
+    .nav-missing
+  ) {
+  background: var(--surface);
+  border-color: var(--border);
+  border-radius: var(--panel-radius);
+}
+.workbench-theme :is(.nav-badge, .nav-selected, .recording-summary span) {
+  background: var(--chip);
+  border-color: #55555b;
+}
+.workbench-theme .navigation-regression {
+  font-family: var(--font-body);
+}
+.workbench-theme
+  .navigation-regression
+  :is(
+    p,
+    .nav-source,
+    .nav-eyebrow,
+    .nav-metrics small,
+    .nav-metrics article > span,
+    .nav-section-heading > span
+  ) {
+  color: var(--muted);
+}
+.workbench-theme
+  .navigation-regression
+  :is(
+    table,
+    td,
+    th,
+    .nav-overview,
+    .nav-metrics,
+    .nav-method,
+    .nav-table-wrap
+  ) {
+  border-color: var(--border);
+}
+.workbench-theme .navigation-regression thead {
+  background: var(--surface);
+}
+.workbench-theme .navigation-regression button {
+  font-family: var(--font-body);
+  border-radius: var(--panel-radius);
+  border-color: #74747c;
+}
+.workbench-theme .navigation-regression .nav-primary {
+  background: var(--white);
+  border-color: var(--white);
+  color: #111;
+}
+.workbench-theme
+  .navigation-regression
+  .nav-filters
+  button[aria-pressed="true"] {
+  background: var(--chip);
+  border-color: #8a8a93;
+}
+.workbench-theme
+  :is(
+    .recording-investigation table,
+    .localization-investigation table,
+    .topic-history-table,
+    .navigation-regression table
+  ) {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.workbench-theme :is(.navigation-regression th, .topic-history-table th) {
+  font-family: var(--font-body);
+  font-size: 12px;
+}
+.workbench-theme :is(.navigation-regression td, .navigation-regression th) {
+  padding: 12px;
+}
+.workbench-theme :is(.nav-metrics strong, .recording-summary) {
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 800px) {
+  .workbench-theme {
+    padding: 20px 24px 40px;
+  }
+  .workbench-theme .dataset-toolbar {
+    gap: 12px;
+  }
+  .workbench-theme .workspace-tabs button {
+    font-size: 20px;
+    padding: 16px 10px 12px;
+  }
+}
+@media (max-width: 600px) {
+  .workbench-theme,
+  .navigation-workspace.workbench-theme {
+    padding: 16px;
+  }
+  .workbench-subtitle {
+    display: none;
+  }
+  .workbench-theme .workspace-tabs button {
+    font-size: 17px;
+    padding: 14px 4px 10px;
+    grid-template-rows: 24px minmax(36px, auto);
+  }
+  .workbench-theme .workspace-tabs .tab-icon {
+    display: none;
+  }
+  .workbench-theme .workspace-tabs .tab-availability {
+    padding-left: 0;
+    font-size: 11px;
+  }
+  .workbench-theme .dataset-toolbar {
+    align-items: stretch;
+  }
+  .workbench-theme .recording-about {
+    white-space: normal;
+  }
+  .workbench-theme .nav-heading {
+    align-items: flex-start;
+  }
+}
+.workbench-theme .replay-controls .replay-action button {
+  font: 600 13px/1.5 var(--font-body);
+  letter-spacing: normal;
+  text-transform: none;
+}
+@media (max-width: 600px) {
+  .workbench-theme .dataset-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+  }
+  .workbench-theme .dataset-toolbar .recording-menu {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .workbench-theme .dataset-toolbar .header-upload {
+    justify-self: end;
+    margin: 0;
+  }
+}

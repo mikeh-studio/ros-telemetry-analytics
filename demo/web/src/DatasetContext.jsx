@@ -50,6 +50,7 @@ export default function DatasetContext({
   onSelect,
   onRefresh,
   notice,
+  action,
 }) {
   const [aboutOpen, setAboutOpen] = useState(false);
   const coverage = selected?.coverage || [];
@@ -89,6 +90,7 @@ export default function DatasetContext({
         >
           About this recording <ArrowRightIcon size={18} aria-hidden="true" />
         </button>
+        {action}
       </div>
       {notice && <p role="status">{notice}</p>}
       <div className="dataset-overview">

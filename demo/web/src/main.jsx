@@ -8,6 +8,7 @@ import App from "./App";
 import "./styles.css";
 import "./Workbench.css";
 import "./ReplayControls.css";
+import "./WorkbenchSystem.css";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>

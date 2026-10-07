@@ -8,6 +8,7 @@ Start with the [project overview and quickstart](../README.md).
 - [Recording investigations](recording-investigations.md): incidents, evidence rebuilds, signals and samples.
 - [Bag analysis](bag-analysis.md): batch commands, supported formats and output contracts.
 - [Localization evaluation](localization-evaluation.md): detector studies and interpretation limits.
+- [Navigation regression](navigation-regression.md): offline paired scoring, evidence contracts and remaining simulator work.
 - [Live ROS 2](live-ros2.md): gateway setup, simulation and repeatable fault experiments.
 
 ## Understand and validate

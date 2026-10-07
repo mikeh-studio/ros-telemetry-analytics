@@ -676,10 +676,10 @@
   }
 }
 
-/* Equal-width tabs form a compact strip anchored to the left. */
+/* Tabs divide the entire shared workspace width equally. */
 .workbench-theme .workspace-tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 220px));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: stretch;
   justify-content: flex-start;
   gap: 0;

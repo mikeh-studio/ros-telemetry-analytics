@@ -7,6 +7,7 @@ import {
   RecordIcon,
   NavigationArrowIcon,
 } from "@phosphor-icons/react";
+import NavigationRegression from "./NavigationRegression";
 import IncidentDetail from "./IncidentDetail";
 import TopicHistory from "./TopicHistory";
 import DatasetContext, {
@@ -404,8 +405,10 @@ function LocalizationTrajectory({ points }) {
 
 export default function App() {
   const [activeView, setActiveView] = useState(() => {
-    const view = saved("workbench.view", "health");
-    return ["health", "recordings", "localization"].includes(view)
+    const view =
+      new URLSearchParams(window.location.search).get("view") ||
+      saved("workbench.view", "health");
+    return ["health", "recordings", "localization", "navigation"].includes(view)
       ? view
       : "health";
   });
@@ -433,6 +436,9 @@ export default function App() {
   const [catalogNotice, setCatalogNotice] = useState("");
   useEffect(() => {
     remember("workbench.view", activeView);
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", activeView);
+    window.history.replaceState(null, "", url);
   }, [activeView]);
   const currentRunId = useRef(null);
   const currentLiveId = useRef(null);
@@ -733,6 +739,7 @@ export default function App() {
     ) && !snapshot.completion?.verified;
 
   function tabAvailability(view) {
+    if (view === "navigation") return "Saved comparisons";
     const state = capability(selectedDataset, view);
     if (state === "loading") return "Loading";
     if (view === "health") {
@@ -824,32 +831,15 @@ export default function App() {
   }
 
   return (
-    <main className="workbench-theme">
+    <main
+      className={`workbench-theme ${activeView === "navigation" ? "navigation-workspace" : ""}`}
+    >
       <header className="command-header">
         <div className="title-lockup">
           <h1>ROS Workbench</h1>
         </div>
-        <button
-          className="header-upload"
-          disabled={uploading}
-          onClick={() => {
-            setUploadError("");
-            if (uploadDialog.current && !uploadDialog.current.open)
-              uploadDialog.current.showModal();
-          }}
-        >
-          {uploading ? "Uploading…" : "Upload recording"}
-        </button>
+        <span className="workbench-subtitle">Robotics evidence & analysis</span>
       </header>
-      <DatasetContext
-        datasets={availableDatasets}
-        selected={selectedDataset}
-        onSelect={chooseDataset}
-        notice={catalogNotice}
-        onRefresh={() =>
-          loadDatasets().catch((reason) => setCatalogNotice(reason.message))
-        }
-      />
       <dialog
         className="add-data-dialog"
         ref={uploadDialog}
@@ -889,25 +879,6 @@ export default function App() {
           </p>
         )}
       </dialog>
-      {datasetLocked && (
-        <aside className="active-run-banner" role="status">
-          Replay {snapshot.run?.payload?.status} on{" "}
-          {snapshot.dataset_name || snapshot.dataset_id}.
-          {!selectedRunMatches && (
-            <>
-              <span> Finish this replay before starting another.</span>
-              <button
-                onClick={() => {
-                  chooseDataset(snapshot.dataset_id);
-                  setActiveView("health");
-                }}
-              >
-                Return to active replay
-              </button>
-            </>
-          )}
-        </aside>
-      )}
       <div
         className="workspace-tabs"
         role="tablist"
@@ -917,6 +888,7 @@ export default function App() {
           ["health", "Telemetry", PulseIcon],
           ["recordings", "Recording", RecordIcon],
           ["localization", "Localization", NavigationArrowIcon],
+          ["navigation", "Navigation", NavigationArrowIcon],
         ].map(([id, label, Icon], index) => (
           <button
             key={id}
@@ -934,13 +906,22 @@ export default function App() {
               )
                 return;
               event.preventDefault();
-              const tabs = ["health", "recordings", "localization"];
+              const tabs = [
+                "health",
+                "recordings",
+                "localization",
+                "navigation",
+              ];
               const next =
                 event.key === "Home"
                   ? tabs[0]
                   : event.key === "End"
-                    ? tabs[2]
-                    : tabs[(index + (event.key === "ArrowRight" ? 1 : 2)) % 3];
+                    ? tabs[tabs.length - 1]
+                    : tabs[
+                        (index +
+                          (event.key === "ArrowRight" ? 1 : tabs.length - 1)) %
+                          tabs.length
+                      ];
               setActiveView(next);
               document.getElementById(`view-${next}`).focus();
             }}
@@ -961,6 +942,52 @@ export default function App() {
           </button>
         ))}
       </div>
+
+      {activeView !== "navigation" && (
+        <DatasetContext
+          datasets={availableDatasets}
+          selected={selectedDataset}
+          onSelect={chooseDataset}
+          notice={catalogNotice}
+          action={
+            <button
+              hidden={activeView === "navigation"}
+              className="header-upload"
+              disabled={uploading}
+              onClick={() => {
+                setUploadError("");
+                if (uploadDialog.current && !uploadDialog.current.open)
+                  uploadDialog.current.showModal();
+              }}
+            >
+              {uploading ? "Uploading…" : "Upload recording"}
+            </button>
+          }
+          onRefresh={() =>
+            loadDatasets().catch((reason) => setCatalogNotice(reason.message))
+          }
+        />
+      )}
+
+      {datasetLocked && (
+        <aside className="active-run-banner" role="status">
+          Replay {snapshot.run?.payload?.status} on{" "}
+          {snapshot.dataset_name || snapshot.dataset_id}.
+          {!selectedRunMatches && (
+            <>
+              <span> Finish this replay before starting another.</span>
+              <button
+                onClick={() => {
+                  chooseDataset(snapshot.dataset_id);
+                  setActiveView("health");
+                }}
+              >
+                Return to active replay
+              </button>
+            </>
+          )}
+        </aside>
+      )}
 
       <section
         id="panel-health"
@@ -1573,6 +1600,14 @@ export default function App() {
         ) : (
           <AnalysisUnavailable dataset={selectedDataset} view="recordings" />
         )}
+      </section>
+      <section
+        id="panel-navigation"
+        role="tabpanel"
+        aria-labelledby="view-navigation"
+        hidden={activeView !== "navigation"}
+      >
+        <NavigationRegression />
       </section>
     </main>
   );

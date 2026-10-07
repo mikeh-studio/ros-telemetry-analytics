@@ -65,6 +65,7 @@ ROS 1 bags, ROS 2 bag directories, `.db3`, and `.mcap` files.
 | Investigate incidents without replay            | [Recording analysis](docs/recording-investigations.md)                                          |
 | Configure batch checks and inspect output       | [Bag analysis](docs/bag-analysis.md)                                                            |
 | Evaluate localization detection                 | [Localization evaluation](docs/localization-evaluation.md)                                      |
+| Compare navigation experiments offline          | [Navigation regression](docs/navigation-regression.md)                                         |
 | Connect live ROS 2 topics                       | [Optional gateway and simulation](docs/live-ros2.md)                                            |
 | Understand implementation and validation limits | [Architecture](docs/architecture.md) · [Reliability case study](docs/reliability-case-study.md) |
 
