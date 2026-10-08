@@ -4,6 +4,49 @@ All notable changes to this project are documented here.
 
 ## Unreleased
 
+## 0.2.0 - 2026-10-07
+
+Upgrade notes:
+
+- The Compose project is now `ros-telemetry-analytics` (was
+  `robot-telemetry-flight-deck`), so Docker creates new containers and volumes.
+  Follow the migration steps below before starting the renamed stack.
+- Playwright variables are renamed: `FLIGHT_DECK_BASE_URL` to `WORKBENCH_BASE_URL`
+  and `FLIGHT_DECK_BROWSER` to `WORKBENCH_BROWSER`.
+- Saved experiment results moved from `examples/` to `examples/results/`.
+- The ARCO and OpenLORIS dataset profiles and catalog entries were removed.
+
+For an existing Compose installation:
+
+1. Stop and remove the old project's containers to free ports 3000, 8000 and
+   8081, while preserving its volumes:
+
+   ```bash
+   docker compose -p robot-telemetry-flight-deck down --remove-orphans
+   ```
+
+   Do not add `-v`. A plain `docker compose down` now targets the renamed project
+   and will not stop the old stack.
+2. Preserve any needed old volume data. Uploaded recordings in
+   `robot-telemetry-flight-deck_dataset-uploads` are not migrated automatically.
+   Copy them into `ros-telemetry-analytics_dataset-uploads` before starting the
+   new stack, or retain the originals for re-upload afterward.
+3. Start the new stack with `docker compose up --build -d` (include the same
+   live/simulation overlays if used), re-upload recordings if needed, and verify
+   the data you want to keep is available.
+4. Only after verification, optionally list the old project's volumes with
+   `docker volume ls --filter label=com.docker.compose.project=robot-telemetry-flight-deck`
+   and remove selected, unneeded volumes with `docker volume rm <volume-name>`.
+   Volume removal permanently deletes their contents.
+
+Changes:
+
+- Corrected SECURITY.md: supported payloads are deserialized; documented the
+  trust model and the local-only scope of the Compose stack.
+- Finished the Flight Deck to ROS Workbench rename across services, tests and docs.
+- Consolidated documentation: experiment results, evaluation rules and remaining
+  gaps live in the reliability case study; the dataset audit is part of the
+  recording guide; development plans and PR records were removed.
 - Added the four-workspace ROS Workbench for replay telemetry, prepared recording
   investigations, localization evaluation and offline navigation comparisons.
 - Added deterministic incident explanations, source evidence inspection and

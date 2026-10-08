@@ -1,4 +1,4 @@
-name: robot-telemetry-flight-deck
+name: ros-telemetry-analytics
 
 services:
   kafka-storage-init:

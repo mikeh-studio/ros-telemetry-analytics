@@ -1,7 +1,7 @@
 {
   "additional_evidence": {
-    "edge_recovery": "examples/edge_recovery_results.json",
-    "qos_repair": "examples/qos_results.json"
+    "edge_recovery": "examples/results/edge_recovery_results.json",
+    "qos_repair": "examples/results/qos_results.json"
   },
   "development_findings": [
     "Old Flink image rejected topic registration; rebuilt against current schema.",

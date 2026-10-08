@@ -4,8 +4,8 @@ Start with the [project overview and quickstart](../README.md).
 
 ## Use the workbench
 
-- [ROS Workbench](flight-deck.md): all four workspaces, replay controls and saved evaluations.
-- [Recording investigations](recording-investigations.md): incidents, evidence rebuilds, signals and samples.
+- [ROS Workbench](workbench.md): all four workspaces, replay controls and saved evaluations.
+- [Recording investigations](recording-investigations.md): incidents, evidence rebuilds, signals, samples and the dataset audit.
 - [Bag analysis](bag-analysis.md): batch commands, supported formats and output contracts.
 - [Localization evaluation](localization-evaluation.md): detector studies and interpretation limits.
 - [Navigation regression](navigation-regression.md): offline paired scoring, evidence contracts and remaining simulator work.
@@ -13,18 +13,13 @@ Start with the [project overview and quickstart](../README.md).
 
 ## Understand and validate
 
-- [Architecture](architecture.md): components, data flow and boundaries.
+- [Architecture](architecture.md): components, data flow, live-stream semantics and boundaries.
+- [Reliability case study](reliability-case-study.md): experiment results, failures that changed the design, evaluation rules and remaining gaps.
 - [Validation datasets](validation-data.md): optional public inputs and reproducibility.
-- [Dataset audit](dataset-audit-results.md): dated inventory and source-quality findings.
-- [Reliability case study](reliability-case-study.md): findings and linked experiment results.
-- [Recording validation](pr-recording-explanations-validation.md): dated checks, review decisions and layout measurements.
 
-The [examples index](../examples/README.md) identifies runnable fixtures, notebooks, sample reports and historical result JSON. The [artifact index](../artifacts/README.md) identifies current screenshots and historical UI evidence. They are retained evidence, not current runtime state. Generated recordings and analysis outputs belong under ignored `data/` paths.
-
-## Design context and remaining work
-
-- [Incident explanation design](incident-explanation-plan.md): delivered deterministic contracts and deferred work.
-- [Dataset research baseline](ros-data-learning-plan.md): historical research and unimplemented dataset options.
-- [Reliability roadmap](reliability-roadmap.md): implementation status and remaining validation gates.
+The [examples index](../examples/README.md) separates runnable fixtures, notebooks and
+sample reports from saved experiment results. Saved results describe the run that
+produced them, not the current checkout. Generated recordings and analysis outputs
+belong under ignored `data/` paths.
 
 For repository maintenance, see [contributing](../CONTRIBUTING.md), [security](../SECURITY.md), the [changelog](../CHANGELOG.md), and [license](../LICENSE).

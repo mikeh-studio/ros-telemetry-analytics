@@ -189,7 +189,7 @@ async def lifespan(_app: FastAPI):
     await CONSUMER.stop()
 
 
-app = FastAPI(title="Robot Telemetry Flight Deck API", lifespan=lifespan)
+app = FastAPI(title="ROS Workbench API", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[os.environ.get("WEB_ORIGIN", "http://localhost:3000")],

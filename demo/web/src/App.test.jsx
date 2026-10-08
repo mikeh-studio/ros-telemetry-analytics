@@ -404,8 +404,8 @@ describe("ROS Workbench", () => {
                     size_bytes: 38_063_988,
                   },
                   {
-                    dataset_id: "openloris_scene_cafe1_1_2",
-                    name: "OpenLORIS Scene · Cafe 1-1",
+                    dataset_id: "large_archive_example",
+                    name: "Large archive example",
                     status: "not_installed",
                     selectable: false,
                   },
@@ -443,7 +443,7 @@ describe("ROS Workbench", () => {
       ).toBeInTheDocument(),
     );
     expect(
-      screen.getByRole("option", { name: /OpenLORIS/ }),
+      screen.getByRole("option", { name: /Large archive example/ }),
     ).not.toBeDisabled();
     fireEvent.click(screen.getByRole("option", { name: /LILocBench/ }));
     expect(screen.getByText("Dynamic people mission")).toBeInTheDocument();

@@ -53,14 +53,14 @@ class ProjectionConsumer:
 
     async def start(self) -> None:
         await self._connect()
-        self._task = asyncio.create_task(self._supervise(), name="flight-deck-projection")
+        self._task = asyncio.create_task(self._supervise(), name="workbench-projection")
 
     async def _connect(self) -> None:
         consumer = AIOKafkaConsumer(
             "telemetry.metrics.v1",
             "telemetry.anomalies.v1",
             bootstrap_servers=self.bootstrap_servers,
-            group_id="flight-deck-projection-v1",
+            group_id="workbench-projection-v1",
             enable_auto_commit=False,
             auto_offset_reset="earliest",
             isolation_level="read_committed",

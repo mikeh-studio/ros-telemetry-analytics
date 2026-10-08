@@ -154,12 +154,10 @@ rule is a guard against tiny pilot approvals, not a statistical power guarantee.
    60-attempt development pilot before freezing larger comparisons. This is
    BARN-derived evaluation unless official benchmark conditions are reproduced.
 4. Connect richer capture evidence to the existing Workbench inspector. Keep
-   TUHH detector evaluation and OpenLORIS pose evaluation as separate test
-   tracks.
+   TUHH detector evaluation as a separate test track.
 
 Dataset references: [BARN](https://arxiv.org/abs/2008.13315),
-[TUHH](https://doi.org/10.15480/882.15836),
-[OpenLORIS](https://lifelong-robotic-vision.github.io/dataset/scene.html).
+[TUHH](https://doi.org/10.15480/882.15836).
 
 ## Workbench view
 

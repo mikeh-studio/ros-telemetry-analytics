@@ -27,9 +27,9 @@ Then open:
 - Flink dashboard: [http://localhost:8081](http://localhost:8081)
 
 Choose an available dataset in ROS Workbench before starting a 1x or 5x
-replay. The catalog includes the TUM fixtures plus the LILocBench, OpenLORIS,
-and ARCO datasets in `configs/public_test_datasets.yaml`; datasets that have not
-been downloaded or extracted remain visible but disabled. Uploads accept one
+replay. The catalog lists the TUM and LILocBench datasets in
+`configs/public_test_datasets.yaml`; datasets that have not been downloaded or
+extracted remain visible but disabled. Uploads accept one
 direct `.bag`, `.mcap`, or `.db3` recording at a time and persist in the local
 `dataset-uploads` Docker volume. The built-in warehouse mission also supports
 the 1x camera-dropout scenario for exercising late arrivals, gap detection, and
@@ -97,7 +97,7 @@ run against a local Vite server with WebKit, without Chrome:
 cd demo/web
 npx playwright install webkit
 # Start npm run dev in another terminal.
-FLIGHT_DECK_BROWSER=webkit npm run test:e2e -- e2e/signal-groups.spec.js
+WORKBENCH_BROWSER=webkit npm run test:e2e -- e2e/signal-groups.spec.js
 ```
 
 These browser fixtures validate presentation and interaction; they do not replace

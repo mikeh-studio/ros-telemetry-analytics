@@ -25,7 +25,7 @@ datasets:
     format: rosbag1
     bytes: 6
     notes: [Small dynamic mission.]
-  openloris_scene_cafe1_1_2:
+  large_archive_example:
     public_robotics_suite: true
     local_artifact: {tmp_path / "missing.tar"}
     format: rosbag1_in_tar
@@ -44,8 +44,8 @@ datasets:
     by_id = {dataset.dataset_id: dataset for dataset in catalog}
     assert by_id["warehouse_run_17"].selectable is True
     assert by_id["lilocbench_dynamics_0"].status == "ready"
-    assert by_id["openloris_scene_cafe1_1_2"].status == "not_installed"
-    assert by_id["openloris_scene_cafe1_1_2"].selectable is False
+    assert by_id["large_archive_example"].status == "not_installed"
+    assert by_id["large_archive_example"].selectable is False
 
 
 def test_resolve_dataset_rejects_unavailable_and_unknown_entries(tmp_path: Path) -> None:
@@ -55,7 +55,7 @@ def test_resolve_dataset_rejects_unavailable_and_unknown_entries(tmp_path: Path)
     manifest.write_text(
         """
 datasets:
-  arco_ros2_trajectory_1:
+  missing_archive_example:
     public_robotics_suite: true
     local_artifact: missing.zip
     format: rosbag2_sqlite3_in_zip
@@ -70,7 +70,7 @@ datasets:
     }
 
     with pytest.raises(ValueError, match="not ready"):
-        resolve_dataset("arco_ros2_trajectory_1", **kwargs)
+        resolve_dataset("missing_archive_example", **kwargs)
     with pytest.raises(ValueError, match="Unknown dataset"):
         resolve_dataset("path-traversal", **kwargs)
 

@@ -56,8 +56,8 @@ camera-dropout mission. See the exact clean/dropout sequence in
 For layout changes, inspect all four tabs, keyboard navigation, the upload dialog,
 replay controls and a paired Navigation inspector at desktop and narrow widths.
 Check prepared Recording/Localization views when compatible data is available;
-empty-state checks do not cover populated evidence. Refresh relevant
-[README screenshots](artifacts/README.md).
+empty-state checks do not cover populated evidence. Refresh the README
+screenshots in [`docs/images/`](docs/images/) when the shared shell or a pictured flow changes.
 
 ## Code ownership and fixtures
 
@@ -75,8 +75,8 @@ empty-state checks do not cover populated evidence. Refresh relevant
   raw evidence; JavaScript validates saved display fields. Update both deliberately
   and run the cross-language contract check whenever the report changes.
 
-Keep downloaded recordings and generated outputs in the ignored `data/` subfolders;
-private notes and scratch reports belong in `.local/`. Do not commit either.
+Keep downloaded recordings and generated outputs in the ignored `data/` subfolders,
+and scratch notes in the ignored `.local/`. Do not commit either.
 Tests use generated or redistributable fixtures. Ingestion changes need discovery,
 reader, failure-isolation and idempotency coverage. Analytics changes need an edge
 case showing the metric before and after the condition being tested.

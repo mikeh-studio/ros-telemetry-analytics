@@ -1,1 +1,1 @@
-"""Flight Deck projection API."""
+"""ROS Workbench projection API."""

@@ -22,8 +22,14 @@ updates:
     directory: /demo/web
     schedule:
       interval: weekly
+    groups:
+      web-minor-and-patch:
+        update-types: [minor, patch]
 
   - package-ecosystem: maven
     directory: /streaming/flink-job
     schedule:
       interval: weekly
+    groups:
+      flink-job-minor-and-patch:
+        update-types: [minor, patch]

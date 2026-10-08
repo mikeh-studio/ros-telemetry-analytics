@@ -219,7 +219,7 @@ def main() -> None:
         "exact_duplicate_groups": duplicates,
         "docker_volumes": volume_scope,
         "preserved_outputs": "data/evaluations and data/bronze retained as derived lineage",
-        "deferred": ["OpenLORIS", "ARCO", "nvblox"],
+        "deferred": ["nvblox"],
         "checksum_note": "Digests identify local copies; not upstream authenticity certification",
     }
     write_json(destination / "inventory.json", result)

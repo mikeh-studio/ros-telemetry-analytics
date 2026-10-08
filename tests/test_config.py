@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import yaml
 
 from ros_telemetry_analytics.config import (
     AnalyticsConfig,
@@ -149,3 +150,18 @@ def test_load_config_rejects_invalid_domain_analyzer_config(
 
     with pytest.raises(ValueError, match=message):
         load_pipeline_config(config_path)
+
+
+def test_packaged_defaults_match_repository_configs() -> None:
+    repository = Path(__file__).resolve().parents[1]
+    package = repository / "src" / "ros_telemetry_analytics"
+
+    def load(path: Path) -> dict:
+        return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+    pipeline = load(repository / "configs" / "pipeline.yaml")
+    pipeline["pipeline"].pop("project_root")
+    assert pipeline == load(package / "default_pipeline.yaml")
+    assert load(repository / "configs" / "asset_sources.yaml") == load(
+        package / "default_assets.yaml"
+    )

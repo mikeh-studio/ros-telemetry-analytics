@@ -1,6 +1,6 @@
-# Recording investigations and dataset audit
+# Recording investigations
 
-Seven real recordings were prepared in the [dated dataset audit](dataset-audit-results.md), including four comparison additions. The **Recording** tab works without a replay. It provides versioned evidence, interval selection, three aligned plots with a shared recorded-time cursor, bounded image/scan previews, event details, and topic coverage.
+Seven real recordings are prepared for investigation; see the [dataset audit](#dataset-audit). The **Recording** tab works without a replay. It provides versioned evidence, interval selection, three aligned plots with a shared recorded-time cursor, bounded image/scan previews, event details, and topic coverage.
 
 ## Generated incident explanations
 
@@ -52,27 +52,21 @@ Read-only endpoints, all requiring the exact `analysis_id`:
 - The existing interval route accepts `topic` and `field` to retrieve a specific
   supporting signal before the display-series limit is applied.
 
-The [2026-09-22 validation snapshot](../examples/incident_explanation_validation_20260922_b031c10089ab4ed3b7477ac75cf8011c.json)
+The [2026-09-22 validation snapshot](../examples/results/incident_explanation_validation_20260922_b031c10089ab4ed3b7477ac75cf8011c.json)
 records 317,443 messages across seven recordings, 270 warnings represented as
 261 incidents, unchanged domain-detector outputs against previous preparations,
 and three source-backed case checks. Freiburg 1 XYZ had no configured warnings;
 unsupported/missing-evidence behavior is covered with synthetic tests rather than
-invented real-data examples. That snapshot predates the final UI cleanup; it is retained as dated source-evidence
-validation. See the [PR validation record](pr-recording-explanations-validation.md)
-for the final code checks and refreshed screenshots. These checks do not establish
-physical root causes or production-fleet readiness.
+invented real-data examples.
 
 The synthetic browser flow needs no downloaded recordings. To additionally run
 the local prepared-data check, set `RECORDING_INCIDENTS_LIVE=1`,
-`RECORDING_INCIDENTS_API` to the local API URL, and `FLIGHT_DECK_BASE_URL` to the
+`RECORDING_INCIDENTS_API` to the local API URL, and `WORKBENCH_BASE_URL` to the
 frontend URL, then run:
 
 ```bash
 npm --prefix demo/web run test:e2e -- recording-incidents.spec.js
 ```
-
-See the [implementation plan](incident-explanation-plan.md) for contract and
-grouping decisions.
 
 ## Review now
 
@@ -108,9 +102,40 @@ npm --prefix demo/web run dev -- --host 127.0.0.1
 
 Open `http://localhost:3000` and choose Recording. `--lifespan off` skips streaming-consumer startup: Telemetry will correctly show unavailable stack services. Stop these local servers before starting Compose on the same ports.
 
-## Audit results
+## Dataset audit
 
-The dated [audit results](dataset-audit-results.md) record seven admitted bags, 317,443 source messages, zero extraction errors and 96/96 reconciled previews. These are measurements from that preparation run, not promises about future downloads. [Scorecards](../examples/dataset_audit_results.json) and the [notebook](../examples/dataset_audit.ipynb) retain the evidence.
+The 2026-09-21 audit admitted seven recordings: 317,443 source messages, zero
+extraction errors and 96/96 reconciled previews. Coverage is partial by message
+type: camera calibration and marker topics and LILocBench joint states are
+timing-only. “Ready” means the evidence bundle is usable for its stated purpose,
+not that every signal is healthy.
+
+| Recording | Seconds | Messages | Use |
+| --- | ---: | ---: | --- |
+| TUM RGB-D Freiburg 1 XYZ | 30.429 | 25,626 | Candidate RGB/depth control; not certified fault-free |
+| TUM VI Room 4 | 111.405 | 39,743 | Image usefulness and reference coverage |
+| LILocBench Dynamics 0 | 159.978 | 30,577 | Scan and command/odometry observations |
+| LILocBench Static 0 | 598.794 | 110,812 | Static-environment comparison |
+| LILocBench Changed environment | 435.989 | 85,117 | Changed-scene comparison without failure labels |
+| TUM RGB-D Sitting XYZ | 42.797 | 15,227 | Slower foreground-motion comparison |
+| TUM RGB-D Walking XYZ | 29.067 | 10,341 | Faster foreground-motion comparison |
+
+Findings that change how results should be read:
+
+| Finding | What to do |
+| --- | --- |
+| TUM VI image `frame_id` holds exposure nanoseconds (a documented [source convention](https://cvg.cit.tum.de/_media/spezial/bib/schubert2018vidataset.pdf)) | Group image histories by topic; don't read changing values as frame changes. |
+| The LILocBench command stream has no documented periodic rate | The investigation profile drops the assumed 43 Hz rate, taking Dynamics 0 from 2,475 combined events to 3. The general profile stays available for comparison. |
+| TUM VI reference gaps occur while camera and IMU delivery continue | Label them as reference coverage limits, not sensor outages. |
+| Image darkness and sharpness depend on view, exposure and texture | Treat them as investigation cues, not malfunction labels. |
+| TUHH has repeated timestamps and conflicting labels | Keep source-file and segment boundaries; never resolve conflicts by dropping duplicates. |
+| Freiburg 1 XYZ `/tf` has a 51.327 ms maximum gap (7.164× the mean interval) | A mixed TF stream has no single rate contract; check transform-pair coverage before using it as a localization reference. |
+
+LILocBench reference trajectories (3,194, 11,929 and 8,700 poses) have finite
+values and increasing timestamps, but their coordinate alignment is not yet
+validated, so they are not detector inputs. Machine-readable scorecards are in
+[dataset_audit_results.json](../examples/results/dataset_audit_results.json); the
+[notebook](../examples/dataset_audit.ipynb) reproduces the count reconciliation.
 
 ## Shared workbench
 
@@ -122,9 +147,9 @@ Select the recording once above all three tabs. Switching tabs does not select a
 
 Availability separates dataset support, prepared analysis and runtime services; “Ready” does not mean fault-free. Uploaded files can be replayed after validation but do not automatically receive prepared investigation or localization evidence.
 
-The recording menu supports keyboard selection and dismissal. Provenance lives under About this recording; upload remains global. Equal-width tabs stay left aligned, replay controls wrap at narrow widths, and topic rows retain full paths and observed/expected measurements. Barlow Condensed, IBM Plex Mono and restrained status colors remain shared across tabs.
+The recording menu supports keyboard selection and dismissal. Provenance lives under About this recording; upload remains global. Equal-width tabs stay left aligned, replay controls wrap at narrow widths, and topic rows retain full paths and observed/expected measurements.
 
-The delivered scope covers source identities, extraction coverage, reconciled previews, three reviewed investigations, bounded interval APIs, and host inventory/parser checks. Raw recordings are observations, not physical-failure labels. References need clock/frame validation; Warehouse Run 17 is a synthetic timing demo, and TUHH retains its separate simulation evaluation and label-conflict handling. NTU VIRAL, ARCO downloads, GNSS/radar analyzers and additional localization algorithms remain later work. The [original research](ros-data-learning-plan.md) records those options.
+Raw recordings are observations, not physical-failure labels. Warehouse Run 17 is a synthetic timing demo, and TUHH keeps its separate simulation evaluation.
 
 ## Evidence contract and validation
 
@@ -134,8 +159,6 @@ The delivered scope covers source identities, extraction coverage, reconciled pr
 - Interval responses cap series at 60, time buckets at 240 per series, events at 200 with complete counts, and previews to prepared samples. Each bucket retains min/max/mean/count; empty buckets are not interpolated. The API caches 16 recent interval responses. Moving the cursor does not reread bags or fetch more evidence.
 - Preview images are at most 256 pixels on the long edge. Mono16 display divides by 257; depth uses a fixed 0–5 m display scale. Scan previews retain at most 360 beams and label stride, source time and sensor frame. These are sampled views, not continuous playback or fused maps.
 - Reviewed cases and nominal intervals use the same recorded-time axis independently of replay speed. This phase does not synchronize the offline cursor with a running replay.
-
-Local validation: Python coverage tests, frontend interaction tests, production build, lint and Compose configuration. The Docker stack was started and all five readiness services reported ready; TUM VI Room 4 completed replay data was inspected in the browser. This does not replace CI's clean-stack replay/oracle/dropout smoke test. Named-volume inventory remains separate from the historical host audit.
 
 ## Rebuild evidence from the page
 
@@ -149,7 +172,7 @@ Create `data/investigations` as your host user before starting Compose (`mkdir -
 
 Keep the default single API worker. The child shares the container's CPU and memory budget: process isolation removes interpreter-lock contention, but is not a resource quota or a durable job queue. If the API dies before recording completion, status reports an interrupted attempt even if publication finished; retry is safe. The CLI remains available for batch preparation; do not run it concurrently with a page rebuild.
 
-## Recording tab wording
+## Reading the Recording tab
 
 The tab opens with **Recording analysis** and a task instruction: select an incident or choose a time range to inspect signals and source samples. **Detected incidents** are grouped rule-based warnings, not confirmed failures. **Reviewed examples** are optional saved intervals with human-reviewed notes. **Signals and samples** identifies the shared time-range controls and plots.
 

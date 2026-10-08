@@ -1,1 +1,1 @@
-"""One-command Robot Telemetry Flight Deck demo."""
+"""One-command ROS Workbench demo services."""
