@@ -4,7 +4,7 @@ Start with the [project overview and quickstart](../README.md).
 
 ## Use the workbench
 
-- [ROS Workbench](flight-deck.md): all four workspaces, replay controls and saved evaluations.
+- [ROS Workbench](workbench.md): all four workspaces, replay controls and saved evaluations.
 - [Recording investigations](recording-investigations.md): incidents, evidence rebuilds, signals and samples.
 - [Bag analysis](bag-analysis.md): batch commands, supported formats and output contracts.
 - [Localization evaluation](localization-evaluation.md): detector studies and interpretation limits.

@@ -97,7 +97,7 @@ run against a local Vite server with WebKit, without Chrome:
 cd demo/web
 npx playwright install webkit
 # Start npm run dev in another terminal.
-FLIGHT_DECK_BROWSER=webkit npm run test:e2e -- e2e/signal-groups.spec.js
+WORKBENCH_BROWSER=webkit npm run test:e2e -- e2e/signal-groups.spec.js
 ```
 
 These browser fixtures validate presentation and interaction; they do not replace

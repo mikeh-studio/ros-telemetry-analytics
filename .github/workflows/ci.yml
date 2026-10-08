@@ -112,7 +112,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: flight-deck-playwright-report
+          name: workbench-playwright-report
           path: |
             demo/web/playwright-report/
             demo/web/test-results/

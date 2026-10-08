@@ -64,7 +64,7 @@ physical root causes or production-fleet readiness.
 
 The synthetic browser flow needs no downloaded recordings. To additionally run
 the local prepared-data check, set `RECORDING_INCIDENTS_LIVE=1`,
-`RECORDING_INCIDENTS_API` to the local API URL, and `FLIGHT_DECK_BASE_URL` to the
+`RECORDING_INCIDENTS_API` to the local API URL, and `WORKBENCH_BASE_URL` to the
 frontend URL, then run:
 
 ```bash

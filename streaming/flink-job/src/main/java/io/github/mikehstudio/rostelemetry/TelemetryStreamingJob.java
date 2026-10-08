@@ -125,7 +125,7 @@ public final class TelemetryStreamingJob {
                 .sinkTo(summaries)
                 .name("durable-mission-summary-files");
 
-        environment.execute("Robot Telemetry Flight Deck");
+        environment.execute("ROS Telemetry Analytics");
     }
 
     private static void configureReliability(StreamExecutionEnvironment environment) {

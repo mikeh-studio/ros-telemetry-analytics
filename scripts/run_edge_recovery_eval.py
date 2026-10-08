@@ -50,7 +50,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--image", default="ros-telemetry-gateway:development")
-    parser.add_argument("--network", default="robot-telemetry-flight-deck_default")
+    parser.add_argument("--network", default="ros-telemetry-analytics_default")
     parser.add_argument("--api", default="http://localhost:8000")
     parser.add_argument("--max-pending-records", type=int, default=10000)
     parser.add_argument("--expect-overflow", action="store_true")

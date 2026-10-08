@@ -45,7 +45,7 @@ def main():
     )
     common = [
         "--network",
-        "robot-telemetry-flight-deck_default",
+        "ros-telemetry-analytics_default",
         "-e",
         f"ROS_DOMAIN_ID={args.domain}",
         "-v",

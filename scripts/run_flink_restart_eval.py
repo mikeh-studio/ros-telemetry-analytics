@@ -52,7 +52,7 @@ def main():
     if len(jobs) != 1:
         raise RuntimeError("Expected one running local Flink job")
     job_id = jobs[0]["jid"]
-    container = "robot-telemetry-flight-deck-flink-taskmanager-1"
+    container = "ros-telemetry-analytics-flink-taskmanager-1"
     image = docker("inspect", "--format", "{{.Image}}", container)
     log = (output / "source.log").open("w")
     source = subprocess.Popen(

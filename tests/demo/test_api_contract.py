@@ -11,7 +11,7 @@ from demo.api import app as api_module
 from demo.api.app import app
 
 
-def test_public_api_matches_the_flight_deck_contract() -> None:
+def test_public_api_matches_the_workbench_contract() -> None:
     routes = {
         (method.upper(), path)
         for path, methods in app.openapi()["paths"].items()

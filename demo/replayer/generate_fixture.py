@@ -99,7 +99,7 @@ def generate_fixture(output_path: Path, config: StreamingConfig, *, force: bool 
         )
     scheduled.sort(key=lambda item: (item[0], item[1]))
 
-    with tempfile.TemporaryDirectory(prefix="flight-deck-fixture-") as temp_dir:
+    with tempfile.TemporaryDirectory(prefix="workbench-fixture-") as temp_dir:
         bag_dir = Path(temp_dir) / "warehouse_run_17"
         typestore = get_typestore(Stores.ROS2_HUMBLE)
         with Writer(bag_dir, version=9, storage_plugin=StoragePlugin.MCAP) as writer:
@@ -117,7 +117,7 @@ def generate_fixture(output_path: Path, config: StreamingConfig, *, force: bool 
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate the Flight Deck MCAP fixture")
+    parser = argparse.ArgumentParser(description="Generate the ROS Workbench MCAP fixture")
     parser.add_argument("--config", type=Path, default=Path("configs/streaming_demo.yaml"))
     parser.add_argument("--output", type=Path)
     parser.add_argument("--force", action="store_true")

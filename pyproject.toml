@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ros-telemetry-analytics"
-version = "0.1.0"
-description = "Automatic ROS bag ingestion and payload-aware robot telemetry analysis"
+version = "0.2.0"
+description = "Find timing gaps, sensor problems and incidents in ROS 1 and ROS 2 recordings"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
-authors = [{ name = "ROS Telemetry Analytics contributors" }]
-keywords = ["ROS", "robotics", "telemetry", "MCAP", "VSLAM", "NVIDIA Isaac"]
+authors = [{ name = "Mike H" }]
+keywords = ["ROS", "ROS 2", "rosbag", "MCAP", "robotics", "telemetry", "observability"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Programming Language :: Python :: 3",

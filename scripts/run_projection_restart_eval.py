@@ -48,7 +48,7 @@ def main():
         parser.error("Leave at least 25 seconds after restart")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
-    container = "robot-telemetry-flight-deck-api-1"
+    container = "ros-telemetry-analytics-api-1"
 
     def docker(*command):
         return subprocess.check_output(["docker", *command], text=True, timeout=30).strip()
@@ -103,7 +103,7 @@ def main():
                 "run",
                 "--rm",
                 "--network",
-                "robot-telemetry-flight-deck_default",
+                "ros-telemetry-analytics_default",
                 "-v",
                 f"{ROOT / 'scripts'}:/tools:ro",
                 "ros-telemetry-gateway:development",

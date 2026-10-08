@@ -8,14 +8,14 @@ export default defineConfig({
   workers: 1,
   reporter: process.env.CI ? [["line"], ["html", { open: "never" }]] : "list",
   use: {
-    baseURL: process.env.FLIGHT_DECK_BASE_URL || "http://localhost:3000",
+    baseURL: process.env.WORKBENCH_BASE_URL || "http://localhost:3000",
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
   projects: [
     {
-      name: process.env.FLIGHT_DECK_BROWSER || "chromium",
-      use: { browserName: process.env.FLIGHT_DECK_BROWSER || "chromium" },
+      name: process.env.WORKBENCH_BROWSER || "chromium",
+      use: { browserName: process.env.WORKBENCH_BROWSER || "chromium" },
     },
   ],
 });

@@ -1,1 +1,1 @@
-"""Shared contracts and configuration for the Flight Deck services."""
+"""Shared contracts and configuration for the ROS Workbench services."""

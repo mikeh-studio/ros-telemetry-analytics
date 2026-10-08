@@ -9,4 +9,4 @@ docker compose stop flink-taskmanager
 echo "The JobManager stays online. Restarting the worker in 5 seconds..."
 sleep 5
 docker compose start flink-taskmanager
-echo "Recovery requested. Watch http://localhost:8081 and the Flight Deck incident timeline."
+echo "Recovery requested. Watch http://localhost:8081 and the ROS Workbench incident timeline."

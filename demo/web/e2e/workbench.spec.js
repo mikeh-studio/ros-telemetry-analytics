@@ -104,7 +104,7 @@ test("state flow never leaves stale health behind", async ({ page }) => {
     class FakeEventSource {
       constructor() {
         this.listeners = {};
-        window.__flightDeckEvents = this;
+        window.__workbenchEvents = this;
         window.setTimeout(() => this.onopen?.(), 0);
       }
       addEventListener(type, callback) {
@@ -113,12 +113,12 @@ test("state flow never leaves stale health behind", async ({ page }) => {
       close() {}
     }
     window.EventSource = FakeEventSource;
-    window.__emitFlightDeckSnapshot = (payload) => {
-      window.__flightDeckEvents.listeners.snapshot?.({
+    window.__emitWorkbenchSnapshot = (payload) => {
+      window.__workbenchEvents.listeners.snapshot?.({
         data: JSON.stringify(payload),
       });
     };
-    window.__failFlightDeckEvents = () => window.__flightDeckEvents.onerror?.();
+    window.__failWorkbenchEvents = () => window.__workbenchEvents.onerror?.();
   });
   await page.route("**/api/health", (route) =>
     route.fulfill({
@@ -185,14 +185,14 @@ test("state flow never leaves stale health behind", async ({ page }) => {
     mission_progress_ms: 30_000,
   };
   await page.evaluate(
-    (snapshot) => window.__emitFlightDeckSnapshot(snapshot),
+    (snapshot) => window.__emitWorkbenchSnapshot(snapshot),
     base,
   );
   await expect(page.locator(".robot-summary .status-pill")).toHaveText(
     "healthy",
   );
 
-  await page.evaluate((snapshot) => window.__emitFlightDeckSnapshot(snapshot), {
+  await page.evaluate((snapshot) => window.__emitWorkbenchSnapshot(snapshot), {
     ...base,
     run: { payload: { status: "paused" } },
   });
@@ -209,7 +209,7 @@ test("state flow never leaves stale health behind", async ({ page }) => {
     status: "active",
     topic: "/camera/image_raw",
   };
-  await page.evaluate((snapshot) => window.__emitFlightDeckSnapshot(snapshot), {
+  await page.evaluate((snapshot) => window.__emitWorkbenchSnapshot(snapshot), {
     ...base,
     robot_health: { payload: { status: "degraded" } },
     anomalies: [active],
@@ -223,7 +223,7 @@ test("state flow never leaves stale health behind", async ({ page }) => {
   ).toBeVisible();
 
   const recovered = { ...active, revision: 1, status: "recovered" };
-  await page.evaluate((snapshot) => window.__emitFlightDeckSnapshot(snapshot), {
+  await page.evaluate((snapshot) => window.__emitWorkbenchSnapshot(snapshot), {
     ...base,
     anomalies: [recovered],
     incident_history: [active, recovered],
@@ -232,7 +232,7 @@ test("state flow never leaves stale health behind", async ({ page }) => {
     page.locator(".incidents").getByText("recovered", { exact: true }),
   ).toBeVisible();
 
-  await page.evaluate((snapshot) => window.__emitFlightDeckSnapshot(snapshot), {
+  await page.evaluate((snapshot) => window.__emitWorkbenchSnapshot(snapshot), {
     ...base,
     run: { payload: { status: "summary_ready" } },
     completion: { verified: true, summary_file_count: 4 },
@@ -242,7 +242,7 @@ test("state flow never leaves stale health behind", async ({ page }) => {
     "completed",
   );
 
-  await page.evaluate(() => window.__failFlightDeckEvents());
+  await page.evaluate(() => window.__failWorkbenchEvents());
   await expect(page.locator(".robot-summary .status-pill")).toHaveText(
     "unavailable",
   );

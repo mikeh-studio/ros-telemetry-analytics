@@ -1,5 +1,5 @@
 {
-  "name": "robot-telemetry-flight-deck",
+  "name": "ros-telemetry-analytics",
   "private": true,
   "version": "0.1.0",
   "type": "module",

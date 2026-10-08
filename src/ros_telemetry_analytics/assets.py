@@ -18,6 +18,7 @@ from urllib.parse import quote
 import requests
 import yaml
 
+from ros_telemetry_analytics import __version__
 from ros_telemetry_analytics.config import PROJECT_ROOT
 
 REPOSITORY_ASSET_CONFIG_PATH = PROJECT_ROOT / "configs" / "asset_sources.yaml"
@@ -240,7 +241,7 @@ def download_asset(asset_name: str, specification: dict[str, Any]) -> Path:
     expected_size_bytes = int(specification["bytes"])
 
     with _asset_lock(asset_name), requests.Session() as session:
-        session.headers["User-Agent"] = "ros-telemetry-analytics/0.1.0"
+        session.headers["User-Agent"] = f"ros-telemetry-analytics/{__version__}"
         digest = download_file(
             session,
             _candidate_urls(specification),

@@ -76,7 +76,7 @@ ROS 1 bags, ROS 2 bag directories, `.db3`, and `.mcap` files.
 
 | Use case                                        | Guide                                                                                           |
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Replay recordings and inspect topic delivery    | [ROS Workbench](docs/flight-deck.md)                                                            |
+| Replay recordings and inspect topic delivery    | [ROS Workbench](docs/workbench.md)                                                            |
 | Investigate incidents without replay            | [Recording analysis](docs/recording-investigations.md)                                          |
 | Configure batch checks and inspect output       | [Bag analysis](docs/bag-analysis.md)                                                            |
 | Evaluate localization detection                 | [Localization evaluation](docs/localization-evaluation.md)                                      |
