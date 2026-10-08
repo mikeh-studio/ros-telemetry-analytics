@@ -43,7 +43,7 @@ source manifest and exact thresholds.
 ## Measured follow-up
 
 The [full study report](../examples/localization_study.md) and
-[machine-readable experiment results](../examples/localization_study_results.json)
+[machine-readable experiment results](../examples/results/localization_study_results.json)
 cover all 21 runs and 417,185 samples. Development selected a **0.36 m** spread
 threshold with no heading signal or recovery hold. On the six evaluation runs,
 macro sample recall increased from **0.362 to 0.455**, macro F1 from **0.518 to
@@ -166,7 +166,7 @@ without those boundaries requires its own evaluation.
 
 ### Retained study evidence
 
-`examples/localization_study_results.json` is the compact, inspectable result of
+`examples/results/localization_study_results.json` is the compact, inspectable result of
 this published study, including source hashes, candidate scores, and per-run evidence. It is
 versioned intentionally so the published aggregate results remain inspectable
 without downloading the source corpus or relying on expiring CI artifacts.

@@ -79,7 +79,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     public_suite = subparsers.add_parser(
         "validate-public-robotics",
-        help="Run installed LILocBench, OpenLORIS, and ARCO dataset profiles.",
+        help="Run installed public robotics dataset profiles.",
     )
     public_suite.add_argument("--manifest", type=_path)
     public_suite.add_argument("--force", action="store_true")

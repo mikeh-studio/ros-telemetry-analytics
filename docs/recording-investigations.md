@@ -52,7 +52,7 @@ Read-only endpoints, all requiring the exact `analysis_id`:
 - The existing interval route accepts `topic` and `field` to retrieve a specific
   supporting signal before the display-series limit is applied.
 
-The [2026-09-22 validation snapshot](../examples/incident_explanation_validation_20260922_b031c10089ab4ed3b7477ac75cf8011c.json)
+The [2026-09-22 validation snapshot](../examples/results/incident_explanation_validation_20260922_b031c10089ab4ed3b7477ac75cf8011c.json)
 records 317,443 messages across seven recordings, 270 warnings represented as
 261 incidents, unchanged domain-detector outputs against previous preparations,
 and three source-backed case checks. Freiburg 1 XYZ had no configured warnings;
@@ -134,7 +134,7 @@ Findings that change how results should be read:
 LILocBench reference trajectories (3,194, 11,929 and 8,700 poses) have finite
 values and increasing timestamps, but their coordinate alignment is not yet
 validated, so they are not detector inputs. Machine-readable scorecards are in
-[dataset_audit_results.json](../examples/dataset_audit_results.json); the
+[dataset_audit_results.json](../examples/results/dataset_audit_results.json); the
 [notebook](../examples/dataset_audit.ipynb) reproduces the count reconciliation.
 
 ## Shared workbench

@@ -244,7 +244,7 @@ def test_report_includes_every_unmatched_event_for_both_detectors():
     from pathlib import Path
 
     study = json.loads(
-        (Path(__file__).parents[1] / "examples/localization_study_results.json").read_text()
+        (Path(__file__).parents[1] / "examples/results/localization_study_results.json").read_text()
     )["localization-refined-study"]
     for index, run in enumerate(study["runs"]):
         for name in ("baseline", "selected"):

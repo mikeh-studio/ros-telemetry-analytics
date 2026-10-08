@@ -17,8 +17,6 @@ DISPLAY_NAMES = {
     "tum_rgbd_freiburg1_xyz": "TUM RGB-D · Freiburg 1 XYZ",
     "tum_vi_room4_512": "TUM VI · Room 4 512",
     "lilocbench_dynamics_0": "LILocBench · Dynamics 0",
-    "openloris_scene_cafe1_1_2": "OpenLORIS Scene · Cafe 1-1",
-    "arco_ros2_trajectory_1": "ARCO ROS 2 · Trajectory 1",
 }
 
 

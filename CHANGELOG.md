@@ -4,6 +4,28 @@ All notable changes to this project are documented here.
 
 ## Unreleased
 
+## 0.2.0 - 2026-10-07
+
+Upgrade notes:
+
+- The Compose project is now `ros-telemetry-analytics` (was
+  `robot-telemetry-flight-deck`), so Docker creates new volumes. Uploaded
+  recordings in the old `robot-telemetry-flight-deck_dataset-uploads` volume are
+  not migrated; re-upload them or copy the volume contents. Remove the old
+  volumes with `docker volume ls -q --filter name=robot-telemetry-flight-deck | xargs docker volume rm`.
+- Playwright variables are renamed: `FLIGHT_DECK_BASE_URL` to `WORKBENCH_BASE_URL`
+  and `FLIGHT_DECK_BROWSER` to `WORKBENCH_BROWSER`.
+- Saved experiment results moved from `examples/` to `examples/results/`.
+- The ARCO and OpenLORIS dataset profiles and catalog entries were removed.
+
+Changes:
+
+- Corrected SECURITY.md: supported payloads are deserialized; documented the
+  trust model and the local-only scope of the Compose stack.
+- Finished the Flight Deck to ROS Workbench rename across services, tests and docs.
+- Consolidated documentation: experiment results, evaluation rules and remaining
+  gaps live in the reliability case study; the dataset audit is part of the
+  recording guide; development plans and PR records were removed.
 - Added the four-workspace ROS Workbench for replay telemetry, prepared recording
   investigations, localization evaluation and offline navigation comparisons.
 - Added deterministic incident explanations, source evidence inspection and

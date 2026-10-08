@@ -24,28 +24,28 @@ The gateway preserves ROS header time and coordinate frames while using receptio
 time for stream timing. A bounded SQLite outbox owns sequence numbers and retry
 identities. A Nav2/Gazebo mission completed with about 0.98 m of odometry
 displacement and 2,350 summarized gateway observations
-([live_ros2_results.json](../examples/live_ros2_results.json)).
+([live_ros2_results.json](../examples/results/live_ros2_results.json)).
 
 | Experiment | Result | What it shows | Evidence |
 | --- | --- | --- | --- |
-| Scan silence | 7 s silence; 1,356 publisher records and 1,403 gateway observations reconciled; one gap detected and recovered | Live gap detection with source-to-summary accounting | [live_ros2_results](../examples/live_ros2_results.json) |
-| QoS mismatch and repair | Direct incompatibility callback; recovery visible 3.088 s after repair; 1,345 publications reconciled | Middleware evidence separates incompatible delivery from publisher silence | [qos_results](../examples/qos_results.json) |
-| Duplicate transport | Ten duplicate deliveries; 1,637 unique observations counted once | Identity-based accounting | [transport_fault_results](../examples/transport_fault_results.json) |
-| Delayed transport | Ten delayed events rejected with watermark evidence; 1,629 observations summarized | Watermark-based disposition | [transport_fault_results](../examples/transport_fault_results.json) |
-| Gateway disconnect and SIGKILL | 500 buffered records survived SIGKILL; 1,781 accepted observations reconciled | Durable spool and stable retry IDs | [edge_recovery_results](../examples/edge_recovery_results.json) |
-| Spool overflow | 1,378 observations summarized; 405 explicit rejections; all incidents recovered | Bounded storage with visible loss | [edge_recovery_results](../examples/edge_recovery_results.json) |
-| Three simultaneous robots | 64.944 s overlap; both controls incident-free with 2,126 observations each | One robot's outage did not affect the other two | [fleet_isolation_results](../examples/fleet_isolation_results.json) |
-| Projection API restart | 18 s outage; committed-data boundary reached in 1.158 s; 2,297 observations summarized | API projection catch-up | [projection_restart_results](../examples/projection_restart_results.json) |
-| Flink worker restart | Checkpoint restored and a newer one completed in 46.898 s; 3,617 observations summarized; no unexpected incidents | Worker recovery with JobManager, Kafka and API running | [flink_restart_results](../examples/flink_restart_results.json) |
-| Nav2 estimate disturbance | 2 m reset; 1,504 observations reconciled; one disagreement detected, then recovery | Post-run detection from live AMCL and odometry signals | [nav2_telemetry_results](../examples/nav2_telemetry_results.json), [nav2_localization_fault_results](../examples/nav2_localization_fault_results.json) |
-| Incident signal sampling | 207 sampled observations match source attributes and retained API metrics | The incident view shows real source values | [signal_projection_results](../examples/signal_projection_results.json) |
-| Trajectory projection | Coordinate frames preserved; positions grouped by topic and frame | Position plots never mix frames | [trajectory_projection_results](../examples/trajectory_projection_results.json) |
-| Rendered incident view | Live QoS incident shown active, then recovered, in the browser | End-to-end UI behavior | [browser_review_results](../examples/browser_review_results.json) |
+| Scan silence | 7 s silence; 1,356 publisher records and 1,403 gateway observations reconciled; one gap detected and recovered | Live gap detection with source-to-summary accounting | [live_ros2_results](../examples/results/live_ros2_results.json) |
+| QoS mismatch and repair | Direct incompatibility callback; recovery visible 3.088 s after repair; 1,345 publications reconciled | Middleware evidence separates incompatible delivery from publisher silence | [qos_results](../examples/results/qos_results.json) |
+| Duplicate transport | Ten duplicate deliveries; 1,637 unique observations counted once | Identity-based accounting | [transport_fault_results](../examples/results/transport_fault_results.json) |
+| Delayed transport | Ten delayed events rejected with watermark evidence; 1,629 observations summarized | Watermark-based disposition | [transport_fault_results](../examples/results/transport_fault_results.json) |
+| Gateway disconnect and SIGKILL | 500 buffered records survived SIGKILL; 1,781 accepted observations reconciled | Durable spool and stable retry IDs | [edge_recovery_results](../examples/results/edge_recovery_results.json) |
+| Spool overflow | 1,378 observations summarized; 405 explicit rejections; all incidents recovered | Bounded storage with visible loss | [edge_recovery_results](../examples/results/edge_recovery_results.json) |
+| Three simultaneous robots | 64.944 s overlap; both controls incident-free with 2,126 observations each | One robot's outage did not affect the other two | [fleet_isolation_results](../examples/results/fleet_isolation_results.json) |
+| Projection API restart | 18 s outage; committed-data boundary reached in 1.158 s; 2,297 observations summarized | API projection catch-up | [projection_restart_results](../examples/results/projection_restart_results.json) |
+| Flink worker restart | Checkpoint restored and a newer one completed in 46.898 s; 3,617 observations summarized; no unexpected incidents | Worker recovery with JobManager, Kafka and API running | [flink_restart_results](../examples/results/flink_restart_results.json) |
+| Nav2 estimate disturbance | 2 m reset; 1,504 observations reconciled; one disagreement detected, then recovery | Post-run detection from live AMCL and odometry signals | [nav2_telemetry_results](../examples/results/nav2_telemetry_results.json), [nav2_localization_fault_results](../examples/results/nav2_localization_fault_results.json) |
+| Incident signal sampling | 207 sampled observations match source attributes and retained API metrics | The incident view shows real source values | [signal_projection_results](../examples/results/signal_projection_results.json) |
+| Trajectory projection | Coordinate frames preserved; positions grouped by topic and frame | Position plots never mix frames | [trajectory_projection_results](../examples/results/trajectory_projection_results.json) |
+| Rendered incident view | Live QoS incident shown active, then recovered, in the browser | End-to-end UI behavior | [browser_review_results](../examples/results/browser_review_results.json) |
 
 The unified suite runs ten of these cases in one command. Its first attempt failed
 because one eligible odometry publication never reached the gateway, even though
 every accepted message reconciled. The repeat passed with the same source gate.
-Both attempts are kept in [reliability_suite_results](../examples/reliability_suite_results.json).
+Both attempts are kept in [reliability_suite_results](../examples/results/reliability_suite_results.json).
 
 ## Failures that changed the implementation
 
