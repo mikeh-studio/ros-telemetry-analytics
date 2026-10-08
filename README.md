@@ -25,7 +25,7 @@ and understand what remains uncertain.
 The goal is to help you decide **where to investigate next**, with the evidence
 and its limits visible. A warning does not establish a physical root cause.
 
-<img src="artifacts/screenshots/telemetry-desktop.png" alt="Telemetry desktop view with replay controls and a completed mission timeline" width="800">
+<img src="docs/images/telemetry-desktop.png" alt="Telemetry desktop view with replay controls and a completed mission timeline" width="800">
 
 _Replay a recording and inspect topic delivery._
 
@@ -54,7 +54,7 @@ preparing a recording. Import saved evaluator output using **Import comparison**
 files stay in your browser. See the [navigation guide](docs/navigation-regression.md)
 for the offline CLI and evidence requirements.
 
-<img src="artifacts/screenshots/navigation-desktop.png" alt="Navigation comparison with four equal-width workspace tabs, a synthetic collision decision, and paired outcomes" width="800">
+<img src="docs/images/navigation-desktop.png" alt="Navigation comparison with four equal-width workspace tabs, a synthetic collision decision, and paired outcomes" width="800">
 
 _Synthetic comparison: inspect a candidate collision alongside baseline evidence._
 
@@ -87,22 +87,22 @@ ROS 1 bags, ROS 2 bag directories, `.db3`, and `.mcap` files.
 **Status: Alpha.** Intended for engineering triage and dataset QA, not safety-critical
 control or certification. Timing checks use recorded receive timestamps; they do
 not establish hardware synchronization or sensor accuracy. Live ROS 2 integration
-has separate runtime requirements and [validation gates](docs/reliability-roadmap.md).
+has separate runtime requirements; its tested scope is in the [reliability case study](docs/reliability-case-study.md).
 
-Browse the [documentation index](docs/README.md) for validation records and design context.
+Browse the [documentation index](docs/README.md) for every guide.
 
 ## Repository map
 
-| Path                                                                            | Purpose                                                            |
-| ------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `src/ros_telemetry_analytics/`                                                  | Python ingestion, analysis, evaluators and CLI                     |
-| `demo/api/`, `demo/replayer/`, `demo/gateway/`                                  | Local services and optional ROS integration                        |
-| `demo/web/`                                                                     | Workbench UI, component tests and browser/CLI contract checks      |
-| `streaming/flink-job/`                                                          | Java event-time processing and tests                               |
-| `configs/`, `schemas/`                                                          | Runtime profiles and versioned data contracts                      |
-| `tests/`, `scripts/`                                                            | Python tests, preparation tools and integration evaluations        |
-| `docs/`, [`examples/`](examples/README.md), [`artifacts/`](artifacts/README.md) | Guides, runnable fixtures and explicitly labeled retained evidence |
-| `data/`, `.local/`                                                              | Ignored runtime outputs, downloads and private working notes       |
+| Path                                           | Purpose                                                                |
+| ---------------------------------------------- | ---------------------------------------------------------------------- |
+| `src/ros_telemetry_analytics/`                 | Python ingestion, analysis, evaluators and CLI                         |
+| `demo/api/`, `demo/replayer/`, `demo/gateway/` | Local services and optional ROS integration                            |
+| `demo/web/`                                    | Workbench UI, component tests and browser/CLI contract checks          |
+| `streaming/flink-job/`                         | Java event-time processing and tests                                   |
+| `configs/`, `schemas/`                         | Runtime profiles and versioned data contracts                          |
+| `tests/`, `scripts/`                           | Python tests, preparation tools and integration evaluations            |
+| `docs/`, [`examples/`](examples/README.md)     | Guides and screenshots; runnable fixtures and saved experiment results |
+| `data/`                                        | Ignored runtime outputs and downloads                                  |
 
 ## Development
 

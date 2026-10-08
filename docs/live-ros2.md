@@ -1,9 +1,9 @@
 # Live ROS 2 gateway
 
-Live single-robot integration has been exercised with headless Gazebo, Nav2 and
-AMCL through Kafka, Flink, the API and rendered ROS Workbench. Reliability
-experiments and their limits are tracked in [the roadmap](reliability-roadmap.md). This is simulation
-integration evidence, not physical-robot or production-fleet validation.
+Run the ROS 2 gateway against a live publisher or the bundled Nav2/Gazebo
+simulation, and reproduce the reliability experiments. Results from these
+experiments are recorded in the [reliability case study](reliability-case-study.md).
+Everything here has been exercised in simulation, not on physical robots.
 
 ## Runtime
 
@@ -109,6 +109,25 @@ The tests cover uncertain acknowledgment and identical retry, abrupt process
 exit, session resume, overflow counters and sequence gaps, reserved control
 capacity, source/receive clock separation, schema-valid lifecycle envelopes, and
 exclusive ownership of an outbox.
+
+## Fault experiments
+
+Each experiment needs the local Compose stack running and a new output directory
+under `data/evaluations/`. The command writes raw evidence plus an `evaluation.json`
+that passes only when every gate in the section below passes.
+
+| Experiment | Script | Section |
+| --- | --- | --- |
+| Scan silence | `run_gateway_eval.py` | [Repeatable transport evaluation](#repeatable-transport-evaluation) |
+| QoS mismatch and repair | `run_gateway_eval.py --fault qos` | [QoS incompatibility and repair](#qos-incompatibility-and-repair) |
+| Duplicate / delayed transport | `run_gateway_eval.py --fault duplicate\|delay` | [Duplicate and delayed transport](#duplicate-and-delayed-transport) |
+| Incident signal sampling | `evaluate_signal_projection.py` | [Incident signals and sampled positions](#incident-signals-and-sampled-positions) |
+| Nav2 localization disturbance | `run_nav2_localization_eval.py` | [Controlled Nav2 localization disturbance](#controlled-nav2-localization-disturbance) |
+| All of the above and more | `run_reliability_suite.py` | [Unified reliability suite](#unified-reliability-suite) |
+| Flink worker restart | `run_flink_restart_eval.py` | [Flink worker checkpoint recovery](#flink-worker-checkpoint-recovery) |
+| Projection API restart | `run_projection_restart_eval.py` | [Projection restart and catch-up](#projection-restart-and-catch-up) |
+| Three concurrent robots | `run_fleet_isolation_eval.py` | [Three concurrent robots](#three-concurrent-robots) |
+| Gateway disconnect, restart, overflow | `run_edge_recovery_eval.py` | [Gateway disconnection, restart, and overflow](#gateway-disconnection-restart-and-overflow) |
 
 ## Repeatable transport evaluation
 
@@ -352,48 +371,5 @@ of omitted sequence numbers, not an additional rejected observation. Unknown
 dispositions fail evaluation. Overflow can therefore be a successful accounting
 test while still representing real rejected data and downstream health incidents.
 
-Slow monitored topics use a recovery window long enough to observe at least
-three messages at their configured rate (three seconds at 1 Hz). Fast sensors
-retain the existing one-second density gate. This avoids a permanent gap state
-that would otherwise demand an impossible three-message burst from a 1 Hz topic.
-
-Anomaly revisions take precedence over event timestamps in the projection. A
-newer recovery revision cannot be hidden by an older active revision. The
-processing-time robot watchdog maps elapsed recovery time onto the stream clock
-and records the original buffered observation time separately; recovery must
-not appear to predate its offline decision. End-to-end evaluation checks the
-projected active-incident list as well as raw recovered transitions.
-
-The API projects up to 500 Kafka records and their offsets in one SQLite
-transaction, then commits consumer offsets once per batch. A failed SQLite batch
-rolls back both data and offsets. Recovery seeks the stored SQLite offsets, so
-a crash between SQLite and Kafka offset acknowledgment does not lose projected
-records. This also reduces the per-record transaction overhead exposed by
-post-rebuild catch-up evaluation.
-
-## Watchdog clock and startup-window interpretation
-
-Topic-window timestamps use stream time. Robot-wide watchdog decisions use a
-processing-time observation interval projected onto the stream clock. During
-buffered recovery, the decision timestamp is the later of the accepted event's
-stream time and the offline start plus elapsed processing time. The original
-accepted timestamp remains in `evidence.recovery_observation_stream_ms`; the
-`decision_clock` field identifies this policy.
-
-This is not a globally monotonic event-time sequence across topic metrics,
-watchdog metrics, checkpoints, and runs. A restored active watchdog retains its
-processing-time anchor; process downtime may therefore contribute to its elapsed
-decision time. Consumers must group by run and robot, order anomaly revisions by
-revision, and must not interpret projected recovery time as a ROS acquisition
-time or measured transport latency. The API uses revision precedence for anomaly
-state. Replacing these decision timestamps with buffered event timestamps would
-reintroduce recoveries preceding their offline decision.
-
-Live windows overlapping discovery grace expose
-`payload.rate_evaluation_status: startup_grace` and report `health_status: starting`
-when rate monitoring is enabled and no active condition takes precedence. Other values distinguish
-`event_driven`, `partial_window`, `structural_suppression`, and `normal_window`.
-Normal windows still pass the existing lifecycle and recovery gates before rate
-alerts can change. The marker does not assert that a publisher is configured
-correctly: missing topics can raise NEVER_SEEN after their deadline, and a
-persistently incorrect rate is evaluated after the full post-grace window.
+Recovery windows, revision ordering and watchdog clocks are described in
+[Architecture](architecture.md#live-stream-timing-and-recovery).

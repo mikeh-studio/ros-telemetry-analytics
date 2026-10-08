@@ -90,9 +90,8 @@ silent topic alive. Set the bound above the longest supported pause or topic
 silence. Timer callbacks do not renew it, so abandoned runs cannot retain state
 indefinitely. Full-run evidence remains in state until completion; this timeout
 bounds abandoned-key lifetime, not memory use for an unlimited active recording.
-State and timers restore together from checkpoints; this change
-has harness coverage for restoring the new state layout, not an upgrade test
-from a prior deployed checkpoint.
+State and timers restore together from checkpoints. Harness tests cover restoring
+the current state layout; there is no upgrade test from an older checkpoint.
 
 Kafka output IDs and revisions make projection replay idempotent. The SQLite
 transaction stores each projected record and its next Kafka offset together.
@@ -177,11 +176,57 @@ The source fingerprint uses file names, sizes, and nanosecond modification
 times. This makes normal reruns inexpensive. Regulated or forensic workflows
 should add full content hashes and immutable source storage.
 
-The streaming demo is a one-robot recorded-replay system. Kafka, Flink, and the
-projection are production-shaped learning components, but the demo is not a
-robot command or safety path. A future ROS 2 bridge may publish the same event
-schema from an edge gateway only after QoS, clock synchronization, offline
-buffering, fleet partitioning, and security are designed explicitly.
+Kafka, Flink, and the projection are production-shaped components running on
+one local stack; they are not a robot command or safety path. The optional
+[live ROS 2 gateway](live-ros2.md) publishes the same event schema with a durable
+outbox and QoS evidence, but clock synchronization, fleet partitioning and
+authentication are not designed for production use.
+
+## Live stream timing and recovery
+
+Slow monitored topics use a recovery window long enough to observe at least
+three messages at their configured rate (three seconds at 1 Hz). Fast sensors
+retain the existing one-second density gate. This avoids a permanent gap state
+that would otherwise demand an impossible three-message burst from a 1 Hz topic.
+
+Anomaly revisions take precedence over event timestamps in the projection. A
+newer recovery revision cannot be hidden by an older active revision. The
+processing-time robot watchdog maps elapsed recovery time onto the stream clock
+and records the original buffered observation time separately; recovery must
+not appear to predate its offline decision. End-to-end evaluation checks the
+projected active-incident list as well as raw recovered transitions.
+
+The API projects up to 500 Kafka records and their offsets in one SQLite
+transaction, then commits consumer offsets once per batch. A failed SQLite batch
+rolls back both data and offsets. Recovery seeks the stored SQLite offsets, so
+a crash between SQLite and Kafka offset acknowledgment does not lose projected
+records. This also reduces the per-record transaction overhead exposed by
+post-rebuild catch-up evaluation.
+
+Topic-window timestamps use stream time. Robot-wide watchdog decisions use a
+processing-time observation interval projected onto the stream clock. During
+buffered recovery, the decision timestamp is the later of the accepted event's
+stream time and the offline start plus elapsed processing time. The original
+accepted timestamp remains in `evidence.recovery_observation_stream_ms`; the
+`decision_clock` field identifies this policy.
+
+This is not a globally monotonic event-time sequence across topic metrics,
+watchdog metrics, checkpoints, and runs. A restored active watchdog retains its
+processing-time anchor; process downtime may therefore contribute to its elapsed
+decision time. Consumers must group by run and robot, order anomaly revisions by
+revision, and must not interpret projected recovery time as a ROS acquisition
+time or measured transport latency. The API uses revision precedence for anomaly
+state. Replacing these decision timestamps with buffered event timestamps would
+reintroduce recoveries preceding their offline decision.
+
+Live windows overlapping discovery grace expose
+`payload.rate_evaluation_status: startup_grace` and report `health_status: starting`
+when rate monitoring is enabled and no active condition takes precedence. Other values distinguish
+`event_driven`, `partial_window`, `structural_suppression`, and `normal_window`.
+Normal windows still pass the existing lifecycle and recovery gates before rate
+alerts can change. The marker does not assert that a publisher is configured
+correctly: missing topics can raise NEVER_SEEN after their deadline, and a
+persistently incorrect rate is evaluated after the full post-grace window.
 
 ## Offline incident explanations
 
