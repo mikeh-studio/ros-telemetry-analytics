@@ -9,14 +9,35 @@ All notable changes to this project are documented here.
 Upgrade notes:
 
 - The Compose project is now `ros-telemetry-analytics` (was
-  `robot-telemetry-flight-deck`), so Docker creates new volumes. Uploaded
-  recordings in the old `robot-telemetry-flight-deck_dataset-uploads` volume are
-  not migrated; re-upload them or copy the volume contents. Remove the old
-  volumes with `docker volume ls -q --filter name=robot-telemetry-flight-deck | xargs docker volume rm`.
+  `robot-telemetry-flight-deck`), so Docker creates new containers and volumes.
+  Follow the migration steps below before starting the renamed stack.
 - Playwright variables are renamed: `FLIGHT_DECK_BASE_URL` to `WORKBENCH_BASE_URL`
   and `FLIGHT_DECK_BROWSER` to `WORKBENCH_BROWSER`.
 - Saved experiment results moved from `examples/` to `examples/results/`.
 - The ARCO and OpenLORIS dataset profiles and catalog entries were removed.
+
+For an existing Compose installation:
+
+1. Stop and remove the old project's containers to free ports 3000, 8000 and
+   8081, while preserving its volumes:
+
+   ```bash
+   docker compose -p robot-telemetry-flight-deck down --remove-orphans
+   ```
+
+   Do not add `-v`. A plain `docker compose down` now targets the renamed project
+   and will not stop the old stack.
+2. Preserve any needed old volume data. Uploaded recordings in
+   `robot-telemetry-flight-deck_dataset-uploads` are not migrated automatically.
+   Copy them into `ros-telemetry-analytics_dataset-uploads` before starting the
+   new stack, or retain the originals for re-upload afterward.
+3. Start the new stack with `docker compose up --build -d` (include the same
+   live/simulation overlays if used), re-upload recordings if needed, and verify
+   the data you want to keep is available.
+4. Only after verification, optionally list the old project's volumes with
+   `docker volume ls --filter label=com.docker.compose.project=robot-telemetry-flight-deck`
+   and remove selected, unneeded volumes with `docker volume rm <volume-name>`.
+   Volume removal permanently deletes their contents.
 
 Changes:
 
