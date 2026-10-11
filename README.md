@@ -41,7 +41,10 @@ docker compose up --build
 Open [localhost:3000](http://localhost:3000). Start with the built-in warehouse
 mission in **Telemetry**, choose 1× or 5× speed, and start replay. The optional
 camera-dropout scenario runs at 1× and demonstrates detection and recovery.
-You can also upload a `.bag`, `.mcap`, or `.db3` recording for replay.
+You can also upload a `.bag`, `.mcap`, or `.db3` recording for replay (256 MiB
+per file by default). The unauthenticated demo publishes web, API, and Flink
+ports on `127.0.0.1` only. See the [local demo security boundary](docs/workbench.md#local-demo-security-boundary)
+before changing network access or upload limits.
 
 For **Recording** analysis, install and prepare the public recordings using the
 [recording guide](docs/recording-investigations.md#reproduce-locally). Select an
