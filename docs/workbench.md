@@ -26,6 +26,38 @@ Then open:
 - Projection API: [http://localhost:8000/api/runs/current/snapshot](http://localhost:8000/api/runs/current/snapshot)
 - Flink dashboard: [http://localhost:8081](http://localhost:8081)
 
+## Local demo security boundary
+
+The default stack is for one trusted local operator. Compose binds the web
+(3000), API (8000), and Flink management (8081) ports to `127.0.0.1`, including
+when the live gateway and simulation overlays are used. Container services
+still listen on their internal network so the stack can communicate.
+
+The API and Flink endpoints have no authentication or authorization. Loopback
+binding limits host network exposure; it does not protect against untrusted
+local processes or browser-origin attacks. CORS is not an authentication or
+CSRF boundary. Do not expose this stack through public bindings, tunnels, port
+forwarding, or a shared proxy without adding authentication and authorization
+for data, uploads, replay controls, and management routes. Restrict Flink job
+submission and management to trusted operators: submitted jobs can execute code.
+
+Uploads are capped at 256 MiB (268435456 bytes) per request, including streaming
+requests without a Content-Length header. Oversized streams are rejected and
+their partial file is removed. To deliberately allow a larger local recording,
+set a positive byte limit before creating the API container, for example:
+
+```bash
+DATASET_UPLOAD_MAX_BYTES=536870912 docker compose up --build
+```
+
+This per-request limit does not cap total stored data or concurrent work.
+Shared use also requires per-user storage quotas, request/concurrency limits,
+and an upload retention policy. Monitor the persistent `dataset-uploads`
+volume even for local use. Existing running containers must be recreated to
+apply changed port bindings or upload settings.
+
+## Replay recordings
+
 Choose an available dataset in ROS Workbench before starting a 1x or 5x
 replay. The catalog lists the TUM and LILocBench datasets in
 `configs/public_test_datasets.yaml`; datasets that have not been downloaded or

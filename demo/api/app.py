@@ -42,7 +42,9 @@ LOCALIZATION_EVAL_DIR = Path(
 LOCALIZATION_TRAJECTORY_LIMIT = 600
 FIXTURE = ROOT / CONFIG.demo.fixture_path
 UPLOAD_DIR = Path(os.environ.get("DATASET_UPLOAD_DIR", ROOT / "data/uploads")).resolve()
-MAX_UPLOAD_BYTES = int(os.environ.get("DATASET_UPLOAD_MAX_BYTES", 4 * 1024**3))
+MAX_UPLOAD_BYTES = int(os.environ.get("DATASET_UPLOAD_MAX_BYTES", 256 * 1024**2))
+if MAX_UPLOAD_BYTES <= 0:
+    raise ValueError("DATASET_UPLOAD_MAX_BYTES must be a positive integer")
 
 
 def _evenly_spaced_indices(length: int, count: int) -> list[int]:
@@ -439,8 +441,15 @@ async def upload_dataset(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     content_length = request.headers.get("content-length")
-    if content_length and int(content_length) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="Recording exceeds the upload size limit")
+    if content_length is not None:
+        try:
+            if not content_length.isascii() or not content_length.isdecimal():
+                raise ValueError("Content-Length must contain only decimal digits")
+            declared_size = int(content_length)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid Content-Length") from exc
+        if declared_size > MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail="Recording exceeds the upload size limit")
 
     destination = UPLOAD_DIR / safe_name
     stem, suffix = destination.stem, destination.suffix

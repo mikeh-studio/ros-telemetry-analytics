@@ -185,6 +185,7 @@ def test_upload_validates_and_publishes_a_recording(tmp_path, monkeypatch, write
         [("/imu/data", "sensor_msgs/msg/Imu", 1_000_000)],
     )
     source = next(bag_directory.glob("*.db3"))
+    monkeypatch.setattr(api_module, "MAX_UPLOAD_BYTES", source.stat().st_size)
     upload_dir = tmp_path / "uploads"
     upload_dir.mkdir()
     monkeypatch.setattr(api_module, "UPLOAD_DIR", upload_dir)
@@ -200,6 +201,83 @@ def test_upload_validates_and_publishes_a_recording(tmp_path, monkeypatch, write
     assert result["dataset_id"] == "upload:my_mission.db3"
     assert result["selectable"] is True
     assert (upload_dir / "my_mission.db3").is_file()
+
+
+@pytest.mark.parametrize("content_length", ["", "abc", "-1", "+1", "1.5", " 1", "1,1", "１２"])
+def test_upload_rejects_invalid_content_length_before_reading(
+    content_length, tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setattr(api_module, "UPLOAD_DIR", tmp_path)
+
+    class UploadRequest:
+        headers = {"content-length": content_length}
+
+        async def stream(self):
+            pytest.fail("Invalid headers must be rejected before reading the body")
+            yield b""
+
+    with pytest.raises(HTTPException) as raised:
+        asyncio.run(api_module.upload_dataset(UploadRequest(), "mission.db3"))
+
+    assert raised.value.status_code == 400
+    assert not list(tmp_path.iterdir())
+
+
+def test_upload_rejects_declared_oversize_before_reading(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(api_module, "UPLOAD_DIR", tmp_path)
+    monkeypatch.setattr(api_module, "MAX_UPLOAD_BYTES", 4)
+
+    class UploadRequest:
+        headers = {"content-length": "5"}
+
+        async def stream(self):
+            pytest.fail("Oversized headers must be rejected before reading the body")
+            yield b""
+
+    with pytest.raises(HTTPException) as raised:
+        asyncio.run(api_module.upload_dataset(UploadRequest(), "mission.db3"))
+
+    assert raised.value.status_code == 413
+    assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize("headers", [{}, {"content-length": "1"}])
+def test_upload_enforces_stream_limit_and_removes_partial_file(
+    headers, tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setattr(api_module, "UPLOAD_DIR", tmp_path)
+    monkeypatch.setattr(api_module, "MAX_UPLOAD_BYTES", 4)
+
+    class UploadRequest:
+        async def stream(self):
+            yield b"1234"
+            assert len(list(tmp_path.glob(".upload-*"))) == 1
+            yield b"5"
+            pytest.fail("Stream must stop at the first byte beyond the limit")
+
+    request = UploadRequest()
+    request.headers = headers
+    with pytest.raises(HTTPException) as raised:
+        asyncio.run(api_module.upload_dataset(request, "mission.db3"))
+
+    assert raised.value.status_code == 413
+    assert not list(tmp_path.iterdir())
+
+
+def test_cancelled_upload_removes_partial_file(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(api_module, "UPLOAD_DIR", tmp_path)
+
+    class UploadRequest:
+        headers = {}
+
+        async def stream(self):
+            yield b"partial"
+            raise asyncio.CancelledError()
+
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(api_module.upload_dataset(UploadRequest(), "mission.db3"))
+
+    assert not list(tmp_path.iterdir())
 
 
 def test_upload_rejects_unsupported_extensions(tmp_path, monkeypatch) -> None:

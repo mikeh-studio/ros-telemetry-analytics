@@ -22,9 +22,9 @@ def test_compose_exposes_one_command_demo_contract() -> None:
         "api",
         "web",
     }
-    assert services["web"]["ports"] == ["3000:80"]
-    assert services["api"]["ports"] == ["8000:8000"]
-    assert services["flink-jobmanager"]["ports"] == ["8081:8081"]
+    assert services["web"]["ports"] == ["127.0.0.1:3000:80"]
+    assert services["api"]["ports"] == ["127.0.0.1:8000:8000"]
+    assert services["flink-jobmanager"]["ports"] == ["127.0.0.1:8081:8081"]
     assert services["api"]["depends_on"]["flink-taskmanager"]["condition"] == "service_started"
     assert (
         services["kafka"]["depends_on"]["kafka-storage-init"]["condition"]
@@ -89,3 +89,11 @@ def test_container_versions_and_entrypoints_are_pinned() -> None:
     for identity in ["metrics-v1", "anomalies-v1", "late-v1", "dead-letter-v1"]:
         assert identity in job
     assert "KAFKA_TRANSACTION_MAX_TIMEOUT_MS: 900000" in compose_text
+
+
+def test_optional_compose_overlays_do_not_publish_additional_ports() -> None:
+    for filename in ("compose.live.yaml", "compose.simulation.yaml"):
+        compose = yaml.safe_load((ROOT / filename).read_text(encoding="utf-8"))
+        for service in compose["services"].values():
+            assert not service.get("ports")
+            assert "network_mode" not in service
