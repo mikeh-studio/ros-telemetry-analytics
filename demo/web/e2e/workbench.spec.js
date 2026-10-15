@@ -360,7 +360,7 @@ test("shared header keeps equal tabs and contained recording controls", async ({
     expect(
       Math.max(...layout.tabWidths) - Math.min(...layout.tabWidths),
     ).toBeLessThan(1);
-    expect(layout.tabWidths).toHaveLength(4);
+    expect(layout.tabWidths).toHaveLength(3);
     expect(layout.toolbar.top).toBeGreaterThan(layout.tabs.bottom);
     for (const box of [layout.picker, layout.about, layout.upload]) {
       expect(box.width).toBeGreaterThan(0);

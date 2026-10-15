@@ -305,19 +305,21 @@ export default function TelemetryView({ state, activeView, setActiveView }) {
               signals={snapshot.observed_signals}
             />
 
-            <div className="investigation-entry">
-              <span>
-                Review localization evidence attached to the selected dataset.
-              </span>
-              <button
-                onClick={() => {
-                  setActiveView("localization");
-                  document.getElementById("view-localization").focus();
-                }}
-              >
-                Open Localization
-              </button>
-            </div>
+            {capability(selectedDataset, "localization") === "ready" && (
+              <div className="investigation-entry">
+                <span>
+                  Review localization evidence attached to the selected dataset.
+                </span>
+                <button
+                  onClick={() => {
+                    setActiveView("localization");
+                    document.getElementById("view-localization").focus();
+                  }}
+                >
+                  Open Localization
+                </button>
+              </div>
+            )}
 
             <details className="operations-detail">
               <summary>

@@ -1,6 +1,6 @@
 import RecordingIncidentList from "./RecordingIncidentList";
 import RecordingIncidentExplanation from "./RecordingIncidentExplanation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import EvidencePreparation from "./EvidencePreparation";
 import "./RecordingInvestigation.css";
 
@@ -227,14 +227,21 @@ export default function RecordingInvestigation({
   const [incident, setIncident] = useState(null);
   const [memberOffset, setMemberOffset] = useState(0);
   const [evidenceTarget, setEvidenceTarget] = useState(null);
+  const [incidentPlotHints, setIncidentPlotHints] = useState([]);
+  const loadedAnalysis = useRef(null);
+  const focusedIncident = useRef(null);
 
   function clearIncident() {
+    focusedIncident.current = null;
+    setIncidentPlotHints([]);
     setIncidentId("");
     setIncident(null);
     setMemberOffset(0);
     setEvidenceTarget(null);
   }
   function selectIncident(id) {
+    focusedIncident.current = null;
+    setIncidentPlotHints([]);
     setError("");
     setCaseId("");
     setIncident(null);
@@ -243,13 +250,24 @@ export default function RecordingInvestigation({
     setEvidenceTarget(null);
   }
 
-  useEffect(() => {
+  function resetEvidence() {
+    loadedAnalysis.current = null;
     setDetail(null);
     setData(null);
     setWindow(null);
+    setDraft([0, 10]);
+    setCursor(0);
+    setPlots([]);
     setError("");
     setCaseId("");
     clearIncident();
+  }
+
+  useEffect(() => {
+    resetEvidence();
+  }, [selected, apiUrl, refresh]);
+
+  useEffect(() => {
     if (!active || !selected) return;
     const controller = new AbortController();
     get(
@@ -258,6 +276,15 @@ export default function RecordingInvestigation({
     )
       .then((body) => {
         if (controller.signal.aborted) return;
+        if (body.dataset_id !== selected)
+          throw new Error(
+            "Recording evidence does not match the selected dataset",
+          );
+        // Revalidate on return without replacing the user's inspection context.
+        const identity = `${selected}:${body.analysis_id}`;
+        if (loadedAnalysis.current === identity) return;
+        resetEvidence();
+        loadedAnalysis.current = identity;
         setDetail(body);
         const bounds = [0, body.duration_s];
         setDraft(bounds);
@@ -265,16 +292,17 @@ export default function RecordingInvestigation({
         setCursor(0);
       })
       .catch((reason) => {
-        if (!controller.signal.aborted) setError(reason.message);
+        if (!controller.signal.aborted) {
+          resetEvidence();
+          setError(reason.message);
+        }
       });
     return () => controller.abort();
   }, [selected, apiUrl, active, refresh]);
 
   useEffect(() => {
-    if (!incidentId || !detail || detail.dataset_id !== selected || !active)
-      return;
+    if (!incidentId || !detail || detail.dataset_id !== selected) return;
     const controller = new AbortController();
-    setIncident(null);
     const query = new URLSearchParams({
       analysis_id: detail.analysis_id,
       member_offset: memberOffset,
@@ -291,19 +319,25 @@ export default function RecordingInvestigation({
         )
           return;
         setIncident(body);
-        setWindow([body.display_start_s, body.display_end_s]);
-        setDraft([body.display_start_s, body.display_end_s]);
-        setCursor(body.focus_s);
+        const identity = `${detail.analysis_id}:${incidentId}`;
+        // Warning pages change the explanation, not the selected time or plots.
+        if (focusedIncident.current !== identity) {
+          focusedIncident.current = identity;
+          setIncidentPlotHints(body.plot_hints || []);
+          setWindow([body.display_start_s, body.display_end_s]);
+          setDraft([body.display_start_s, body.display_end_s]);
+          setCursor(body.focus_s);
+        }
       })
       .catch((reason) => {
         if (!controller.signal.aborted) setError(reason.message);
       });
     return () => controller.abort();
-  }, [incidentId, memberOffset, detail, selected, active, apiUrl]);
+  }, [incidentId, memberOffset, detail, selected, apiUrl]);
 
   useEffect(() => {
     setData(null);
-    if (!detail || detail.dataset_id !== selected || !window || !active) return;
+    if (!detail || detail.dataset_id !== selected || !window) return;
     const controller = new AbortController();
     const query = new URLSearchParams({
       analysis_id: detail.analysis_id,
@@ -318,7 +352,7 @@ export default function RecordingInvestigation({
     const loadInterval = async () => {
       const requests = [get(`${intervalUrl}?${query}`, controller.signal)];
       if (!evidenceTarget?.field) {
-        for (const hint of (incident?.plot_hints || []).slice(0, 3)) {
+        for (const hint of incidentPlotHints.slice(0, 3)) {
           const specific = new URLSearchParams(query);
           specific.set("topic", hint.topic);
           specific.set("field", hint.field);
@@ -354,8 +388,8 @@ export default function RecordingInvestigation({
           setPlots(body.series.length ? [0] : []);
           return;
         }
-        if (incident?.plot_hints?.length) {
-          const selectedPlots = incident.plot_hints
+        if (incidentPlotHints.length) {
+          const selectedPlots = incidentPlotHints
             .map((hint) =>
               body.series.findIndex(
                 (s) => s.topic === hint.topic && s.field === hint.field,
@@ -384,9 +418,8 @@ export default function RecordingInvestigation({
     window,
     selected,
     apiUrl,
-    active,
     caseId,
-    incident,
+    incidentPlotHints,
     evidenceTarget,
   ]);
 

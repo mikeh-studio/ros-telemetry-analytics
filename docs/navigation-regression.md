@@ -1,4 +1,11 @@
-# Navigation regression evaluation
+# Navigation regression evaluation (archived UI)
+
+Navigation was removed from the active Workbench on 2026-10-14. Existing
+recordings do not provide the paired configuration, goal, and collision evidence
+required by this evaluator. The CLI, fixtures, viewer source, and tests are retained.
+Old Navigation URLs and saved selections fall back to Telemetry. Reintroduce the
+view when compatible paired evidence is available; recorded-motion inspection
+would require a separate evidence contract.
 
 Compare a baseline and candidate using independent simulator evidence. The first
 increment provides the offline scorer, paired statistics, a CLI, and adversarial
@@ -159,10 +166,12 @@ rule is a guard against tiny pilot approvals, not a statistical power guarantee.
 Dataset references: [BARN](https://arxiv.org/abs/2008.13315),
 [TUHH](https://doi.org/10.15480/882.15836).
 
-## Workbench view
+## Archived Workbench view
 
-Open `http://localhost:3000/?view=navigation` after rebuilding the web service
-(`docker compose up -d --build --no-deps web`). The Navigation tab displays the
+The following describes the retained viewer before archival; it is no longer
+mounted by the application.
+
+The archived Navigation viewer displays the
 bundled synthetic collision example, comparison metrics and selectable attempt
 outcomes. It works independently of the selected ROS recording and API
 readiness. Use **Import comparison** to inspect output from the CLI above; files

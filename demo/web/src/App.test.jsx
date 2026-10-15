@@ -96,11 +96,32 @@ describe("ROS Workbench", () => {
     expect(
       screen.queryByRole("region", { name: "Monitored Topics" }),
     ).not.toBeInTheDocument();
+    fireEvent.keyDown(investigation, { key: "ArrowRight" });
+    expect(health).toHaveFocus();
+    fireEvent.keyDown(health, { key: "End" });
+    expect(investigation).toHaveFocus();
     fireEvent.keyDown(investigation, { key: "Home" });
     expect(health).toHaveFocus();
     fireEvent.click(investigation);
     expect(investigation).toHaveAttribute("aria-selected", "true");
   });
+
+  it.each(["url", "saved"])(
+    "falls back from archived Navigation in %s",
+    (source) => {
+      if (source === "url")
+        window.history.replaceState(null, "", "/?view=navigation");
+      else localStorage.setItem("workbench.view", "navigation");
+      render(<App />);
+      expect(screen.getAllByRole("tab")).toHaveLength(3);
+      expect(screen.getByRole("tab", { name: "Telemetry" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+      expect(window.location.search).toBe("?view=health");
+      expect(localStorage.getItem("workbench.view")).toBe("health");
+    },
+  );
 
   it("offers prepared evidence without empty monitors or redundant scenario controls", async () => {
     const original = fetch.getMockImplementation();
@@ -1070,6 +1091,14 @@ describe("ROS Workbench", () => {
       expect(screen.getByText("completed")).toBeInTheDocument(),
     );
     expect(screen.getByText("Verified")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Open Localization" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Review localization evidence attached to the selected dataset.",
+      ),
+    ).not.toBeInTheDocument();
   });
   it("keeps one dataset and upload action across all tabs without loading unrelated localization", async () => {
     const original = fetch.getMockImplementation();
@@ -1120,13 +1149,6 @@ describe("ROS Workbench", () => {
     expect(
       tabs.compareDocumentPosition(context) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    fireEvent.click(screen.getByRole("tab", { name: "Navigation" }));
-    expect(screen.queryByLabelText("Dataset")).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Import comparison" }),
-    ).toBeVisible();
-    fireEvent.click(screen.getByRole("tab", { name: "Telemetry" }));
-    expect(screen.getByLabelText("Dataset")).toHaveValue("recording-a");
     expect(screen.getByRole("tablist")).toBe(tabs);
   });
 

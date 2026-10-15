@@ -8,7 +8,6 @@ import TelemetryView from "./TelemetryView";
 import LocalizationInvestigation from "./LocalizationInvestigation";
 import LocalizationOverview from "./LocalizationOverview";
 import RecordingInvestigation from "./RecordingInvestigation";
-import NavigationRegression from "./NavigationRegression";
 import useWorkbenchState from "./useWorkbenchState";
 import useWorkspaceView from "./useWorkspaceView";
 import { API_URL, EMPTY_LOCALIZATION } from "./workbenchConfig";
@@ -46,28 +45,26 @@ export default function App() {
         />
       }
     >
-      {activeView !== "navigation" && (
-        <DatasetContext
-          datasets={availableDatasets}
-          selected={selectedDataset}
-          onSelect={chooseDataset}
-          notice={catalogNotice}
-          action={
-            <button
-              className="header-upload"
-              disabled={uploading}
-              onClick={() => {
-                setUploadError("");
-                if (uploadDialog.current && !uploadDialog.current.open)
-                  uploadDialog.current.showModal();
-              }}
-            >
-              {uploading ? "Uploading…" : "Upload recording"}
-            </button>
-          }
-          onRefresh={() => refreshEvidenceCatalog()}
-        />
-      )}
+      <DatasetContext
+        datasets={availableDatasets}
+        selected={selectedDataset}
+        onSelect={chooseDataset}
+        notice={catalogNotice}
+        action={
+          <button
+            className="header-upload"
+            disabled={uploading}
+            onClick={() => {
+              setUploadError("");
+              if (uploadDialog.current && !uploadDialog.current.open)
+                uploadDialog.current.showModal();
+            }}
+          >
+            {uploading ? "Uploading…" : "Upload recording"}
+          </button>
+        }
+        onRefresh={() => refreshEvidenceCatalog()}
+      />
 
       {datasetLocked && (
         <aside className="active-run-banner" role="status">
@@ -148,14 +145,6 @@ export default function App() {
         ) : (
           <AnalysisUnavailable dataset={selectedDataset} view="recordings" />
         )}
-      </section>
-      <section
-        id="panel-navigation"
-        role="tabpanel"
-        aria-labelledby="view-navigation"
-        hidden={activeView !== "navigation"}
-      >
-        <NavigationRegression />
       </section>
     </WorkbenchShell>
   );
