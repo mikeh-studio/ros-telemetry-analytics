@@ -6,7 +6,7 @@ export default function useWorkspaceView() {
     const view =
       new URLSearchParams(window.location.search).get("view") ||
       saved("workbench.view", "health");
-    return ["health", "recordings", "localization", "navigation"].includes(view)
+    return ["health", "recordings", "localization"].includes(view)
       ? view
       : "health";
   });

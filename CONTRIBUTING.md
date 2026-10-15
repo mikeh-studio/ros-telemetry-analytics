@@ -53,8 +53,9 @@ camera-dropout mission. See the exact clean/dropout sequence in
 [CI](.github/workflows/ci.yml). Live ROS and simulator checks have separate
 [setup and evidence requirements](docs/live-ros2.md).
 
-For layout changes, inspect all four tabs, keyboard navigation, the upload dialog,
-replay controls and a paired Navigation inspector at desktop and narrow widths.
+For layout changes, inspect all three active tabs, keyboard navigation, the upload
+dialog and replay controls at desktop and narrow widths. The Navigation viewer is
+archived; its retained component and contract tests still cover paired reports.
 Check prepared Recording/Localization views when compatible data is available;
 empty-state checks do not cover populated evidence. Refresh the README
 screenshots in [`docs/images/`](docs/images/) when the shared shell or a pictured flow changes.

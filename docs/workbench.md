@@ -11,7 +11,9 @@ for `robot-17`, installed public validation datasets, and user uploads.
 Select a recording once, then use **Telemetry**, **Recording**, or **Localization**.
 Telemetry covers replay delivery; Recording provides offline incident explanations
 and source evidence; Localization shows prepared detector evaluation results.
-The independent **Navigation** tab reviews saved baseline/candidate comparisons without a selected recording. Availability is shown separately for each tab. See the
+Navigation is archived from the active UI; its offline evaluator and viewer source
+remain available for future integration. Availability is shown separately for each
+active tab. See the
 [recording guide](recording-investigations.md) for preparation and the **Rebuild evidence** flow.
 
 Start the stack:
@@ -175,12 +177,10 @@ detailed investigation is unavailable.
 
 ## Navigation comparisons
 
-The Navigation tab displays saved offline baseline/candidate evaluations. Use
-**Import comparison** for evaluator output or inspect the bundled synthetic example.
-See [Navigation regression](navigation-regression.md) for the evidence contract,
-CLI and limitations. It does not launch a live mission.
+Navigation is archived from the active UI. The [archived guide](navigation-regression.md)
+documents the retained evaluator and viewer source.
 
-All four views share the header, full-width tab bar and visual styles. Recording
-selection and upload live below the tabs for Telemetry, Recording and Localization;
-Navigation uses comparison context instead. Switching views retains the recording
+All three views share the header, full-width tab bar and visual styles. Recording
+selection and upload live below the tabs for Telemetry, Recording and Localization.
+Switching views retains the recording
 selection. The active view is reflected in the URL for reloads and direct links.

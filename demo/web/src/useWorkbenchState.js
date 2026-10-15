@@ -336,7 +336,6 @@ export default function useWorkbenchState() {
     ) && !snapshot.completion?.verified;
 
   function tabAvailability(view) {
-    if (view === "navigation") return "Saved comparisons";
     const state = capability(selectedDataset, view);
     if (state === "loading") return "Loading";
     if (view === "health") {

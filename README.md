@@ -3,7 +3,7 @@
 Find suspicious intervals in robot recordings, inspect the supporting evidence,
 and understand what remains uncertain.
 
-**ROS Workbench** brings four workflows into one local interface:
+**ROS Workbench** brings three workflows into one local interface:
 
 - **Telemetry:** replay a mission to see when topic delivery drops, gaps, or recovers.
 - **Recording:** select a detected incident, inspect measurements and source samples,
@@ -11,16 +11,12 @@ and understand what remains uncertain.
   API key, or replay required for prepared recordings.
 - **Localization:** compare an AMCL failure detector with published reference
   trajectories and labels to understand missed events and false alarms.
-- **Navigation:** score paired baseline/candidate experiments offline and inspect
-  saved comparisons. The built-in example is synthetic; live Gazebo collection
-  and BARN orchestration are not implemented.
 
 | Workspace    | Available immediately                         | Additional input                          |
 | ------------ | --------------------------------------------- | ----------------------------------------- |
 | Telemetry    | Synthetic warehouse replay                    | Optional uploaded or installed recordings |
 | Recording    | Availability and preparation guidance         | Prepared recording evidence               |
 | Localization | Availability guidance                         | Compatible saved detector evaluation      |
-| Navigation   | Synthetic comparison and browser-local import | CLI-generated `evaluation.json`           |
 
 The goal is to help you decide **where to investigate next**, with the evidence
 and its limits visible. A warning does not establish a physical root cause.
@@ -52,14 +48,9 @@ incident to see observations, possible explanations, uncertainty, and next check
 **Rebuild evidence** updates an installed, registered recording directly from the
 page. Uploads do not yet receive this prepared analysis automatically.
 
-For **Navigation**, select its tab to inspect the synthetic example without
-preparing a recording. Import saved evaluator output using **Import comparison**;
-files stay in your browser. See the [navigation guide](docs/navigation-regression.md)
-for the offline CLI and evidence requirements.
-
-<img src="docs/images/navigation-desktop.png" alt="Navigation comparison with four equal-width workspace tabs, a synthetic collision decision, and paired outcomes" width="800">
-
-_Synthetic comparison: inspect a candidate collision alongside baseline evidence._
+Navigation is archived from the active UI pending compatible paired navigation
+evidence. Its offline evaluator, fixtures, and viewer source remain available;
+see the [archived navigation guide](docs/navigation-regression.md).
 
 ## Analyze bags without the web app
 
@@ -83,7 +74,6 @@ ROS 1 bags, ROS 2 bag directories, `.db3`, and `.mcap` files.
 | Investigate incidents without replay            | [Recording analysis](docs/recording-investigations.md)                                          |
 | Configure batch checks and inspect output       | [Bag analysis](docs/bag-analysis.md)                                                            |
 | Evaluate localization detection                 | [Localization evaluation](docs/localization-evaluation.md)                                      |
-| Compare navigation experiments offline          | [Navigation regression](docs/navigation-regression.md)                                          |
 | Connect live ROS 2 topics                       | [Optional gateway and simulation](docs/live-ros2.md)                                            |
 | Understand implementation and validation limits | [Architecture](docs/architecture.md) · [Reliability case study](docs/reliability-case-study.md) |
 

@@ -12,9 +12,7 @@ export default function WorkbenchShell({
   children,
 }) {
   return (
-    <main
-      className={`workbench-theme ${activeView === "navigation" ? "navigation-workspace" : ""}`}
-    >
+    <main className="workbench-theme">
       <header className="command-header">
         <div className="title-lockup">
           <h1>ROS Workbench</h1>
@@ -31,7 +29,6 @@ export default function WorkbenchShell({
           ["health", "Telemetry", PulseIcon],
           ["recordings", "Recording", RecordIcon],
           ["localization", "Localization", NavigationArrowIcon],
-          ["navigation", "Navigation", NavigationArrowIcon],
         ].map(([id, label, Icon], index) => (
           <button
             key={id}
@@ -49,12 +46,7 @@ export default function WorkbenchShell({
               )
                 return;
               event.preventDefault();
-              const tabs = [
-                "health",
-                "recordings",
-                "localization",
-                "navigation",
-              ];
+              const tabs = ["health", "recordings", "localization"];
               const next =
                 event.key === "Home"
                   ? tabs[0]

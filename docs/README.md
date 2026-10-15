@@ -4,11 +4,11 @@ Start with the [project overview and quickstart](../README.md).
 
 ## Use the workbench
 
-- [ROS Workbench](workbench.md): all four workspaces, replay controls and saved evaluations.
+- [ROS Workbench](workbench.md): all three active workspaces, replay controls and saved evaluations.
 - [Recording investigations](recording-investigations.md): incidents, evidence rebuilds, signals, samples and the dataset audit.
 - [Bag analysis](bag-analysis.md): batch commands, supported formats and output contracts.
 - [Localization evaluation](localization-evaluation.md): detector studies and interpretation limits.
-- [Navigation regression](navigation-regression.md): offline paired scoring, evidence contracts and remaining simulator work.
+- [Archived Navigation regression](navigation-regression.md): offline paired scoring, evidence contracts and remaining simulator work.
 - [Live ROS 2](live-ros2.md): gateway setup, simulation and repeatable fault experiments.
 
 ## Understand and validate

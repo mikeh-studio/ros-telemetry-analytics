@@ -3336,14 +3336,14 @@ footer {
   color: var(--muted);
 }
 .workbench-theme .workspace-tabs {
-  grid-template-columns: repeat(var(--workspace-columns, 4), minmax(0, 1fr));
+  grid-template-columns: repeat(var(--workspace-columns, 3), minmax(0, 1fr));
   width: 100%;
   margin: 0;
   gap: 0;
 }
 @media (max-width: 480px) {
   .workbench-theme .workspace-tabs {
-    --workspace-columns: 2;
+    --workspace-columns: 3;
   }
 }
 .workbench-theme .workspace-tabs button {

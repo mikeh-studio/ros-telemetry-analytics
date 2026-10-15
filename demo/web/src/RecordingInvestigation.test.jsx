@@ -276,3 +276,177 @@ it("recovers stale evidence through a rebuild and loads the new analysis automat
     screen.queryByText(/prepare_investigations.py/),
   ).not.toBeInTheDocument();
 });
+
+function pagedIncident(analysisId, offset = 0) {
+  return {
+    incident_id: "paged",
+    analysis_id: analysisId,
+    title: "Paged image warning",
+    topics: ["/a"],
+    start_s: 1,
+    end_s: 2,
+    member_count: 51,
+    explanation_status: "supported",
+    display_start_s: 0,
+    display_end_s: 4,
+    focus_s: 1,
+    plot_hints: [{ topic: "/a", field: "mean_intensity" }],
+    observations: [],
+    evidence: [],
+    possibilities: [],
+    limits: [],
+    next_checks: [],
+    member_events: [],
+    member_offset: offset,
+    next_member_offset: offset === 0 ? 50 : null,
+  };
+}
+
+function mockPagedRecording() {
+  const m = { ...metadata("a"), incident_count: 1 };
+  const fetch = vi.fn(async (url) => {
+    if (url.includes("/incidents/paged?")) {
+      const offset = Number(
+        new URL(url, "http://test").searchParams.get("member_offset"),
+      );
+      return response(pagedIncident(m.analysis_id, offset));
+    }
+    if (url.includes("/incidents?"))
+      return response({
+        analysis_id: m.analysis_id,
+        total_count: 1,
+        incidents: [pagedIncident(m.analysis_id)],
+      });
+    if (url.includes("/interval?"))
+      return response({
+        ...interval("a"),
+        analysis_id: m.analysis_id,
+        series: [
+          ...interval("a").series,
+          { ...interval("a").series[0], field: "sharpness_score" },
+        ],
+      });
+    if (url.endsWith("/preparation")) return response({ status: "idle" });
+    return response({ ...m });
+  });
+  vi.stubGlobal("fetch", fetch);
+  return { m, fetch };
+}
+
+it("preserves incident, cursor, draft and signal across warning pages and tab switches", async () => {
+  const { fetch } = mockPagedRecording();
+  const { rerender } = render(
+    <RecordingInvestigation apiUrl="" active datasetId="a" />,
+  );
+  fireEvent.click(
+    await screen.findByRole("button", { name: /Paged image warning/ }),
+  );
+  await waitFor(() =>
+    expect(
+      screen.getByRole("slider", { name: "Recorded time cursor" }),
+    ).toHaveAttribute("max", "4"),
+  );
+  fireEvent.change(screen.getByRole("slider"), { target: { value: "3" } });
+  fireEvent.change(screen.getByLabelText("Interval end seconds"), {
+    target: { value: "3.5" },
+  });
+  fireEvent.change(screen.getByLabelText("Signal 1"), {
+    target: { value: "1" },
+  });
+  fireEvent.click(screen.getByText("Original warnings · 51"));
+  const intervalRequests = () =>
+    fetch.mock.calls.filter(([url]) => url.includes("/interval?")).length;
+  const before = intervalRequests();
+  const explanation = screen.getByRole("article", {
+    name: "Incident explanation",
+  });
+  const warnings = screen
+    .getByText("Original warnings · 51")
+    .closest("details");
+  const originalFetch = fetch.getMockImplementation();
+  let finishPage;
+  fetch.mockImplementation((url, ...args) =>
+    url.includes("member_offset=50")
+      ? new Promise((resolve) => {
+          finishPage = () => resolve(originalFetch(url, ...args));
+        })
+      : originalFetch(url, ...args),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Next warnings" }));
+  await waitFor(() => expect(finishPage).toBeDefined());
+  expect(screen.getByRole("article", { name: "Incident explanation" })).toBe(
+    explanation,
+  );
+  expect(warnings).toHaveAttribute("open");
+  await act(async () => finishPage());
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Previous warnings" }),
+    ).toBeEnabled(),
+  );
+  expect(screen.getByRole("slider")).toHaveValue("3");
+  expect(screen.getByRole("slider")).toHaveAttribute("max", "4");
+  expect(screen.getByLabelText("Interval end seconds")).toHaveValue(3.5);
+  expect(screen.getByLabelText("Signal 1")).toHaveValue("1");
+  expect(intervalRequests()).toBe(before);
+  expect(warnings).toHaveAttribute("open");
+
+  const metadataRequests = () =>
+    fetch.mock.calls.filter(([url]) => url.endsWith("/investigations/a"))
+      .length;
+  const beforeReturn = metadataRequests();
+  rerender(<RecordingInvestigation apiUrl="" active={false} datasetId="a" />);
+  rerender(<RecordingInvestigation apiUrl="" active datasetId="a" />);
+  await waitFor(() => expect(metadataRequests()).toBe(beforeReturn + 1));
+  expect(screen.getByRole("slider")).toHaveValue("3");
+  expect(screen.getByLabelText("Interval end seconds")).toHaveValue(3.5);
+  expect(screen.getByLabelText("Signal 1")).toHaveValue("1");
+  expect(
+    screen.getByRole("button", { name: "Previous warnings" }),
+  ).toBeEnabled();
+  expect(intervalRequests()).toBe(before);
+});
+
+it("resets retained context when the analysis changes while away", async () => {
+  const { m } = mockPagedRecording();
+  const { rerender } = render(
+    <RecordingInvestigation apiUrl="" active datasetId="a" />,
+  );
+  fireEvent.click(
+    await screen.findByRole("button", { name: /Paged image warning/ }),
+  );
+  await waitFor(() =>
+    expect(screen.getByRole("slider")).toHaveAttribute("max", "4"),
+  );
+  fireEvent.change(screen.getByRole("slider"), { target: { value: "3" } });
+  rerender(<RecordingInvestigation apiUrl="" active={false} datasetId="a" />);
+  m.analysis_id = "new-analysis";
+  rerender(<RecordingInvestigation apiUrl="" active datasetId="a" />);
+  await waitFor(() =>
+    expect(screen.getByRole("slider")).toHaveAttribute("max", "10"),
+  );
+  expect(screen.getByRole("slider")).toHaveValue("0");
+  expect(
+    screen.queryByRole("article", { name: "Incident explanation" }),
+  ).not.toBeInTheDocument();
+});
+
+it("removes retained evidence if revalidation reports it stale", async () => {
+  const { fetch } = mockPagedRecording();
+  const { rerender } = render(
+    <RecordingInvestigation apiUrl="" active datasetId="a" />,
+  );
+  await screen.findByRole("slider");
+  rerender(<RecordingInvestigation apiUrl="" active={false} datasetId="a" />);
+  const original = fetch.getMockImplementation();
+  fetch.mockImplementation(async (url) =>
+    url.endsWith("/investigations/a")
+      ? { ok: false, json: async () => ({ detail: "Evidence is stale" }) }
+      : original(url),
+  );
+  rerender(<RecordingInvestigation apiUrl="" active datasetId="a" />);
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Evidence is stale",
+  );
+  expect(screen.queryByRole("slider")).not.toBeInTheDocument();
+});
